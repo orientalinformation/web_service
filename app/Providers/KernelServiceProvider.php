@@ -15,7 +15,7 @@ class KernelServiceProvider extends ServiceProvider
     {
 
         $this->app->singleton(\App\Kernel\KernelService::class, function ($app) {
-            return new \App\Kernel\KernelService();
+            return new \App\Kernel\KernelService($app);
         });
     }
 

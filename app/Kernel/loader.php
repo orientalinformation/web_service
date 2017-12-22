@@ -1,7 +1,8 @@
 <?php
 set_include_path(get_include_path() . PATH_SEPARATOR . '/opt/Ice-3.7.0/php');
-
 require_once 'Ice.php';
+
+require_once __DIR__ . '/defines.php';
 require_once __DIR__ . '/lib/IBrainCalculator.php';
 require_once __DIR__ . '/lib/IComponentBuilder.php';
 require_once __DIR__ . '/lib/ICryoRunning.php';

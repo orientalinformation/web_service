@@ -59,6 +59,11 @@ class Component extends Model
     protected $primaryKey = 'ID_COMP';
 
     /**
+     * @var string
+     */
+    protected $dateFormat = 'Y-m-d H:i:s';
+
+    /**
      * Indicates if the model should be timestamped.
      * 
      * @var bool

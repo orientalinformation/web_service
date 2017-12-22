@@ -79,6 +79,29 @@ $router->GET('/api/v1/studies/{id}/open', 'Api1\\Studies@openStudy');
 $router->GET('/api/v1/productions/{id}', 'Api1\\Productions@getProductionById');
 
 /**
+ * GET getProductById
+ * Summary: 
+ * Notes: get product by id
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/products/{id}', 'Api1\\Products@getProductById');
+/**
+ * PUT appendElementsToProduct
+ * Summary: 
+ * Notes: append elements to product
+ * Output-Formats: [application/json]
+ */
+$router->PUT('/api/v1/products/{id}/elements', 'Api1\\Products@appendElementsToProduct');
+
+/**
+ * GET getElementsByProductId
+ * Summary: 
+ * Notes: get elements of a products
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/products/{id}/elements', 'Api1\\Products@getElementsByProductId');
+
+/**
  * GET getEquipments
  * Summary: 
  * Notes: get all available equipments
@@ -106,3 +129,311 @@ $router->GET('/api/v1/packingElements', 'Api1\\PackingElements@findPackingElemen
  * Output-Formats: [application/json]
  */
 $router->GET('/api/v1/shapes', 'Api1\\Shapes@getShapes');
+
+/**
+ * GET findComponents
+ * Summary: 
+ * Notes: find available components by filter
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/components', 'Api1\\Components@findComponents');
+
+/**
+ * GET getStudyEquipments
+ * Summary: 
+ * Notes: 
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/studies/{id}/equipments', 'Api1\\Studies@getStudyEquipments');
+
+/**
+ * GET getProductViewModel
+ * Summary: 
+ * Notes: get product view model
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/products/{id}/view', 'Api1\\Products@getProductViewModel');
+
+/**
+ *  * GET headBalanceOptimum
+ * Summary: 
+ * Notes: get head balance optimum result
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/optimum/headBalance/{idStudy}', 'Api1\\Output@getOptimumHeadBalance');
+
+
+/**
+ * GET headBalanceMaxOptimum
+ * Summary: 
+ * Notes: get head balance optimum max result
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/optimum/headBalanceMax/{idStudy}', 'Api1\\Output@getOptimumHeadBalanceMax');
+
+/**
+ * GET EquipSizing
+ * Summary: 
+ * Notes: get study equipment equip sizing
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/optimum/equipSizing/{idStudyEquipment}', 'Api1\\Output@getEquipSizing');
+
+/**
+ * GET headBalanceEstimation
+ * Summary: 
+ * Notes: get head balance estimation result
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/estimation/headBalance/{idStudy}', 'Api1\\Output@getEstimationHeadBalance');
+
+/**
+ * GET AnalyticalConsumptionResult
+ * Summary: 
+ * Notes: get analytical consumption result
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/common/consumption/{idStudy}', 'Api1\\Output@getAnalyticalConsumption');
+
+/**
+ * GETAnalyticalEconomicResult
+ * Summary: 
+ * Notes: get analytical economic result
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/common/economic/{idStudy}', 'Api1\\Output@getAnalyticalEconomic');
+
+/**
+ * DELETE removeProductElement
+ * Summary: 
+ * Notes: remove a product element
+ * Output-Formats: [application/json]
+ */
+$router->DELETE('/api/v1/products/{id}/elements', 'Api1\\Products@removeProductElement');
+
+/**
+ * GET productElementMoveDown
+ * Summary: 
+ * Notes: move a product element down
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/productElmts/{id}/movedown', 'Api1\\ProductElements@productElementMoveDown');
+
+/**
+ * GET productElementMoveUp
+ * Summary: 
+ * Notes: move a product element up
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/productElmts/{id}/moveup', 'Api1\\ProductElements@productElementMoveUp');
+
+/**
+ * PUT newProduct
+ * Summary: 
+ * Notes: 
+ * Output-Formats: [application/json]
+ */
+$router->PUT('/api/v1/studies/{id}/product', 'Api1\\Studies@newProduct');
+
+/**
+ * POST updateProduct
+ * Summary: 
+ * Notes: update a product
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/studies/{id}/product', 'Api1\\Studies@updateProduct');
+
+/**
+ * GET findPackingLayers
+ * Summary: 
+ * Notes: get packing layers
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/packingLayers', 'Api1\\Packings@findPackingLayers');
+
+/**
+ * GET getMeshParamDefByIdUser
+ * Summary: 
+ * Notes: get available MeshParamDef by filter
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/meshparamdef', 'Api1\\Settings@getMyMeshParamDef');
+
+/**
+ * PUT saveMeshParamDefByIdUser
+ * Summary: 
+ * Notes: 	
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/savemeshparamdef', 'Api1\\Settings@saveMyMeshParamDef');
+
+/**
+ * GET getTempRecordPtsDefByIdUser
+ * Summary: 
+ * Notes: get available MeshParamDef by filter	
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/temprecordptsdef', 'Api1\\Settings@getMyTempRecordPtsDef');
+
+/**
+ * POST saveMyTempRecordPtsDef
+ * Summary: 
+ * Notes: save TempRecordPtsDef by id
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/savetemprecordptsdef', 'Api1\\Settings@saveMyTempRecordPtsDef');
+
+/**
+ * GET getCalculationParametersDefByIdUser
+ * Summary: 
+ * Notes: get available CalculationParametersDef by filter
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/calculationparametersdef', 'Api1\\Settings@getMyCalculationParametersDef');
+
+/**
+ * POST savecalculationparametersdef
+ * Summary: 
+ * Notes: 
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/savecalculationparametersdef', 'Api1\\Settings@saveMyCalculationParametersDef');
+
+/**
+ * GET CheckControl View
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/checkcontrolview', 'Api1\\CheckControl@checkControlView');
+
+/**
+ * GET CheckControl
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/checkcontrol', 'Api1\\CheckControl@checkControl');
+
+
+/**
+ * GET getSymbol
+ * Summary: 
+ * Notes: get symbol study
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/symbol/{idStudy}', 'Api1\\Output@getSymbol');
+
+/**
+ * GET getProInfoStudy
+ * Summary: 
+ * Notes: product production study
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/proInfoStudy/{idStudy}', 'Api1\\Output@getProInfoStudy');
+
+
+/**
+ *  * GET headBalanceOptimum
+ * Summary: 
+ * Notes: get head balance optimum result
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/optimum/headBalance/{idStudy}', 'Api1\\Output@getOptimumHeadBalance');
+
+
+/**
+ * GET headBalanceMaxOptimum
+ * Summary: 
+ * Notes: get head balance optimum max result
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/optimum/headBalanceMax/{idStudy}', 'Api1\\Output@getOptimumHeadBalanceMax');
+
+/**
+ * GET EquipSizing
+ * Summary: 
+ * Notes: get study equipment equip sizing
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/optimum/equipSizing/{idStudyEquipment}', 'Api1\\Output@getEquipSizing');
+
+/**
+ * GET temperatureCalculation
+ * Summary: 
+ * Notes: gettemperature calulation data
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/estimation/trCalculate/{idStudyEquipment}', 'Api1\\Output@temperatureCalculation');
+
+/**
+ * GET viewEquipTr
+ * Summary: 
+ * Notes: view Equipment Temperature
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/estimation/viewEquipTr/{idStudyEquipment}', 'Api1\\Output@viewEquipTr');
+
+/**
+ * GET getEstimationHeadBalance
+ * Summary: 
+ * Notes: get head balance estimation result
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/estimation/headBalance', 'Api1\\Output@getEstimationHeadBalance');
+
+/**
+ * GET AnalyticalConsumptionResult
+ * Summary: 
+ * Notes: get analytical consumption result
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/common/consumption/{idStudy}', 'Api1\\Output@getAnalyticalConsumption');
+
+/**
+ * GETAnalyticalEconomicResult
+ * Summary: 
+ * Notes: get analytical economic result
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/common/economic/{idStudy}', 'Api1\\Output@getAnalyticalEconomic');
+
+/**
+ * GET StudyEquipments
+ * Summary: 
+ * Notes: get study equipment by id
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/studyEquipment/{id}', 'Api1\\StudyEquipments@getStudyEquipmentById');
+
+/**
+ * GET optimumcalculator
+ * Summary: 
+ * Notes: get head balance result/products/{id}/packingLayers
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/optimumcalculator', 'Api1\\Calculator@getOptimumCalculator');
+
+/**
+ * GET StudyPackingLayers
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/studies/{id}/packingLayers', 'Api1\\Studies@getStudyPackingLayers');
+
+/**
+ * POST savePacking
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/studies/{id}/packingLayers', 'Api1\\Studies@savePacking');
+
+/**
+ * GET getMeshView
+ * Summary: 
+ * Notes: 
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/products/{id}/meshView', 'Api1\\Products@getMeshView');

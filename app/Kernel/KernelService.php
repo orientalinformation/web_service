@@ -38,7 +38,7 @@ class KernelService
             $idUser, $idStudy, $idTmp, $connectToDB, $initTrace
         );
     }
-
+    
    function __destruct()
    {
         if($this->ic) {

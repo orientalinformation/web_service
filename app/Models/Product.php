@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property mixed $PROD_WEIGHT
  * @property mixed $PROD_REALWEIGHT
  * @property mixed $PROD_VOLUME
- * @property-read Study $studies
+ * @property-read Studies $studies
  * @property-read MeshGeneration[] $meshGenerations
  * @property-read ProdcharColors[] $prodcharColors
  * @property-read ProductElmt[] $productElmts
@@ -49,7 +49,7 @@ class Product extends Model
      */
     public function studies()
     {
-        return $this->belongsTo('App\\Models\\Study', 'ID_STUDY', 'ID_STUDY');
+        return $this->belongsTo('\\App\\Models\\Study', 'ID_STUDY', 'ID_STUDY');
     }
 
     /**
@@ -57,7 +57,7 @@ class Product extends Model
      */
     public function meshGenerations()
     {
-        return $this->hasMany('App\\Models\\MeshGeneration', 'ID_PROD', 'ID_PROD');
+        return $this->hasMany('\\App\\Models\\MeshGeneration', 'ID_PROD', 'ID_PROD');
     }
 
     /**
@@ -65,7 +65,7 @@ class Product extends Model
      */
     public function prodcharColors()
     {
-        return $this->hasMany('App\\Models\\ProdcharColors', 'ID_PROD', 'ID_PROD');
+        return $this->hasMany('\\App\\Models\\ProdcharColors', 'ID_PROD', 'ID_PROD');
     }
 
     /**
@@ -73,6 +73,6 @@ class Product extends Model
      */
     public function productElmts()
     {
-        return $this->hasMany('App\\Models\\ProductElmt', 'ID_PROD', 'ID_PROD');
+        return $this->hasMany('\\App\\Models\\ProductElmt', 'ID_PROD', 'ID_PROD');
     }
 }

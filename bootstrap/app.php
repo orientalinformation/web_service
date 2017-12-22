@@ -90,12 +90,13 @@ $app->register(App\Providers\AppServiceProvider::class);
 $app->register(App\Providers\EventServiceProvider::class);
 $app->register(App\Providers\AuthServiceProvider::class);
 
-$app->register(App\Providers\KernelServiceProvider::class);
 
 $app->register(Sofa\Eloquence\BaseServiceProvider::class);
 $app->register(Nord\Lumen\Cors\CorsServiceProvider::class);
 $app->register(Tymon\JWTAuth\Providers\LumenServiceProvider::class);
 
+$app->register(\App\Providers\KernelServiceProvider::class);
+$app->register(\App\Providers\CryosoftServiceProvider::class);
 
 if ($app->environment('local')) {
     $app->register(Krlove\EloquentModelGenerator\Provider\GeneratorServiceProvider::class);
@@ -119,14 +120,15 @@ if ($app->environment('local')) {
 $app->router->group([
     'namespace' => 'App\Http\Controllers',
 ], function ($router) {
-    require __DIR__.'/../routes/auth.php';
+    require dirname(__DIR__).'/routes/auth.php';
+    require dirname(__DIR__).'/routes/translations.php';
 });
 
 $app->router->group([
     'middleware' => 'auth',
     'namespace' => 'App\Http\Controllers',
 ], function ($router) {
-    require __DIR__.'/../routes/api.php';
+    require dirname(__DIR__).'/routes/api.php';
 });
 
 return $app;

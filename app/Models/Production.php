@@ -17,7 +17,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property mixed $AVG_T_DESIRED
  * @property mixed $AVG_T_INITIAL
  * @property mixed $APPROX_DWELLING_TIME
- * @property-read Study $studies
+ * @property-read Study $study
  * @property-read InitialTemperature[] $initialTemperatures
  */
 class Production extends Model
@@ -49,7 +49,7 @@ class Production extends Model
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function studies()
+    public function study()
     {
         return $this->belongsTo('App\\Models\\Study', 'ID_STUDY', 'ID_STUDY');
     }

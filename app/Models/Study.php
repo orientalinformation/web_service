@@ -3,6 +3,9 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Sofa\Eloquence\Eloquence; // base trait
+use Sofa\Eloquence\Mappable; // extension trait
+
 
 /**
  * @property int $ID_STUDY
@@ -47,15 +50,26 @@ use Illuminate\Database\Eloquent\Model;
  */
 class Study extends Model
 {
+     use Eloquence, Mappable;
+
     /**
      * @var array
      */
-    protected $fillable = ['ID_STUDY', 'ID_TEMP_RECORD_PTS', 'ID_PRODUCTION', 'ID_PACKING', 'ID_STUDY_RESULTS', 'ID_PROD', 'ID_USER', 'ID_PRICE', 'ID_HAVERAGE_RESULTS', 'ID_REPORT', 'ID_PRECALC_LDG_RATE_PRM', 'CALCULATION_MODE', 'CALCULATION_STATUS', 'STUDY_NAME', 'CUSTOMER', 'COMMENT_TXT', 'OPTION_CRYOPIPELINE', 'OPTION_EXHAUSTPIPELINE', 'OPTION_ECO', 'CHAINING_CONTROLS', 'CHAINING_ADD_COMP_ENABLE', 'CHAINING_NODE_DECIM_ENABLE', 'TO_RECALCULATE', 'PARENT_ID', 'PARENT_STUD_EQP_ID', 'HAS_CHILD', 'OPEN_BY_OWNER'];
+    protected $fillable = ['ID_STUDY', 'ID_TEMP_RECORD_PTS', 'ID_PRODUCTION', 'ID_PACKING', 
+    'ID_STUDY_RESULTS', 'ID_PROD', 'ID_USER', 'ID_PRICE', 'ID_HAVERAGE_RESULTS', 'ID_REPORT', 
+    'ID_PRECALC_LDG_RATE_PRM', 'CALCULATION_MODE', 'CALCULATION_STATUS', 'STUDY_NAME', 'CUSTOMER', 
+    'COMMENT_TXT', 'OPTION_CRYOPIPELINE', 'OPTION_EXHAUSTPIPELINE', 'OPTION_ECO', 'CHAINING_CONTROLS', 
+    'CHAINING_ADD_COMP_ENABLE', 'CHAINING_NODE_DECIM_ENABLE', 'TO_RECALCULATE', 'PARENT_ID', 
+    'PARENT_STUD_EQP_ID', 'HAS_CHILD', 'OPEN_BY_OWNER'];
 
     /**
      * @var string
      */
     protected $primaryKey = 'ID_STUDY';
+
+    protected $hidden = [
+        'user'
+    ];
 
     /**
      * Indicates if the model should be timestamped.
@@ -63,6 +77,12 @@ class Study extends Model
      * @var bool
      */
     public $timestamps = false;
+
+    protected $maps = [
+      'user' => ['USERNAM']
+    ];
+
+    protected $appends = ['USERNAM'];
 
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
@@ -141,7 +161,7 @@ class Study extends Model
      */
     public function studyEquipments()
     {
-        return $this->hasMany('App\\Models\\StudyEquipments', 'ID_STUDY', 'ID_STUDY');
+        return $this->hasMany('App\\Models\\StudyEquipment', 'ID_STUDY', 'ID_STUDY');
     }
 
     /**

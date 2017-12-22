@@ -52,6 +52,6 @@ namespace Cryosoft\WeightCalculator
 
     $Cryosoft_WeightCalculator__t_IWeightCalculatorPrx = IcePHP_defineProxy('::Cryosoft::WeightCalculator::IWeightCalculator', $Ice__t_ObjectPrx, null);
 
-    IcePHP_defineOperation($Cryosoft_WeightCalculator__t_IWeightCalculatorPrx, 'WCWeightCalculation', 0, 0, 0, array(array($Cryosoft__t_stSKConf), array($IcePHP__t_int)), null, array($IcePHP__t_long), null);
+    IcePHP_defineOperation($Cryosoft_WeightCalculator__t_IWeightCalculatorPrx, 'WCWeightCalculation', 0, 0, 0, array(array($IcePHP__t_long), array($Cryosoft__t_stSKConf), array($IcePHP__t_int)), null, array($IcePHP__t_long), null);
 }
 ?>

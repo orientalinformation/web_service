@@ -12,7 +12,8 @@
         "tymon/jwt-auth": "^1.0@dev",
         "laravelista/lumen-vendor-publish": "^2.1",
         "sofa/eloquence-mappable": "^5.5",
-        "phpsysinfo/phpsysinfo": "^3.2"
+        "phpsysinfo/phpsysinfo": "^3.2",
+        "sofa/eloquence-mutable": "^5.5"
     },
     "require-dev": {
         "fzaninotto/faker": "~1.4",

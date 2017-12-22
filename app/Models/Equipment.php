@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Sofa\Eloquence\Eloquence; // base trait
+use Sofa\Eloquence\Mappable; // extension trait
 
 /**
  * @property int $ID_EQUIP
@@ -57,6 +59,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class Equipment extends Model
 {
+    use Eloquence, Mappable;
+
     /**
      * @var array
      */
@@ -75,7 +79,7 @@ class Equipment extends Model
     /**
      * @var array
      */
-    protected $hidden = ['DLL_IDX', 'FATHER_DLL_IDX'];
+    protected $hidden = ['DLL_IDX', 'FATHER_DLL_IDX', 'equipseries'];
 
     /**
      * @var array
@@ -98,6 +102,12 @@ class Equipment extends Model
      * @var bool
      */
     public $timestamps = false;
+
+    protected $maps = [
+      'equipseries' => ['SERIES_NAME', 'BATCH_PROCESS']
+    ];
+
+    protected $appends = ['SERIES_NAME', 'BATCH_PROCESS'];
 
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
