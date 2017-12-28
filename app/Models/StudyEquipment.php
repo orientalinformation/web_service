@@ -76,10 +76,10 @@ class StudyEquipment extends Model
     public $timestamps = false;
 
     protected $maps = [
-      'equipment' => ['ID_COOLING_FAMILY', 'EQUIP_NAME', 'CAPABILITIES', 'MODUL_LENGTH', 'EQP_LENGTH', 'EQP_WIDTH', 'EQUIP_VERSION', 'STDEQP_LENGTH', 'STDEQP_WIDTH', 'STD', 'ITEM_TR', 'SERIES_NAME', 'BATCH_PROCESS']
+      'equipment' => ['ID_COOLING_FAMILY', 'EQUIP_NAME', 'CAPABILITIES', 'MODUL_LENGTH', 'EQP_LENGTH', 'EQP_WIDTH', 'EQUIP_VERSION', 'STDEQP_LENGTH', 'STDEQP_WIDTH', 'STD', 'ITEM_TR', 'NB_TR', 'SERIES_NAME', 'BATCH_PROCESS']
     ];
 
-    protected $appends = ['ID_COOLING_FAMILY', 'EQUIP_NAME', 'CAPABILITIES', 'MODUL_LENGTH', 'EQP_LENGTH', 'EQP_WIDTH', 'EQUIP_VERSION', 'STDEQP_LENGTH', 'STDEQP_WIDTH', 'STD', 'ITEM_TR', 'SERIES_NAME', 'BATCH_PROCESS'];
+    protected $appends = ['ID_COOLING_FAMILY', 'EQUIP_NAME', 'CAPABILITIES', 'MODUL_LENGTH', 'EQP_LENGTH', 'EQP_WIDTH', 'EQUIP_VERSION', 'STDEQP_LENGTH', 'STDEQP_WIDTH', 'STD', 'ITEM_TR', 'NB_TR', 'SERIES_NAME', 'BATCH_PROCESS'];
 
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo

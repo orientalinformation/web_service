@@ -5,6 +5,7 @@ require_once 'Ice.php';
 require_once __DIR__ . '/defines.php';
 require_once __DIR__ . '/lib/IBrainCalculator.php';
 require_once __DIR__ . '/lib/IComponentBuilder.php';
+require_once __DIR__ . '/lib/IConsumptionCalculator.php';
 require_once __DIR__ . '/lib/ICryoRunning.php';
 require_once __DIR__ . '/lib/IDimMatCalculator.php';
 require_once __DIR__ . '/lib/IEconomicCalculator.php';

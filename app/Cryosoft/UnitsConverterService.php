@@ -68,6 +68,17 @@ class UnitsConverterService
         $unit = Unit::select("SYMBOL")->where("TYPE_UNIT", $this->value->CONV_SPEED_UNIT)->first();
         return $unit->SYMBOL;
     }
+
+    public function timePositionSymbol() 
+    {
+        $unit = Unit::select("SYMBOL")->where("TYPE_UNIT", $this->value->UNIT_TIME)->first();
+        return $unit->SYMBOL;
+    }
+
+    public function convectionCoeffSymbol() {
+        $unit = Unit::select("SYMBOL")->where("TYPE_UNIT", $this->value->CONV_COEFF)->first();
+        return $unit->SYMBOL;
+    }
     
     public function monetarySymbol() 
     {
@@ -233,6 +244,27 @@ class UnitsConverterService
     public function convectionSpeed($value) {
         $unit = Unit::select("COEFF_A", "COEFF_B")->where("TYPE_UNIT", $this->value->CONV_SPEED)->first();
         return $this->convertCalculator($value, $unit->COEFF_A, $unit->COEFF_B, 1);
+    }
+
+    public function timeUnit($value)
+    {
+        $unit = Unit::select("COEFF_A", "COEFF_B")->where("TYPE_UNIT", $this->value->TIME)->first();
+        return $this->convertCalculator($value, $unit->COEFF_A, $unit->COEFF_B, 1);
+    }
+
+    public function timePosition($value) {
+        $unit = Unit::select("COEFF_A", "COEFF_B")->where("TYPE_UNIT", $this->value->UNIT_TIME)->first();
+        return $this->convertCalculator($value, $unit->COEFF_A, $unit->COEFF_B, 3);
+    }
+
+    public function temperature($value) {
+        $unit = Unit::select("COEFF_A", "COEFF_B")->where("TYPE_UNIT", $this->value->TEMPERATURE)->first();
+        return $this->convertCalculator($value, $unit->COEFF_A, $unit->COEFF_B);
+    }
+
+    public function convectionCoeff($value) {
+        $unit = Unit::select("COEFF_A", "COEFF_B")->where("TYPE_UNIT", $this->value->CONV_COEFF)->first();
+        return $this->convertCalculator($value, $unit->COEFF_A, $unit->COEFF_B);
     }
 
     public function toc($value) 

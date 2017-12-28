@@ -151,7 +151,7 @@ class CheckControlService
 
 	public function isStdEquipmentChecked($idStudy) 
 	{
-		$studyEquipment = StudyEquipment::where('ID_STUDY', $idStudy);
+		$studyEquipment = StudyEquipment::where('ID_STUDY', $idStudy)->first();
 
 		if ($studyEquipment == null) {
 			return false;
@@ -187,11 +187,11 @@ class CheckControlService
 		        return false;
 		    }
 
-	    	$packing = Packing::where('ID_STUDY', $idStudy)->first();
+	    	//$packing = Packing::where('ID_STUDY', $idStudy)->first();
 
-			if ($packing == null) {
-				return false;
-			}
+			// if ($packing == null) {
+			// 	return false;
+			// }
 
 			return true;
 

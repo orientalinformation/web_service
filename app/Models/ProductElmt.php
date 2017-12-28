@@ -33,6 +33,8 @@ use Sofa\Eloquence\Mappable; // extension trait
  */
 class ProductElmt extends Model
 {
+    use Eloquence, Mappable;
+
     /**
      * The table associated with the model.
      * 

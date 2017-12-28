@@ -391,6 +391,22 @@ $router->GET('/api/v1/estimation/headBalance', 'Api1\\Output@getEstimationHeadBa
 $router->GET('/api/v1/common/consumption/{idStudy}', 'Api1\\Output@getAnalyticalConsumption');
 
 /**
+ * GET sizingOptimumResult
+ * Summary: 
+ * Notes: 
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/output/sizingresult/{idStudy}/optimum', 'Api1\\Output@sizingOptimumResult');
+
+/**
+ * GET temperatureProfile
+ * Summary: 
+ * Notes: 
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/output/temperatureProfile/{idStudyEquipment}', 'Api1\\Output@temperatureProfile');
+
+/**
  * GETAnalyticalEconomicResult
  * Summary: 
  * Notes: get analytical economic result
@@ -431,9 +447,22 @@ $router->GET('/api/v1/studies/{id}/packingLayers', 'Api1\\Studies@getStudyPackin
 $router->POST('/api/v1/studies/{id}/packingLayers', 'Api1\\Studies@savePacking');
 
 /**
- * GET getMeshView
+ * POST start caluclate
  * Summary: 
- * Notes: 
+ * Notes: get head balance result
  * Output-Formats: [application/json]
  */
-$router->GET('/api/v1/products/{id}/meshView', 'Api1\\Products@getMeshView');
+$router->POST('/api/v1/startcalculate', 'Api1\\Calculator@startCalculate');
+
+/**
+ * GET start Estimation
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/studies/{id}/calculate', 'Api1\\Calculator@startStudyCalculation');
+
+
+include_once("api_ngonc.php");
+include_once("api_dongtp.php");
+include_once("api_thaolt.php");

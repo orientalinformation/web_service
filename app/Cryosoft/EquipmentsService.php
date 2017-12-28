@@ -8,6 +8,7 @@ use App\Models\Unit;
 use App\Models\StudyEquipment;
 use App\Models\Study;
 use App\Models\StudEqpPrm;
+use App\Models\MinMax;
 
 
 class EquipmentsService
@@ -112,6 +113,32 @@ class EquipmentsService
     public function getStudEqpPrm($idStudyEquipment, $dataType)
     {
         return StudEqpPrm::where("ID_STUDY_EQUIPMENTS", $idStudyEquipment)->where("VALUE_TYPE", ">=", $dataType)->where("VALUE_TYPE", "<", $dataType + 100)->orderBy("VALUE_TYPE", "ASC")->get();
+    }
+
+    public function isValidTemperature($idStudyEquipment, $selectTr)
+    {
+        $bisValid = true;
+        $studyEquipment = StudyEquipment::where("ID_STUDY_EQUIPMENTS", $idStudyEquipment)->first();
+        $studEqpPrm = $this->getStudEqpPrm($idStudyEquipment, 300);
+        $itemTr = $studyEquipment->ITEM_TR;
+        $minMax = MinMax::where("LIMIT_ITEM", $itemTr)->first();
+
+        if (count($studEqpPrm) == 1) {
+            $lfTr = $studEqpPrm[0]->VALUE;
+            if ($selectTr == 2) {           
+                if ($lfTr <= $minMax->LIMIT_MIN) {
+                  $bisValid = false;
+                }
+            } else if ($selectTr == 0) {
+                if ($lfTr >= $minMax->LIMIT_MAX) {
+                  $bisValid = false;
+                }
+            }
+        } else {
+          $bisValid = false;
+        }
+
+        return $bisValid;       
     }
     
 }

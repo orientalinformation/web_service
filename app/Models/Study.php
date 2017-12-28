@@ -62,6 +62,32 @@ class Study extends Model
     'CHAINING_ADD_COMP_ENABLE', 'CHAINING_NODE_DECIM_ENABLE', 'TO_RECALCULATE', 'PARENT_ID', 
     'PARENT_STUD_EQP_ID', 'HAS_CHILD', 'OPEN_BY_OWNER'];
 
+    protected $casts = [
+        'OPTION_CRYOPIPELINE' => 'integer',
+        'OPTION_EXHAUSTPIPELINE' => 'integer',
+        'OPTION_ECO' => 'integer',
+        'CHAINING_ADD_COMP_ENABLE' => 'integer',
+        'CHAINING_CONTROLS' => 'integer',
+        'CALCULATION_MODE' => 'integer',
+        'CALCULATION_STATUS' => 'integer',
+        'HAS_CHILD' => 'integer',
+        'ID_HAVERAGE_RESULTS' => 'integer',
+        'ID_PACKING' => 'integer',
+        'ID_PRECALC_LDG_RATE_PRM' => 'integer',
+        'ID_PRICE' => 'integer',
+        'ID_PROD' => 'integer',
+        'ID_PRODUCTION' => 'integer',
+        'ID_REPORT' => 'integer',
+        'ID_STUDY' => 'integer',
+        'ID_STUDY_RESULTS' => 'integer',
+        'ID_TEMP_RECORD_PTS' => 'integer',
+        'ID_USER' => 'integer',
+        'OPEN_BY_OWNER' => 'integer',
+        'PARENT_ID' => 'integer',
+        'PARENT_STUD_EQP_ID' => 'integer',
+        'TO_RECALCULATE' => 'integer',
+    ];
+
     /**
      * @var string
      */

@@ -43,7 +43,7 @@ class PackingElmt extends Model
     /**
      * @var string
      */
-    protected $dateFormat = 'Y-m-d H:i:s';
+    protected $dateFormat = 'Y-m-d H:i:s.u';
 
     /**
      * Indicates if the model should be timestamped.

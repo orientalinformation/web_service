@@ -33,6 +33,8 @@ class ValueListService
     public $CONSUM_MAINTIEN = 31;
     public $CONSUM_MEF = 34;
     public $MESH_CUT = 20;
+    public $UNIT_TIME = 5;
+    public $CONV_COEFF = 14;
 
     //brand mode
     public $BRAIN_MODE_ESTIMATION = 1;
