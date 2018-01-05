@@ -74,8 +74,6 @@ class Equipment extends Model
         // ,'DLL_IDX', 'FATHER_DLL_IDX'
         ];
     
-    
-
     /**
      * @var array
      */
@@ -94,7 +92,7 @@ class Equipment extends Model
     /**
      * @var string
      */
-    protected $dateFormat = 'Y-m-d H:i:s';
+    protected $dateFormat = 'Y-m-d H:i:s.u';
 
     /**
      * Indicates if the model should be timestamped.
@@ -108,6 +106,16 @@ class Equipment extends Model
     ];
 
     protected $appends = ['SERIES_NAME', 'BATCH_PROCESS'];
+
+    /**
+     * @var array
+     */
+    protected $casts = [
+        'ID_EQUIP'      => 'integer',
+        'EQP_LENGTH'    => 'real',
+        'EQP_WIDTH'     => 'real',
+        'EQP_HEIGHT'    => 'real',
+    ];
 
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api1;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\Auth\Factory as Auth;
+use Illuminate\Support\Facades\DB;
 
 use App\Models\Study;
 use App\Models\StudyEquipment;
@@ -16,6 +17,8 @@ use App\Models\StudEqpPrm;
 use App\Models\MinMax;
 use App\Models\StudEquipprofile;
 use App\Models\RecordPosition;
+use App\Models\TempRecordPts;
+use App\Models\TempRecordData;
 
 use App\Cryosoft\ValueListService;
 use App\Cryosoft\UnitsConverterService;
@@ -23,6 +26,7 @@ use App\Cryosoft\EquipmentsService;
 use App\Cryosoft\DimaResultsService;
 use App\Cryosoft\EconomicResultsService;
 use App\Cryosoft\StudyService;
+use App\Cryosoft\OutputService;
 
 
 
@@ -45,7 +49,7 @@ class Output extends Controller
      *
      * @return void
      */
-    public function __construct(Request $request, Auth $auth, UnitsConverterService $unit, EquipmentsService $equip, DimaResultsService $dima, ValueListService $value, EconomicResultsService $eco, StudyService $study)
+    public function __construct(Request $request, Auth $auth, UnitsConverterService $unit, EquipmentsService $equip, DimaResultsService $dima, ValueListService $value, EconomicResultsService $eco, StudyService $study, OutputService $output)
     {
         $this->request = $request;
         $this->auth = $auth;
@@ -55,13 +59,14 @@ class Output extends Controller
         $this->value = $value;
         $this->eco = $eco;
         $this->study = $study;
+        $this->output = $output;
     }
 
     public function getSymbol($idStudy)
     {
         $productFlowSymbol = $this->unit->productFlowSymbol();
         $massSymbol = $this->unit->massSymbol();
-        $temperatureSymbol = mb_convert_encoding($this->unit->temperatureSymbol(), "UTF-8", "ISO-8859-1");
+        $temperatureSymbol = $this->unit->temperatureSymbol();
         $timeSymbol = $this->unit->timeSymbol();
         $perUnitOfMassSymbol = $this->unit->perUnitOfMassSymbol();
         $enthalpySymbol = $this->unit->enthalpySymbol();
@@ -757,14 +762,11 @@ class Output extends Controller
         $studyEquipments = StudyEquipment::where("ID_STUDY", $idStudy)->orderBy("ID_STUDY_EQUIPMENTS", "ASC")->get();
         $production = Production::where("ID_STUDY", $idStudy)->first();
 
-        $customFlowRate = $this->unit->productFlow($production->PROD_FLOW_RATE);
-
         $lfcoef = $this->unit->unitConvert($this->value->MASS_PER_UNIT, 1.0);
         $result = array();
         $selectedEquipment =  array();
         $availableEquipment = array(); 
         $dataGrapChart = array();
-        $dataTemProfileChart = array();
 
         //get result
         foreach ($studyEquipments as $row) {
@@ -946,6 +948,7 @@ class Output extends Controller
 
         if (!empty($selectedEquipment)) {
             foreach ($selectedEquipment as $row) {
+                $itemChart["id"] = $row["id"];
                 $itemChart["equipName"] = $row["equipName"];
                 $dhpChart = $row["dhp"];
                 $consoChart = $row["conso"];
@@ -981,7 +984,7 @@ class Output extends Controller
             }
         }
 
-        return compact("result", "selectedEquipment", "availableEquipment", "customFlowRate", "dataGrapChart", "dataTemProfileChart");
+        return compact("result", "selectedEquipment", "availableEquipment", "dataGrapChart");
     }
 
     public function sizingEstimationResult() 
@@ -1335,5 +1338,116 @@ class Output extends Controller
             return compact("minScaleTemp", "maxScaleTemp", "minScaleConv", "maxScaleConv", "tempChartData", "convChartData");
 
         }
+    }
+    
+
+    public function heatExchange() 
+    {
+        $idStudy = $this->request->input('idStudy');
+        $idStudyEquipment = $this->request->input('idStudyEquipment');
+        $listRecordPos = RecordPosition::where("ID_STUDY_EQUIPMENTS", $idStudyEquipment)->orderBy("RECORD_TIME", "ASC")->get();
+
+        $curve = array();
+        $result = array();
+        foreach ($listRecordPos as $row) {
+
+            $item["x"] = $this->unit->time($row->RECORD_TIME);
+            $item["y"] = $this->unit->enthalpy($row->AVERAGE_ENTH_VAR);
+
+            $curve[] = $item;
+        }
+
+        $nbSteps = TempRecordPts::where("ID_STUDY", $idStudy)->first();
+        $nbSample = $nbSteps->NB_STEPS;
+
+        $nbRecord = count($listRecordPos);
+
+        $lfTS = $listRecordPos[$nbRecord - 1]->RECORD_TIME;
+        $lfStep = $listRecordPos[1]->RECORD_TIME - $listRecordPos[0]->RECORD_TIME;
+        $lEchantillon = $this->output->calculateEchantillon($nbSample, $nbRecord, $lfTS, $lfStep);
+
+        foreach ($lEchantillon as $row) {
+
+            $recordPos = $listRecordPos[$row];
+
+            $itemResult["x"] = $this->unit->time($recordPos->RECORD_TIME);
+            $itemResult["y"] = $this->unit->enthalpy($recordPos->AVERAGE_ENTH_VAR);
+
+            $result[] = $itemResult;
+        }
+
+        return compact("result", "curve");
+    }
+
+    public function timeBased()
+    {
+        $idStudy = $this->request->input('idStudy');
+        $idStudyEquipment = $this->request->input('idStudyEquipment');
+
+        $listRecordPos = RecordPosition::where("ID_STUDY_EQUIPMENTS", $idStudyEquipment)->get();
+        $result = array();
+        $label = array();
+        $curve = array();
+
+        if (count($listRecordPos) > 0) {
+            foreach ($listRecordPos as $row) {
+                $termRecordDataTop = $this->output->getTemperaturePosition($row->ID_REC_POS, (int) $row->AXIS1_PT_TOP_SURF, (int) $row->AXIS2_PT_TOP_SURF);
+                $termRecordDataInt = $this->output->getTemperaturePosition($row->ID_REC_POS, (int) $row->AXIS1_PT_INT_PT, (int) $row->AXIS2_PT_INT_PT);
+                $termRecordDataBot = $this->output->getTemperaturePosition($row->ID_REC_POS, (int) $row->AXIS1_PT_BOT_SURF, (int) $row->AXIS2_PT_BOT_SURF);
+
+                $itemCurveTop["x"] = $this->unit->time($row->RECORD_TIME);
+                $itemCurveTop["y"] = $this->unit->prodTemperature($termRecordDataTop->TEMP);
+
+                $itemCurveInt["x"] = $this->unit->time($row->RECORD_TIME);
+                $itemCurveInt["y"] = $this->unit->prodTemperature($termRecordDataInt->TEMP);
+
+                $itemCurveBotom["x"] = $this->unit->time($row->RECORD_TIME);
+                $itemCurveBotom["y"] = $this->unit->prodTemperature($termRecordDataBot->TEMP);
+
+                $itemCurveAverage["x"] = $this->unit->time($row->RECORD_TIME);
+                $itemCurveAverage["y"] = $this->unit->prodTemperature($row->AVERAGE_TEMP);
+
+                $curve["top"][] = $itemCurveTop;
+                $curve["int"][] = $itemCurveInt;
+                $curve["bot"][] = $itemCurveBotom;
+                $curve["average"][] = $itemCurveAverage;
+            }
+            $tempRecordPts = TempRecordPts::where("ID_STUDY", $idStudy)->first();
+            $nbSample = $tempRecordPts->NB_STEPS;
+
+            $nbRecord = count($listRecordPos);
+
+            $lfTS = $listRecordPos[$nbRecord - 1]->RECORD_TIME;
+            $lfStep = $listRecordPos[1]->RECORD_TIME - $listRecordPos[0]->RECORD_TIME;
+            $lEchantillon = $this->output->calculateEchantillon($nbSample, $nbRecord, $lfTS, $lfStep);
+
+            foreach ($lEchantillon as $row) {
+                $recordPos = $listRecordPos[$row];
+                $item["points"] = $this->unit->time($recordPos->RECORD_TIME);
+
+                //top
+                $termRecordDataTop = $this->output->getTemperaturePosition($recordPos->ID_REC_POS, (int) $tempRecordPts->AXIS1_PT_TOP_SURF, (int) $tempRecordPts->AXIS2_PT_TOP_SURF);
+                $item["top"] =  $this->unit->prodTemperature($termRecordDataTop->TEMP);
+                
+                //int
+                $termRecordDataInt = $this->output->getTemperaturePosition($recordPos->ID_REC_POS, (int) $tempRecordPts->AXIS1_PT_INT_PT, (int) $tempRecordPts->AXIS2_PT_INT_PT);
+                $item["int"] = $this->unit->prodTemperature($termRecordDataInt->TEMP);
+
+                //bot
+                $termRecordDataBot = $this->output->getTemperaturePosition($recordPos->ID_REC_POS, (int) $tempRecordPts->AXIS1_PT_BOT_SURF, (int) $tempRecordPts->AXIS2_PT_BOT_SURF);
+                $item["bot"] = $this->unit->prodTemperature($termRecordDataBot->TEMP);
+
+                $item["average"] = $this->unit->prodTemperature($recordPos->AVERAGE_TEMP);
+                $result[] = $item; 
+            }
+
+            $label["top"] = $this->unit->meshesUnit($tempRecordPts->AXIS1_PT_TOP_SURF) . "," . $this->unit->meshesUnit($tempRecordPts->AXIS2_PT_TOP_SURF) . "," . $this->unit->meshesUnit($tempRecordPts->AXIS3_PT_TOP_SURF);
+
+            $label["int"] = $this->unit->meshesUnit($tempRecordPts->AXIS1_PT_INT_PT) . "," . $this->unit->meshesUnit($tempRecordPts->AXIS2_PT_INT_PT) . "," . $this->unit->meshesUnit($tempRecordPts->AXIS3_PT_INT_PT);
+
+            $label["bot"] = $this->unit->meshesUnit($tempRecordPts->AXIS1_PT_BOT_SURF) . "," . $this->unit->meshesUnit($tempRecordPts->AXIS2_PT_BOT_SURF) . "," . $this->unit->meshesUnit($tempRecordPts->AXIS3_PT_BOT_SURF);
+        }
+
+        return compact("label", "curve", "result");
     }
 }

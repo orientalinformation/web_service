@@ -73,7 +73,7 @@ class CalculateService
 
 	public function disableFields($idStudy) 
     {
-		$disabledField = "";
+		$disabledField = 0;
 
 		$study = Study::find($idStudy);
 
@@ -83,7 +83,7 @@ class CalculateService
 			$userID = $this->auth->user()->ID_USER;
 
 			if (($userProfileID > $this->value->PROFIL_EXPERT) || ($studyOwnerUserID != $userID)) {
-				$disabledField = "disabled";
+				$disabledField = 1;
 			}
 		}
 
@@ -92,7 +92,7 @@ class CalculateService
 
 	public function disableCalculate($idStudy) 
     {
-		$disabledField = "";
+		$disabledField = 0;
 
 		$study = Study::find($idStudy);
 
@@ -102,7 +102,7 @@ class CalculateService
 			$userID = $this->auth->user()->ID_USER;
 
 			if ($studyOwnerUserID != $userID) {
-				$disabledField = "disabled";
+				$disabledField = 1;
 			}
 
 		}
@@ -317,18 +317,19 @@ class CalculateService
                 $idProductElmt = $productElmt->ID_PRODUCT_ELMT;
                 $meshPosition = MeshPosition::select('MESH_AXIS_POS')
                     ->where('MESH_AXIS', '=', $meshAxis)
-                    ->where('ID_PRODUCT_ELMT', '=', $idProductElmt)->get();
+                    ->where('ID_PRODUCT_ELMT', '=', $idProductElmt)
+                    ->orderBy("MESH_AXIS_POS", "ASC")->distinct()->get();
             }
         }
-        
+
         $arrLint = array();
         $item = array();
 
         if (!empty($meshPosition)) {
-            foreach ($meshPosition as $row) {
-                $item["selected"] = ($this->getCoordinate($idStudy, $key, $axe) == $row["MESH_AXIS_POS"]) ? true : false;
-                $item["value"] = $this->convert->unitConvert($this->value->MESH_CUT, $row["MESH_AXIS_POS"]);
-                $item["label"] = $row["MESH_AXIS_POS"];
+            foreach ($meshPosition as $mesh) {
+                $item["selected"] = ($this->getCoordinate($idStudy, $key, $axe) == $this->convert->meshes($mesh->MESH_AXIS_POS, $this->value->MESH_CUT)) ? true : false;
+                $item["value"] = $this->convert->meshes($mesh->MESH_AXIS_POS, $this->value->MESH_CUT);
+                $item["label"] = $mesh->MESH_AXIS_POS;
                 array_push($arrLint, $item);
             }
         }
@@ -361,60 +362,34 @@ class CalculateService
             $val = ($tempRecordsPt != null) ? $tempRecordsPt->AXIS3_PT_TOP_SURF : 0.0;
         }
 
-        return $this->convert->unitConvert($this->value->MESH_CUT, $val);
+        return $this->convert->meshes($val, $this->value->MESH_CUT);
     }
 
-    public function getLoadingRate($idStudyEquipment, $idStudy)
+    public function isStudyHasChilds($idStudy)
     {
-        $calMode = $this->getCalculationMode($idStudy);
-        $loadingRate = 0;
-        $layoutResult =  LayoutResults::where("ID_STUDY_EQUIPMENTS", $idStudyEquipment)->first();
-
-        if ($layoutResult != null) {
-            if ($calMode == $this->value->BRAIN_MODE_OPTIMUM_DHPMAX) {
-                $loadingRate = $layoutResult->LOADING_RATE_MAX;
-            } else {
-                $loadingRate = $layoutResult->LOADING_RATE;
-            }
-        }
-
-        return $loadingRate;
+    	$bret = false;
+    	$study = Study::find($idStudy);
+    	if ($study != null) {
+    		if ($study->CHAINING_CONTROLS == 1 && $study->HAS_CHILD == 1) {
+	    		$bret = true;
+	    	}
+    	}
+    	return $bret;
     }
 
-    public function getListTr($idStudyEquipments)
+    public function setChildsStudiesToRecalculate($idStudy, $idStudyEquipment)
     {
-        $studEqpPrms = $this->loadStudEqpPrm($idStudyEquipments, 300);
-        $tR = array();
-
-        if (!empty($studEqpPrms)) {
-            foreach ($studEqpPrms as $prms) {
-                array_push($tR, $prms->VALUE);
-             } 
-        }
-
-        return $tR;
-    }
-
-    public function getListTs($idStudyEquipments)
-    {
-        $studEqpPrms = $this->loadStudEqpPrm($idStudyEquipments, 200);
-        $tS = array();
-
-        if (!empty($studEqpPrms)) {
-            foreach ($studEqpPrms as $prms) {
-                array_push($tS, $prms->VALUE);
-            } 
-        }
-        
-        return $tS;
-    }
-
-    public function loadStudEqpPrm($idStudyEquipments, $dataType)
-    {
-        $studEqpPrms = StudEqpPrm::where('ID_STUDY_EQUIPMENTS', $idStudyEquipments)
-                                    ->where('VALUE_TYPE', '>=', $dataType)
-                                    ->where('VALUE_TYPE', '<', ($dataType + 100))->get();
-
-        return $studEqpPrms;
+    	if ($this->isStudyHasChilds($idStudy)) {
+    		$studies = Study::where('PARENT_ID', '=', $idStudy)->get();
+    		if (count($studies) > 0) {
+    			for ($i = 0; $i < count($studies) ; $i++) { 
+    				if (($idStudyEquipment == -1) || ($idStudyEquipment == $studies[$i]->PARENT_STUD_EQP_ID)) {
+    					$studies[$i]->TO_RECALCULATE = 1;
+    					$studies[$i]->save();
+    				}
+    			}
+    		}
+    	}
+    	return 0;
     }
 }

@@ -415,14 +415,6 @@ $router->GET('/api/v1/output/temperatureProfile/{idStudyEquipment}', 'Api1\\Outp
 $router->GET('/api/v1/common/economic/{idStudy}', 'Api1\\Output@getAnalyticalEconomic');
 
 /**
- * GET StudyEquipments
- * Summary: 
- * Notes: get study equipment by id
- * Output-Formats: [application/json]
- */
-$router->GET('/api/v1/studyEquipment/{id}', 'Api1\\StudyEquipments@getStudyEquipmentById');
-
-/**
  * GET optimumcalculator
  * Summary: 
  * Notes: get head balance result/products/{id}/packingLayers

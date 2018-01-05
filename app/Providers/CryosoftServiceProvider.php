@@ -44,6 +44,10 @@ class CryosoftServiceProvider extends ServiceProvider
         $this->app->singleton(\App\Cryosoft\CalculateService::class, function ($app) {
             return new \App\Cryosoft\CalculateService($app);
         });
+
+        $this->app->singleton(\App\Cryosoft\OutputService::class, function ($app) {
+            return new \App\Cryosoft\OutputService($app);
+        });
     }
 
 }

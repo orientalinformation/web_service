@@ -37,6 +37,30 @@ class TempRecordPts extends Model
      */
     protected $fillable = ['ID_TEMP_RECORD_PTS', 'ID_STUDY', 'AXIS1_PT_TOP_SURF', 'AXIS2_PT_TOP_SURF', 'AXIS3_PT_TOP_SURF', 'AXIS1_PT_INT_PT', 'AXIS2_PT_INT_PT', 'AXIS3_PT_INT_PT', 'AXIS1_PT_BOT_SURF', 'AXIS2_PT_BOT_SURF', 'AXIS3_PT_BOT_SURF', 'AXIS2_AX_1', 'AXIS3_AX_1', 'AXIS1_AX_2', 'AXIS3_AX_2', 'AXIS1_AX_3', 'AXIS2_AX_3', 'AXIS1_PL_2_3', 'AXIS2_PL_1_3', 'AXIS3_PL_1_2', 'NB_STEPS', 'CONTOUR2D_TEMP_MIN', 'CONTOUR2D_TEMP_MAX'];
 
+    protected $casts = [
+        'AXIS1_PT_TOP_SURF' => 'double',
+        'AXIS2_PT_TOP_SURF' => 'double',
+        'AXIS3_PT_TOP_SURF' => 'double',
+        'AXIS1_PT_INT_PT' => 'double',
+        'AXIS2_PT_INT_PT' => 'double',
+        'AXIS3_PT_INT_PT' => 'double',
+        'AXIS1_PT_BOT_SURF' => 'double',
+        'AXIS2_PT_BOT_SURF' => 'double',
+        'AXIS3_PT_BOT_SURF' => 'double',
+        'AXIS2_AX_1' => 'double',
+        'AXIS3_AX_1' => 'double',
+        'AXIS1_AX_2' => 'double',
+        'AXIS3_AX_2' => 'double',
+        'AXIS1_AX_3' => 'double',
+        'AXIS2_AX_3' => 'double',
+        'AXIS1_PL_2_3' => 'double',
+        'AXIS2_PL_1_3' => 'double',
+        'AXIS3_PL_1_2' => 'double',
+        'NB_STEPS' => 'integer',
+        'CONTOUR2D_TEMP_MIN' => 'double',
+        'CONTOUR2D_TEMP_MAX' => 'double'
+    ];
+
     /**
      * @var string
      */

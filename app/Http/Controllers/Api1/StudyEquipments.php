@@ -36,4 +36,18 @@ class StudyEquipments extends Controller
         $studyEquipment = \App\Models\StudyEquipment::find($id);
         return $studyEquipment;
     }
+
+    public function getstudyEquipmentProductChart($idStudy)
+    {
+        $studyEquipments = \App\Models\StudyEquipment::where("ID_STUDY", $idStudy)->orderBy("ID_STUDY_EQUIPMENTS", "ASC")->get();
+        $result = array();
+        if (count($studyEquipments) > 0) {
+            foreach ($studyEquipments as $row) {
+                if ($row->BRAIN_TYPE == 4) {
+                    $result[] = $row;
+                }
+            }
+        }
+        return $result;
+    }
 }

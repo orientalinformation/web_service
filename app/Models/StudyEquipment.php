@@ -35,7 +35,7 @@ use Sofa\Eloquence\Mappable; // extension trait
  * @property boolean $BRAIN_SAVETODB
  * @property int $BRAIN_TYPE
  * @property-read Equipment $equipment
- * @property-read Studies $studies
+ * @property-read Study $studies
  * @property-read CalculationParameters[] $calculationParameters
  * @property-read DimaResults[] $dimaResults
  * @property-read EcoResEqp[] $ecoResEqps
@@ -57,16 +57,28 @@ class StudyEquipment extends Model
     /**
      * @var array
      */
-    protected $fillable = ['ID_STUDY_EQUIPMENTS', 'ID_STUDY', 'ID_EQUIP', 'ID_EXH_GEN', 'ID_EXH_RES', 'ID_PIPE_GEN', 'ID_PIPE_RES', 'ID_ECONOMIC_RESULTS', 'ID_STUD_EQUIPPROFILE', 'ID_LAYOUT_GENERATION', 'ID_LAYOUT_RESULTS', 'ID_CALC_PARAMS', 'LINE_ORDER', 'STDEQP_LENGTH', 'STDEQP_WIDTH', 'EQP_INST', 'AVERAGE_PRODUCT_TEMP', 'AVERAGE_PRODUCT_ENTHALPY', 'ENTHALPY_VARIATION', 'PRECIS', 'NB_MODUL', 'STACKING_WARNING', 'ENABLE_CONS_PIE', 'EQUIP_STATUS', 'RUN_CALCULATE', 'BRAIN_SAVETODB', 'BRAIN_TYPE'];
+    protected $fillable = ['ID_STUDY_EQUIPMENTS', 'ID_STUDY', 'ID_EQUIP', 'ID_EXH_GEN', 'ID_EXH_RES', 'ID_PIPE_GEN', 
+    'ID_PIPE_RES', 'ID_ECONOMIC_RESULTS', 'ID_STUD_EQUIPPROFILE', 'ID_LAYOUT_GENERATION', 'ID_LAYOUT_RESULTS', 
+    'ID_CALC_PARAMS', 'LINE_ORDER', 'STDEQP_LENGTH', 'STDEQP_WIDTH', 'EQP_INST', 'AVERAGE_PRODUCT_TEMP', 
+    'AVERAGE_PRODUCT_ENTHALPY', 'ENTHALPY_VARIATION', 'PRECIS', 'NB_MODUL', 'STACKING_WARNING', 'ENABLE_CONS_PIE', 
+    'EQUIP_STATUS', 'RUN_CALCULATE', 'BRAIN_SAVETODB', 'BRAIN_TYPE'];
 
     /**
      * @var string
      */
     protected $primaryKey = 'ID_STUDY_EQUIPMENTS';
 
+    /**
+     * @var array
+     */
     protected $hidden = [
         'equipment'
     ];
+
+    /**
+     * @var string
+     */
+    protected $dateFormat = 'Y-m-d H:i:s.u';
 
     /**
      * Indicates if the model should be timestamped.
@@ -76,10 +88,20 @@ class StudyEquipment extends Model
     public $timestamps = false;
 
     protected $maps = [
-      'equipment' => ['ID_COOLING_FAMILY', 'EQUIP_NAME', 'CAPABILITIES', 'MODUL_LENGTH', 'EQP_LENGTH', 'EQP_WIDTH', 'EQUIP_VERSION', 'STDEQP_LENGTH', 'STDEQP_WIDTH', 'STD', 'ITEM_TR', 'NB_TR', 'SERIES_NAME', 'BATCH_PROCESS']
+      'equipment' => ['ID_COOLING_FAMILY', 'EQUIP_NAME', 'CAPABILITIES', 'MODUL_LENGTH', 'EQP_LENGTH', 'EQP_WIDTH', 
+        'EQUIP_VERSION', 'STD', 'ITEM_TR', 'NB_TR', 'SERIES_NAME', 'BATCH_PROCESS',
+        'NB_TS', 'NB_VC', 'EQP_HEIGHT', 'EQUIP_RELEASE'
+        ]
     ];
 
-    protected $appends = ['ID_COOLING_FAMILY', 'EQUIP_NAME', 'CAPABILITIES', 'MODUL_LENGTH', 'EQP_LENGTH', 'EQP_WIDTH', 'EQUIP_VERSION', 'STDEQP_LENGTH', 'STDEQP_WIDTH', 'STD', 'ITEM_TR', 'NB_TR', 'SERIES_NAME', 'BATCH_PROCESS'];
+    /**
+     * @var array
+     */
+    protected $appends = [
+        'ID_COOLING_FAMILY', 'EQUIP_NAME', 'CAPABILITIES', 'MODUL_LENGTH', 'EQP_LENGTH',
+        'EQP_WIDTH', 'EQUIP_VERSION', 'STD', 'ITEM_TR', 'NB_TR', 'NB_TS', 'NB_VC', 'EQP_HEIGHT', 
+        'SERIES_NAME', 'BATCH_PROCESS', 'EQUIP_RELEASE'
+    ];
 
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
@@ -92,7 +114,7 @@ class StudyEquipment extends Model
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function studies()
+    public function study()
     {
         return $this->belongsTo('App\\Models\\Study', 'ID_STUDY', 'ID_STUDY');
     }
@@ -134,7 +156,7 @@ class StudyEquipment extends Model
      */
     public function exhGens()
     {
-        return $this->hasMany('ExhGen', 'ID_STUDY_EQUIPMENTS', 'ID_STUDY_EQUIPMENTS');
+        return $this->hasMany('App\\Models\\ExhGen', 'ID_STUDY_EQUIPMENTS', 'ID_STUDY_EQUIPMENTS');
     }
 
     /**
@@ -142,7 +164,7 @@ class StudyEquipment extends Model
      */
     public function exhRes()
     {
-        return $this->hasMany('ExhRes', 'ID_STUDY_EQUIPMENTS', 'ID_STUDY_EQUIPMENTS');
+        return $this->hasMany('App\\Models\\ExhRes', 'ID_STUDY_EQUIPMENTS', 'ID_STUDY_EQUIPMENTS');
     }
 
     /**
@@ -166,7 +188,7 @@ class StudyEquipment extends Model
      */
     public function pipeGens()
     {
-        return $this->hasMany('PipeGen', 'ID_STUDY_EQUIPMENTS', 'ID_STUDY_EQUIPMENTS');
+        return $this->hasMany('App\\Models\\PipeGen', 'ID_STUDY_EQUIPMENTS', 'ID_STUDY_EQUIPMENTS');
     }
 
     /**
@@ -174,7 +196,7 @@ class StudyEquipment extends Model
      */
     public function pipeRes()
     {
-        return $this->hasMany('PipeRes', 'ID_STUDY_EQUIPMENTS', 'ID_STUDY_EQUIPMENTS');
+        return $this->hasMany('App\\Models\\PipeRes', 'ID_STUDY_EQUIPMENTS', 'ID_STUDY_EQUIPMENTS');
     }
 
     /**
@@ -182,7 +204,7 @@ class StudyEquipment extends Model
      */
     public function recordPositions()
     {
-        return $this->hasMany('RecordPosition', 'ID_STUDY_EQUIPMENTS', 'ID_STUDY_EQUIPMENTS');
+        return $this->hasMany('App\\Models\\RecordPosition', 'ID_STUDY_EQUIPMENTS', 'ID_STUDY_EQUIPMENTS');
     }
 
     /**
@@ -198,6 +220,6 @@ class StudyEquipment extends Model
      */
     public function studEquipprofiles()
     {
-        return $this->hasMany('StudEquipprofile', 'ID_STUDY_EQUIPMENTS', 'ID_STUDY_EQUIPMENTS');
+        return $this->hasMany('App\\Models\\StudEquipprofile', 'ID_STUDY_EQUIPMENTS', 'ID_STUDY_EQUIPMENTS');
     }
 }

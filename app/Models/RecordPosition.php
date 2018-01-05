@@ -47,7 +47,7 @@ class RecordPosition extends Model
      */
     public function studyEquipments()
     {
-        return $this->belongsTo('StudyEquipments', 'ID_STUDY_EQUIPMENTS', 'ID_STUDY_EQUIPMENTS');
+        return $this->belongsTo('App\\Models\\StudyEquipment', 'ID_STUDY_EQUIPMENTS', 'ID_STUDY_EQUIPMENTS');
     }
 
     /**
@@ -55,6 +55,6 @@ class RecordPosition extends Model
      */
     public function tempRecordDatas()
     {
-        return $this->hasMany('TempRecordData', 'ID_REC_POS', 'ID_REC_POS');
+        return $this->hasMany('App\\Models\\TempRecordData', 'ID_REC_POS', 'ID_REC_POS');
     }
 }

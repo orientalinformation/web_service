@@ -68,7 +68,6 @@ class Study extends Model
         'OPTION_ECO' => 'integer',
         'CHAINING_ADD_COMP_ENABLE' => 'integer',
         'CHAINING_CONTROLS' => 'integer',
-        'CALCULATION_MODE' => 'integer',
         'CALCULATION_STATUS' => 'integer',
         'HAS_CHILD' => 'integer',
         'ID_HAVERAGE_RESULTS' => 'integer',

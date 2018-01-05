@@ -36,6 +36,13 @@ class LayoutGeneration extends Model
     protected $primaryKey = 'ID_LAYOUT_GENERATION';
 
     /**
+     * @var array
+     */
+    protected $casts = [
+        'PROD_POSITION' => 'integer',
+    ];
+
+    /**
      * Indicates if the model should be timestamped.
      * 
      * @var bool

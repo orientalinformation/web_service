@@ -61,6 +61,6 @@ class MeshGeneration extends Model
      */
     public function product()
     {
-        return $this->belongsTo('Product', 'ID_PROD', 'ID_PROD');
+        return $this->belongsTo('\\App\\Models\\Product', 'ID_PROD', 'ID_PROD');
     }
 }

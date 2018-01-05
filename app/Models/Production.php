@@ -32,7 +32,9 @@ class Production extends Model
     /**
      * @var array
      */
-    protected $fillable = ['ID_PRODUCTION', 'ID_STUDY', 'DAILY_PROD', 'DAILY_STARTUP', 'WEEKLY_PROD', 'PROD_FLOW_RATE', 'NB_PROD_WEEK_PER_YEAR', 'AMBIENT_TEMP', 'AMBIENT_HUM', 'AVG_T_DESIRED', 'AVG_T_INITIAL', 'APPROX_DWELLING_TIME'];
+    protected $fillable = ['ID_PRODUCTION', 'ID_STUDY', 'DAILY_PROD', 'DAILY_STARTUP', 'WEEKLY_PROD',
+        'PROD_FLOW_RATE', 'NB_PROD_WEEK_PER_YEAR', 'AMBIENT_TEMP', 'AMBIENT_HUM', 'AVG_T_DESIRED',
+        'AVG_T_INITIAL', 'APPROX_DWELLING_TIME'];
 
     /**
      * @var string

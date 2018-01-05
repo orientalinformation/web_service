@@ -32,7 +32,8 @@ class Components extends Controller
     }
 
     public function findComponents() {
-        $components = \App\Models\Component::where('BLS_CODE','=', '')->get();
-        return $components;
+        $active = \App\Models\Component::where('BLS_CODE','=', '')->where('COMP_RELEASE','=', '3')->get();
+        $sleeping = \App\Models\Component::where('BLS_CODE','=', '')->where('COMP_RELEASE','=', '6')->get();
+        return compact('active', 'sleeping');
     }
 }

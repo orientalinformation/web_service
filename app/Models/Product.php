@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property mixed $PROD_WEIGHT
  * @property mixed $PROD_REALWEIGHT
  * @property mixed $PROD_VOLUME
- * @property-read Studies $studies
+ * @property-read Study $studies
  * @property-read MeshGeneration[] $meshGenerations
  * @property-read ProdcharColors[] $prodcharColors
  * @property-read ProductElmt[] $productElmts
@@ -47,7 +47,7 @@ class Product extends Model
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function studies()
+    public function study()
     {
         return $this->belongsTo('\\App\\Models\\Study', 'ID_STUDY', 'ID_STUDY');
     }
