@@ -54,6 +54,6 @@ class LayoutGeneration extends Model
      */
     public function studyEquipments()
     {
-        return $this->belongsTo('StudyEquipments', 'ID_STUDY_EQUIPMENTS', 'ID_STUDY_EQUIPMENTS');
+        return $this->belongsTo('App\\Models\\StudyEquipments', 'ID_STUDY_EQUIPMENTS', 'ID_STUDY_EQUIPMENTS');
     }
 }

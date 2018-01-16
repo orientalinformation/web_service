@@ -27,6 +27,7 @@ use App\Models\StudEqpPrm;
 use Illuminate\Contracts\Auth\Factory as Auth;
 use DB;
 use App\Quotation;
+use App\Models\Report;
 
 class CalculateService 
 {
@@ -122,7 +123,8 @@ class CalculateService
     {
 		$mmErrorH = 0.0;
 		$minMax = $this->getMinMax(1131);
-		$mmErrorH = $this->convert->unitConvert($this->value->TEMPERATURE, $minMax->DEFAULT_VALUE);
+		$uPercent = $this->convert->uPercent();
+		$mmErrorH =  $this->convert->convertCalculator($minMax->DEFAULT_VALUE, $uPercent["coeffA"], $uPercent["coeffB"]);
 		return $mmErrorH;
 	}
 
@@ -148,11 +150,13 @@ class CalculateService
 
 		foreach ($studyEquipments as $sEquipment) {
 			$calParamester = CalculationParameter::where('ID_CALC_PARAMS', $sEquipment->ID_CALC_PARAMS)->first();
-			if ($timeStep != $calParamester->TIME_STEP) {
-				if ($timeStep == -1.0) {
-					$timeStep = $calParamester->TIME_STEP;
-				} else {
-					$bOneTimeStep = false;
+			if ($calParamester) {
+				if ($timeStep != $calParamester->TIME_STEP) {
+					if ($timeStep == -1.0) {
+						$timeStep = $calParamester->TIME_STEP;
+					} else {
+						$bOneTimeStep = false;
+					}
 				}
 			}
 		}
@@ -174,11 +178,13 @@ class CalculateService
 		foreach ($studyEquipments as $sEquipment) {
 			$calParamester = CalculationParameter::where('ID_CALC_PARAMS', $sEquipment->ID_CALC_PARAMS)->first();
 
-			if ($precision != $calParamester->PRECISION_REQUEST) {
-				if ($precision == -1.0) {
-					$precision = $calParamester->PRECISION_REQUEST;
-				} else {
-					$bOnePrecision = false;
+			if ($calParamester) {
+				if ($precision != $calParamester->PRECISION_REQUEST) {
+					if ($precision == -1.0) {
+						$precision = $calParamester->PRECISION_REQUEST;
+					} else {
+						$bOnePrecision = false;
+					}
 				}
 			}
 		}
@@ -365,6 +371,22 @@ class CalculateService
         return $this->convert->meshes($val, $this->value->MESH_CUT);
     }
 
+    public function getValueSelected($select = array())
+    {
+    	$value = 0.0;
+    	if (count($select) > 0) {
+			for ($i = 0; $i < count($select); $i++) { 
+				if ($select[$i]['selected'] == true) {
+					$value = floatval($select[$i]['label']);
+				}
+			}
+		} else {
+			$value = 0.0;
+		}
+
+		return $value;
+    }
+
     public function isStudyHasChilds($idStudy)
     {
     	$bret = false;
@@ -391,5 +413,69 @@ class CalculateService
     		}
     	}
     	return 0;
+    }
+
+    public function resetEquipSatus($idStudy)
+    {
+    	$studyEquipments = StudyEquipment::where('ID_STUDY', $idStudy)->get();
+
+    	if (count($studyEquipments) > 0) {
+    		for ($i = 0; $i < count($studyEquipments); $i++) { 
+    			$studyEquipments[$i]->EQUIP_STATUS = 0;
+    			$studyEquipments[$i]->BRAIN_TYPE = 0;
+    			$studyEquipments[$i]->save();
+    		}
+    	}
+    }
+
+    public function saveTempRecordPtsToReport($idStudy)
+    {
+    	$tempRecordsPt = TempRecordPts::where('ID_STUDY', $idStudy)->first();
+    	$report = Report::where('ID_STUDY', $idStudy)->first();
+
+    	if (($report != null) && ($tempRecordsPt != null)) {
+    		$report->POINT1_X = $tempRecordsPt->AXIS1_PT_TOP_SURF;
+    		$report->POINT1_Y = $tempRecordsPt->AXIS2_PT_BOT_SURF;
+    		$report->POINT1_Z = $tempRecordsPt->AXIS3_PT_BOT_SURF;
+
+    		$report->POINT2_X = $tempRecordsPt->AXIS1_PT_INT_PT;
+    		$report->POINT2_Y = $tempRecordsPt->AXIS2_PT_INT_PT;
+    		$report->POINT2_Z = $tempRecordsPt->AXIS3_PT_INT_PT;
+
+    		$report->POINT3_X = $tempRecordsPt->AXIS1_PT_BOT_SURF;
+    		$report->POINT3_Y = $tempRecordsPt->AXIS2_PT_BOT_SURF;
+    		$report->POINT3_Z = $tempRecordsPt->AXIS3_PT_BOT_SURF;
+
+    		$report->AXE1_X = $tempRecordsPt->AXIS1_AX_3;
+    		$report->AXE1_Y = $tempRecordsPt->AXIS2_AX_3;
+
+    		$report->AXE2_X = $tempRecordsPt->AXIS1_AX_2;
+    		$report->AXE2_Z = $tempRecordsPt->AXIS3_AX_2;
+
+    		$report->AXE3_Y = $tempRecordsPt->AXIS2_AX_1;
+    		$report->AXE3_Z = $tempRecordsPt->AXIS3_AX_1;
+
+    		$report->PLAN_X = $tempRecordsPt->AXIS1_PL_2_3;
+    		$report->PLAN_Y = $tempRecordsPt->AXIS2_PL_1_3;
+    		$report->PLAN_Z = $tempRecordsPt->AXIS3_PL_1_2;
+
+    		$report->CONTOUR2D_TEMP_MIN = $tempRecordsPt->CONTOUR2D_TEMP_MIN;
+    		$report->CONTOUR2D_TEMP_MAX = $tempRecordsPt->CONTOUR2D_TEMP_MAX;
+
+    		if (($tempRecordsPt->CONTOUR2D_TEMP_MIN) ==  ($tempRecordsPt->CONTOUR2D_TEMP_MAX)) {
+    			$report->CONTOUR2D_TEMP_STEP = 0;
+    		}
+    		$report->save();
+    	}
+    }
+
+    public function reset2DTempRecordPts($idStudy)
+    {
+    	$tempRecordsPt = TempRecordPts::where('ID_STUDY', $idStudy)->first();
+    	$tempRecordsPt->CONTOUR2D_TEMP_MIN = 0.0;
+    	$tempRecordsPt->CONTOUR2D_TEMP_MAX = 0.0;
+    	$tempRecordsPt->save();
+
+    	$this->saveTempRecordPtsToReport($idStudy);
     }
 }

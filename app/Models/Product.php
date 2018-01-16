@@ -65,7 +65,7 @@ class Product extends Model
      */
     public function prodcharColors()
     {
-        return $this->hasMany('\\App\\Models\\ProdcharColors', 'ID_PROD', 'ID_PROD');
+        return $this->hasMany('\\App\\Models\\ProdcharColor', 'ID_PROD', 'ID_PROD');
     }
 
     /**

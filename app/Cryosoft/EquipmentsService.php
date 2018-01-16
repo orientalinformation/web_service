@@ -9,6 +9,7 @@ use App\Models\StudyEquipment;
 use App\Models\Study;
 use App\Models\StudEqpPrm;
 use App\Models\MinMax;
+use App\Models\Equipment;
 
 
 class EquipmentsService
@@ -139,6 +140,19 @@ class EquipmentsService
         }
 
         return $bisValid;       
+    }
+
+    public function getStd($idStudyEquipment)
+    {
+        $std = null;
+        $idEquipment = null;
+        $studyEquipment = StudyEquipment::find($idStudyEquipment);
+        if ($studyEquipment) $idEquipment = $studyEquipment->ID_EQUIP;
+
+        $equipment = Equipment::find($idEquipment);
+        if ($equipment) $std = $equipment->STD;
+
+        return $std;
     }
     
 }

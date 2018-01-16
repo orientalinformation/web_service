@@ -2,7 +2,6 @@
 
 namespace App\Kernel;
 
-
 class KernelService
 {
     public function __construct()
@@ -28,13 +27,15 @@ class KernelService
         return $obj;
     }
 
-    public function getConfig($idUser, $idStudy = 0, $idTmp = 0, $connectToDB = 1, $initTrace = 1)
+    public function getConfig($idUser, $idStudy = 0, $idTmp = 0, $connectToDB = 1, $initTrace = 1, $logPath = null)
     {
+        if (!$logPath)
+            $logPath = getenv('KERNEL_LOG');
         return new \Cryosoft\stSKConf(
             getenv('KERNEL_ODBC'), 
             getenv('KERNEL_USER'), 
             getenv('KERNEL_PASS'), 
-            getenv('KERNEL_LOG'),
+            $logPath,
             $idUser, $idStudy, $idTmp, $connectToDB, $initTrace
         );
     }

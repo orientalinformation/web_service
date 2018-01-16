@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Sofa\Eloquence\Eloquence; // base trait
+use Sofa\Eloquence\Mappable; // extension trait
 
 /**
  * @property int $ID_PACKING_ELMT
@@ -19,6 +21,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class PackingElmt extends Model
 {
+    use Eloquence, Mappable;
     /**
      * The table associated with the model.
      * 
@@ -51,7 +54,16 @@ class PackingElmt extends Model
      * @var bool
      */
     public $timestamps = false;
+    
+    protected $hidden = [
+        'user'
+    ];
 
+    protected $maps = [
+        'user' => ['USERNAM']
+      ];
+  
+      protected $appends = ['USERNAM'];
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */

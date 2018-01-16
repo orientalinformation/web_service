@@ -33,25 +33,30 @@ class DimaResultsService
     }
 
     public function consumptionCell($lfcoef, $calculationStatus, $valueStr) {
-        $sConso = "";
+        $sConso = [];
 
         if ($calculationStatus != 0) {
             if (($calculationStatus == 1) && ($lfcoef == 0.0)) {
-                $sConso = "****";
+                $sConso["value"] = "****";
+                $sConso["warning"] = "";
             } else if ($calculationStatus == 1) {
-                $sConso = $valueStr;
+                $sConso["value"] = $valueStr;
+                $sConso["warning"] = "";
             } else if (($calculationStatus & 0x100) != 0) {
-                $sConso = "warning_fluid";
+                $sConso["value"] = "";
+                $sConso["warning_fluid"] = "";
                 if (($calculationStatus & 0x10) != 0) {
-                    $sConso = "warning_dhp";
+                    $sConso["warning_fluid"] = "warning_dhp";
                 }
 
             } else if (($calculationStatus & 0x10) != 0) {
-                $sConso = "warning_dhp_value";
+                $sConso["value"] = $valueStr;
+                $sConso["warning"] = "warning_dhp_value";
             }
 
         } else {
-            $sConso = "****";
+            $sConso["value"] = "****";
+            $sConso["warning"] = "";
         }
 
         return $sConso;

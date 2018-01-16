@@ -114,16 +114,20 @@ class Products extends Controller
 
         $product = Product::find($id);
 
-        if (!isset($input['elementId']) || !isset($input['dim2']))
+        if (!isset($input['elementId']) || !isset($input['dim2']) || !isset($input['computedmass']) || !isset($input['realmass']))
             throw new \Exception("Error Processing Request", 1);            
 
         $idElement = $input['elementId'];
         $dim2 = $input['dim2'];
         $description = $input['description'];
+        $computedmass = $input['computedmass'];
+        $realmass = $input['realmass'];
 
         $nElements = \App\Models\ProductElmt::find($idElement);
         $nElements->PROD_ELMT_NAME = $description;
         $nElements->SHAPE_PARAM2 = $dim2;
+        $nElements->PROD_ELMT_WEIGHT = $computedmass;
+        $nElements->PROD_ELMT_REALWEIGHT = $realmass;
         $nElements->save();
 
         $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $id, $idElement);

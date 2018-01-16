@@ -79,6 +79,11 @@ class UnitsConverterService
         $unit = Unit::select("SYMBOL")->where("TYPE_UNIT", $this->value->CONV_COEFF)->first();
         return $unit->SYMBOL;
     }
+
+    public function prodchartDimensionSymbol() {
+        $unit = Unit::select("SYMBOL")->where("TYPE_UNIT", $this->value->PRODCHART_DIMENSION)->first();
+        return $unit->SYMBOL;
+    }
     
     public function monetarySymbol() 
     {
@@ -283,6 +288,11 @@ class UnitsConverterService
         return $this->convertCalculator($value, $unit->COEFF_A, $unit->COEFF_B);
     }
 
+    public function prodchartDimension($value) {
+        $unit = Unit::select("COEFF_A", "COEFF_B")->where("TYPE_UNIT", $this->value->PRODCHART_DIMENSION)->first();
+        return $this->convertCalculator($value, $unit->COEFF_A, $unit->COEFF_B);
+    }
+
     public function toc($value) 
     {
         $uPercent = $this->uPercent();
@@ -293,6 +303,7 @@ class UnitsConverterService
         $uNone = $this->uNone();
         return $this->convertCalculator($value, $uNone["coeffA"], $uNone["coeffB"], 3);
     }
+
 
     public function monetary($value, $nbDecimal = 3) 
     {

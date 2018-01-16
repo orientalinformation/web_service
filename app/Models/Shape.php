@@ -55,7 +55,7 @@ class Shape extends Model
      */
     public function packings()
     {
-        return $this->hasMany('Packing', 'ID_SHAPE', 'ID_SHAPE');
+        return $this->hasMany('App\\Models\\Packing', 'ID_SHAPE', 'ID_SHAPE');
     }
 
     /**
@@ -63,6 +63,6 @@ class Shape extends Model
      */
     public function productElmts()
     {
-        return $this->hasMany('ProductElmt', 'ID_SHAPE', 'ID_SHAPE');
+        return $this->hasMany('App\\Models\\ProductElmt', 'ID_SHAPE', 'ID_SHAPE');
     }
 }

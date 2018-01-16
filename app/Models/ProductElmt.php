@@ -43,7 +43,7 @@ class ProductElmt extends Model
     protected $table = 'product_elmt';
 
     protected $hidden = [
-        'product'
+        'product','shape'
     ];
 
     /**
@@ -64,10 +64,11 @@ class ProductElmt extends Model
     public $timestamps = false;
 
     protected $maps = [
-      'product' => ['ID_STUDY']
+      'product' => ['ID_STUDY'],
+      'shape' => ['SHAPECODE']
     ];
 
-    protected $appends = ['ID_STUDY'];
+    protected $appends = ['ID_STUDY', 'SHAPECODE'];
 
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo

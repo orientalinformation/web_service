@@ -15,3 +15,4 @@ $router->GET('/api/v1/translations/{lang}/components', 'Api1\\Translations@getCo
  * Output-Formats: [application/json]
  */
 $router->GET('/api/v1/translations/{lang}/packings', 'Api1\\Translations@getPackingTranslations');
+

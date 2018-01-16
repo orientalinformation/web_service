@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Sofa\Eloquence\Eloquence; // base trait
+use Sofa\Eloquence\Mappable; // extension trait
 
 /**
  * @property int $ID_MESH_POSITION
@@ -14,6 +16,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class MeshPosition extends Model
 {
+    use Eloquence, Mappable;
     /**
      * The table associated with the model.
      * 
@@ -21,10 +24,18 @@ class MeshPosition extends Model
      */
     protected $table = 'mesh_position';
 
+     protected $hidden = [
+        'productElmt'
+    ];
+
     /**
      * @var array
      */
     protected $fillable = ['ID_MESH_POSITION', 'ID_PRODUCT_ELMT', 'MESH_AXIS', 'MESH_ORDER', 'MESH_AXIS_POS'];
+
+    protected $casts = [
+        'MESH_AXIS_POS' => 'double'
+    ];
 
     /**
      * @var string
@@ -37,6 +48,12 @@ class MeshPosition extends Model
      * @var bool
      */
     public $timestamps = false;
+
+    protected $maps = [
+      'productElmt' => ['ID_STUDY']
+    ];
+
+    protected $appends = ['ID_STUDY'];
 
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo

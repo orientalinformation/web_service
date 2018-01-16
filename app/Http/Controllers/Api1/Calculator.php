@@ -96,21 +96,16 @@ class Calculator extends Controller
 	public function getOptimumCalculator() 
 	{
 		$input = $this->request->all();
-		$idStudy = $input['idStudy'];
-		$idStudyEquipment = null;
+		$idStudy = $idStudyEquipment = null;
 
-		if (isset($input['idStudyEquipment'])) {
-			$idStudyEquipment = $input['idStudyEquipment'];
-		}
+		if (isset($input['idStudyEquipment'])) $idStudyEquipment = intval($input['idStudyEquipment']);
+		if (isset($input['idStudy'])) $idStudy = intval($input['idStudy']);
 
 		$calMode = $this->cal->getCalculationMode($idStudy);
 		$sdisableFields = $this->cal->disableFields($idStudy);
 		$sdisableCalculate = $this->cal->disableCalculate($idStudy);
 
-		$sdisableOptim = $sdisableNbOptim = $sdisableStorage = 0;
-		$sdisableTimeStep = $sdisablePrecision = 0;
-		$scheckOptim = $scheckStorage = 0;
-		$isBrainCalculator = 0;
+		$sdisableOptim = $sdisableNbOptim = $sdisableStorage = $sdisableTimeStep = $sdisablePrecision = $scheckOptim = $scheckStorage = $isBrainCalculator = 0;
 
 		if ($idStudyEquipment != null) {
 			$isBrainCalculator = 1;
@@ -168,11 +163,6 @@ class Calculator extends Controller
 		$tempPtIn = $this->cal->getTempPtIn();
 		$tempPtBot = $this->cal->getTempPtBot();
 		$tempPtAvg = $this->cal->getTempPtAvg();
-		$selectDefault = [
-			'selected' => 'true',
-			'value' => '0.0',
-			'label' => '0.0'
-		];
 
 		$select1 = $this->cal->getOption($idStudy, "X", "TOP");
 		$select2 = $this->cal->getOption($idStudy, "Y", "TOP");
@@ -183,16 +173,6 @@ class Calculator extends Controller
         $select7 = $this->cal->getOption($idStudy, "X", "BOT");
         $select8 = $this->cal->getOption($idStudy, "Y", "BOT");
         $select9 = $this->cal->getOption($idStudy, "Z", "BOT");
-
-        // if ($select1 == null) $select1 = [$selectDefault];
-        // if ($select2 == null) $select2 = [$selectDefault];
-        // if ($select3 == null) $select3 = [$selectDefault];
-        // if ($select4 == null) $select4 = [$selectDefault];
-        // if ($select5 == null) $select5 = [$selectDefault];
-        // if ($select6 == null) $select6 = [$selectDefault];
-        // if ($select7 == null) $select7 = [$selectDefault];
-        // if ($select8 == null) $select8 = [$selectDefault];
-        // if ($select9 == null) $select9 = [$selectDefault];
 
 		$array = [
 			'sdisableFields' => $sdisableFields,
@@ -238,40 +218,17 @@ class Calculator extends Controller
 	public function startCalculate()
 	{
 		$input = $this->request->all();
-
-		$idStudy = null;
-		$idStudyEquipment = null;
-		$timeStep = 1.0;
-		$precision = 0.5;
-		$storagestep = 0.0;
-		$hRadioOn = 1;
-		$vRadioOn  = 0;
-		$maxIter = 100;
-		$relaxCoef = 0.0;
-		$tempPtSurf = 0;
-		$tempPtIn = 0;
-		$tempPtBot = 0;
-		$tempPtAvg = 0;
+		
+		$idStudy = $idStudyEquipment = null;
 
 		if (isset($input['idStudy'])) $idStudy = intval($input['idStudy']);
 		if (isset($input['idStudyEquipment'])) $idStudyEquipment = intval($input['idStudyEquipment']);
-		if (isset($input['scheckOptim'])) $scheckOptim = intval($input['scheckOptim']);
-		if (isset($input['epsilonTemp'])) $epsilonTemp = $input['epsilonTemp'];
-		if (isset($input['epsilonEnth'])) $epsilonEnth = $input['epsilonEnth'];
-		if (isset($input['timeStep'])) $timeStep = $input['timeStep'];
-		if (isset($input['precision'])) $precision = $input['precision'];
-		if (isset($input['storagestep'])) $storagestep = $input['storagestep'];
-		if (isset($input['hRadioOn'])) $hRadioOn = intval($input['hRadioOn']);
-		if (isset($input['vRadioOn'])) $vRadioOn = intval($input['vRadioOn']);
-		if (isset($input['maxIter'])) $maxIter = intval($input['maxIter']);
-		if (isset($input['relaxCoef'])) $relaxCoef = $input['relaxCoef'];
-		if (isset($input['tempPtSurf'])) $tempPtSurf = $input['tempPtSurf'];
-		if (isset($input['tempPtIn'])) $tempPtIn = $input['tempPtIn'];
-		if (isset($input['tempPtBot'])) $tempPtBot = $input['tempPtBot'];
-		if (isset($input['tempPtAvg'])) $tempPtAvg = $input['tempPtAvg'];
 
+		$this->cal->resetEquipSatus($idStudy);
 
 		$calMode = $this->cal->getCalculationMode($idStudy);
+
+		$brainMode = $this->brainCal->getBrainMode($idStudy);
 
 		$studyEquipments = StudyEquipment::where('ID_STUDY', $idStudy)->get();
 
@@ -280,46 +237,23 @@ class Calculator extends Controller
 				$idStudyEquipment = $studyEquipments[$i]->ID_STUDY_EQUIPMENTS;
 				$calculationParameter = CalculationParameter::where('ID_STUDY_EQUIPMENTS', $idStudyEquipment)->first();
 
-				$calculationParametersDef = CalculationParametersDef::find($this->auth->user()->ID_USER);
-				$calculationParameter->STORAGE_STEP = $calculationParametersDef->STORAGE_STEP_DEF;
-				$calculationParameter->PRECISION_LOG_STEP = $calculationParametersDef->PRECISION_LOG_STEP_DEF;
+				if (!$calculationParameter) {
+					$calculationParameter = new CalculationParameter();
 
-				if ($scheckOptim != null) {
-					$calculationParameter->NB_OPTIM = $scheckOptim;
-					$calculationParameter->ERROR_T = $this->convert->unitConvert($this->value->TEMPERATURE, $epsilonTemp);
-					$calculationParameter->ERROR_H = $this->convert->unitConvert($this->value->TEMPERATURE, $epsilonEnth);
+					$calculationParametersDef = CalculationParametersDef::where('ID_USER', $this->auth->user()->ID_USER)->first();
+
+					$calculationParameter->STORAGE_STEP = $calculationParametersDef->STORAGE_STEP_DEF;
+					$calculationParameter->PRECISION_LOG_STEP = $calculationParametersDef->PRECISION_LOG_STEP_DEF;
+					$calculationParameter->ID_STUDY_EQUIPMENTS = $idStudyEquipment;
+					$calculationParameter->save();
 				}
-
-				$calculationParameter->TIME_STEP = $this->convert->unitConvert($this->value->TIME, $timeStep, 3);
-				$calculationParameter->PRECISION_REQUEST = $this->convert->unitConvert($this->value->TIME, $precision, 3);
-
-				if ($studyEquipments[$i]->BRAIN_SAVETODB == 1) {
-					$lfStorageStep = $this->convert->unitConvert($this->value->TIME, $storagestep, 3);
-					$lfTimeStep = $this->convert->unitConvert($this->value->TIME, $timeStep, 3);
-					$ldNbStorageStep = 0;
-
-		            if ($timeStep != -1.0) {
-		                $ldNbStorageStep = round($lfStorageStep / $lfTimeStep);
-		            } else {
-		                $ldNbStorageStep = -1;
-		            }
-
-		            $calculationParameter->STORAGE_STEP = $ldNbStorageStep;
-				}
-
-				$calculationParameter->HORIZ_SCAN = $hRadioOn;
-				$calculationParameter->VERT_SCAN = $vRadioOn;
-				$calculationParameter->MAX_IT_NB = $maxIter;
-				$calculationParameter->RELAX_COEFF = $this->convert->convertCalculator($relaxCoef, 1.0, 0.0);
-				$calculationParameter->STOP_TOP_SURF = $this->convert->unitConvert($this->value->TEMPERATURE, $tempPtSurf, 2);
-				$calculationParameter->STOP_INT = $this->convert->unitConvert($this->value->TEMPERATURE, $tempPtIn, 2);
-				$calculationParameter->STOP_BOTTOM_SURF = $this->convert->unitConvert($this->value->TEMPERATURE, $tempPtBot, 2);
-				$calculationParameter->STOP_AVG = $this->convert->unitConvert($this->value->TEMPERATURE, $tempPtAvg, 2);
-				$calculationParameter->save();
+				
+				$this->saveCalculationParameters($this->request, $idStudyEquipment, $brainMode);
 			}
 		}
 
 		$this->saveTempRecordPts($this->request, $idStudy);
+		$this->cal->saveTempRecordPtsToReport($idStudy);
 
 		return $this->startNumericalCalculation($idStudy);
 	}
@@ -419,13 +353,13 @@ class Calculator extends Controller
 	public function getStudyEquipmentCalculation()
 	{
 		$input = $this->request->all();
-		$idStudy = null;
-		$idStudyEquipment = null;
+		$idStudy = $idStudyEquipment = $typeCalculate =  null;
 		$checkOptim = false;
 
 		if (isset($input['idStudy'])) $idStudy = intval($input['idStudy']);
 		if (isset($input['idStudyEquipment'])) $idStudyEquipment = intval($input['idStudyEquipment']);
 		if (isset($input['checkOptim'])) $checkOptim = $input['checkOptim'];
+		if (isset($input['type'])) $typeCalculate = intval($input['type']);
 
 		$brainMode = $this->brainCal->getBrainMode($idStudy);
 
@@ -441,8 +375,6 @@ class Calculator extends Controller
 		$sdisableFields = $this->cal->disableFields($idStudy);
 		
 		$sdisableTS = $sdisableTR = $sdisableTOC = $sdisableOptim = $sdisableNbOptim = $sdisableStorage = 0;
-		$sclassTS = $sclassTR = $sclassTOC = $sclassNbOptim = $sclassStorage = "";
-		
 		$scheckOptim = $scheckStorage = 0;
 
 		if ($sdisableFields == 0) {
@@ -567,6 +499,8 @@ class Calculator extends Controller
 			'select7' => $select7,
 			'select8' => $select8,
 			'select9' => $select9,
+			'sdisableTOC' => $sdisableTOC,
+			'typeCalculate' => $typeCalculate
 		];
 
 		return $array;
@@ -586,25 +520,14 @@ class Calculator extends Controller
     {
     	$input = $this->request->all();
 
-    	$idStudy = null;
-		$idStudyEquipment = null;
-		$checkOptim = null;
+    	$idStudy = $idStudyEquipment = $checkOptim = $typeCalculate = null;
 
 		if (isset($input['idStudy'])) $idStudy = intval($input['idStudy']);
 		if (isset($input['idStudyEquipment'])) $idStudyEquipment = intval($input['idStudyEquipment']);
 		if (isset($input['checkOptim'])) $checkOptim = intval($input['checkOptim']);
+		if (isset($input['typeCalculate'])) $typeCalculate = intval($input['typeCalculate']);
 		
- 		$this->saveEquipmentSettings($this->request, $idStudyEquipment);
- 		$this->saveCalculationParameters($this->request, $idStudyEquipment);
- 		$this->saveTempRecordPts($this->request, $idStudy);
-
- 		if ($this->cal->isStudyHasChilds($idStudy)) {
- 			$this->cal->setChildsStudiesToRecalculate($idStudy, $idStudyEquipment);
- 		}
-
- 		$this->runStudyCleaner($idStudy, $idStudyEquipment);
-
- 		$brainMode = $this->brainCal->getBrainMode($idStudy);
+		$brainMode = $this->brainCal->getBrainMode($idStudy);
 
 		if ($checkOptim == "true") {
 			$this->setBrainMode(11);
@@ -614,30 +537,125 @@ class Calculator extends Controller
 			$brainMode = $this->brainMode;
 		}
 
-    	return $this->startBrainNumericalCalculation($idStudy, $brainMode);
+ 		$runType = null;
+ 		if ($typeCalculate == 3) {
+ 			$brainMode = 13;
+ 			$this->saveCalculationParameters($this->request, $idStudyEquipment, $brainMode);
+ 			$this->saveTempRecordPts($this->request, $idStudy);
+ 			//resetBrainStudyError(); not using
+ 			$runType = $this->startMaxCapacityCalculation($this->request, $idStudy, $idStudyEquipment);
+ 		} else {
+ 			$this->saveEquipmentSettings($this->request, $idStudyEquipment);
+	 		$this->saveCalculationParameters($this->request, $idStudyEquipment, $brainMode);
+	 		$this->saveTempRecordPts($this->request, $idStudy);
+
+	 		if ($this->cal->isStudyHasChilds($idStudy)) {
+	 			$this->cal->setChildsStudiesToRecalculate($idStudy, $idStudyEquipment);
+	 		}
+
+	 		$this->runStudyCleaner($idStudy, $idStudyEquipment, 53);
+
+ 			$runType = $this->startBrainNumericalCalculation($idStudy, $idStudyEquipment, $brainMode);
+ 		}
+
+    	return $runType;
     }
 
-    public function saveCalculationParameters(Request $request, $idStudyEquipment)
+    public function startCalcul()
+    {
+    	$input = $this->request->all();
+
+    	$idStudy = $idStudyEquipment = null;
+
+		if (isset($input['idStudy'])) $idStudy = intval($input['idStudy']);
+		if (isset($input['idStudyEquipment'])) $idStudyEquipment = intval($input['idStudyEquipment']);
+
+		$brainMode = 1;
+		$this->saveCalculationParameters($this->request, $idStudyEquipment, $brainMode);
+		$this->cal->reset2DTempRecordPts($idStudy);
+
+    	return $this->runBrainCalculator($idStudy, $idStudyEquipment, false, 0, $brainMode);
+    }
+
+    public function calculOptim()
+    {
+    	$input = $this->request->all();
+
+    	$idStudy = $idStudyEquipment = null;
+
+		if (isset($input['idStudy'])) $idStudy = intval($input['idStudy']);
+		if (isset($input['idStudyEquipment'])) $idStudyEquipment = intval($input['idStudyEquipment']);
+
+		$brainMode = 2;
+		$this->saveCalculationParameters($this->request, $idStudyEquipment, $brainMode);
+		$this->cal->reset2DTempRecordPts($idStudy);
+    }
+
+    public function startCalculOptim()
+    {
+    	$input = $this->request->all();
+    	$idStudy = $idStudyEquipment = $brainOptim = null;
+
+		if (isset($input['idStudy'])) $idStudy = intval($input['idStudy']);
+		if (isset($input['idStudyEquipment'])) $idStudyEquipment = intval($input['idStudyEquipment']);
+
+    	$BRAIN_OPTIM = $BRAIN_OPTIM_TSFIXED = $BRAIN_OPTIM_TRFIXED = $BRAIN_OPTIM_DHPFIXED = $BRAIN_OPTIM_TOPFIXED = $BRAIN_OPTIM_COSTFIXED= null;
+
+    	if (isset($input['BRAIN_OPTIM'])) $BRAIN_OPTIM = intval($input['BRAIN_OPTIM']);
+    	if (isset($input['BRAIN_OPTIM_TSFIXED'])) $BRAIN_OPTIM_TSFIXED = intval($input['BRAIN_OPTIM_TSFIXED']);
+    	if (isset($input['BRAIN_OPTIM_TRFIXED'])) $BRAIN_OPTIM_TRFIXED = intval($input['BRAIN_OPTIM_TRFIXED']);
+
+    	if ($BRAIN_OPTIM == 1) {
+    		$brainOptim = $BRAIN_OPTIM_TSFIXED;
+    	} else {
+    		$brainOptim = $BRAIN_OPTIM_TRFIXED;
+    	}
+    	
+    	return $this->runBrainCalculator($idStudy, $idStudyEquipment, false, 0, $brainOptim);
+    }
+
+    public function getBrainOptim()
+    {
+    	$input = $this->request->all();
+
+    	$idStudyEquipment = null;
+
+    	if (isset($input['idStudyEquipment'])) $idStudyEquipment = intval($input['idStudyEquipment']);
+    	$std = $this->equipment->getStd($idStudyEquipment);
+    	($std == $this->value->EQUIP_STANDARD) ? $BRAIN_OPTIM = 1 : $BRAIN_OPTIM = 0;
+
+    	$EQUIP_STANDARD = $this->value->EQUIP_STANDARD;
+    	$BRAIN_OPTIM_TSFIXED = $this->value->BRAIN_OPTIM_TSFIXED;
+    	$BRAIN_OPTIM_TRFIXED = $this->value->BRAIN_OPTIM_TRFIXED;
+    	$BRAIN_OPTIM_DHPFIXED = $this->value->BRAIN_OPTIM_DHPFIXED;
+    	$BRAIN_OPTIM_TOPFIXED = $this->value->BRAIN_OPTIM_TOPFIXED;
+    	$BRAIN_OPTIM_COSTFIXED = $this->value->BRAIN_OPTIM_COSTFIXED;
+
+    	$array = [
+    		'BRAIN_OPTIM' => $BRAIN_OPTIM,
+    		'EQUIP_STANDARD' => $EQUIP_STANDARD,
+    		'BRAIN_OPTIM_TSFIXED' => $BRAIN_OPTIM_TSFIXED,
+    		'BRAIN_OPTIM_TRFIXED' => $BRAIN_OPTIM_TRFIXED,
+    		'BRAIN_OPTIM_DHPFIXED' => $BRAIN_OPTIM_DHPFIXED,
+    		'BRAIN_OPTIM_TOPFIXED' => $BRAIN_OPTIM_TOPFIXED,
+    		'BRAIN_OPTIM_COSTFIXED' => $BRAIN_OPTIM_COSTFIXED
+    	];
+    	
+    	return $array;
+    }
+
+    public function saveCalculationParameters(Request $request, $idStudyEquipment, $brainMode)
     {
     	$input = $request->all();
 
-    	$checkOptim = null;
-		$epsilonTemp = null;
-		$epsilonEnth = null;
-		$epsilonTemp = null;
-		$epsilonEnth = null;
+    	$checkOptim = $epsilonTemp = $epsilonEnth = $epsilonTemp = $epsilonEnth = $scheckStorage = null;
+
 		$timeStep = 1.0;
 		$precision = 0.5;
-		$scheckStorage = null;
-		$storagestep = 0.0;
+		$storagestep = $relaxCoef = 0.0;
 		$hRadioOn = 1;
-		$vRadioOn  = 0;
+		$vRadioOn = $tempPtSurf = $tempPtIn = $tempPtBot = $tempPtAvg = 0;
 		$maxIter = 100;
-		$relaxCoef = 0.0;
-		$tempPtSurf = 0;
-		$tempPtIn = 0;
-		$tempPtBot = 0;
-		$tempPtAvg = 0;
 
     	if (isset($input['checkOptim'])) $checkOptim = intval($input['checkOptim']);
 		if (isset($input['epsilonTemp'])) $epsilonTemp = $input['epsilonTemp'];
@@ -658,13 +676,19 @@ class Calculator extends Controller
 		$calculationParameter = CalculationParameter::where('ID_STUDY_EQUIPMENTS', $idStudyEquipment)->first();
 
 		if ($checkOptim != null) {
-			$calculationParameter->NB_OPTIM = $checkOptim;
+			$minMaxOptim = $this->brainCal->getMinMax(1130);
+			if ($checkOptim != null) {
+				$calculationParameter->NB_OPTIM = $checkOptim;
+			} else {
+				$calculationParameter->NB_OPTIM = $minMaxOptim->DEFAULT_VALUE;
+			}
+
 			$calculationParameter->ERROR_T = $this->convert->unitConvert($this->value->TEMPERATURE, $epsilonTemp);
 			$calculationParameter->ERROR_H = $this->convert->unitConvert($this->value->TEMPERATURE, $epsilonEnth);
 		} else {
 			$minMaxH = $this->brainCal->getMinMax(1131);
 			$minMaxT = $this->brainCal->getMinMax(1132);
-			switch ($this->brainMode) {
+			switch ($brainMode) {
                 case 1:
                     $calculationParameter->NB_OPTIM = 0;
                     $calculationParameter->ERROR_H = $minMaxH->DEFAULT_VALUE;
@@ -672,7 +696,7 @@ class Calculator extends Controller
                     break;
                 case 2:
                 	$minMaxOptim = $this->brainCal->getMinMax(1130);
-                    $calculationParameter->NB_OPTIM = $minMaxOptim->DEFAULT_VALUE;
+                    $calculationParameter->NB_OPTIM = intval($minMaxOptim->DEFAULT_VALUE);
                     $calculationParameter->ERROR_H = $minMaxH->DEFAULT_VALUE;
                     $calculationParameter->ERROR_T = $minMaxT->DEFAULT_VALUE;
                     break;
@@ -717,7 +741,7 @@ class Calculator extends Controller
 			$studyEquipment->save();
 		}
 
-        switch ($this->brainMode) {
+        switch ($brainMode) {
             case 1:
             case 2:
                 $studyEquipment->BRAIN_SAVETODB = 1;
@@ -779,29 +803,41 @@ class Calculator extends Controller
     {
     	$input = $request->all();
 
-    	$select1 = $select2 = $select3 = $select4 = $select5 = $select6 = $select7 = $select8 = $select9 = 0.0;
-    	if (isset($input['select1'])) $select1 = floatval($input['select1']);
-		if (isset($input['select2'])) $select2 = floatval($input['select2']);
-		if (isset($input['select3'])) $select3 = floatval($input['select3']);
-		if (isset($input['select4'])) $select4 = floatval($input['select4']);
-		if (isset($input['select5'])) $select5 = floatval($input['select5']);
-		if (isset($input['select6'])) $select6 = floatval($input['select6']);
-		if (isset($input['select7'])) $select7 = floatval($input['select7']);
-		if (isset($input['select8'])) $select8 = floatval($input['select8']);
-		if (isset($input['select9'])) $select9 = floatval($input['select9']);
+    	$select1 = $select2 = $select3 = $select4 = $select5 = $select6 = $select7 = $select8 = $select9 = array();
+    	$value1 = $value2 = $value3 = $value4 = $value5 = $value6 = $value7 = $value8 = $value9 = 0.0;
+
+    	if (isset($input['select1'])) $select1 = $input['select1'];
+		if (isset($input['select2'])) $select2 = $input['select2'];
+		if (isset($input['select3'])) $select3 = $input['select3'];
+		if (isset($input['select4'])) $select4 = $input['select4'];
+		if (isset($input['select5'])) $select5 = $input['select5'];
+		if (isset($input['select6'])) $select6 = $input['select6'];
+		if (isset($input['select7'])) $select7 = $input['select7'];
+		if (isset($input['select8'])) $select8 = $input['select8'];
+		if (isset($input['select9'])) $select9 = $input['select9'];
+
+		$value1 = $this->cal->getValueSelected($select1);
+		$value2 = $this->cal->getValueSelected($select2);
+		$value3 = $this->cal->getValueSelected($select3);
+		$value4 = $this->cal->getValueSelected($select4);
+		$value5 = $this->cal->getValueSelected($select5);
+		$value6 = $this->cal->getValueSelected($select6);
+		$value7 = $this->cal->getValueSelected($select7);
+		$value8 = $this->cal->getValueSelected($select8);
+		$value9 = $this->cal->getValueSelected($select9);
 
     	$temRecordPt = TempRecordPts::where('ID_STUDY', $idStudy)->first();
 
 		if ($temRecordPt != null) {
-			$temRecordPt->AXIS1_PT_TOP_SURF = $select1;
-			$temRecordPt->AXIS2_PT_TOP_SURF = $select2;
-			$temRecordPt->AXIS3_PT_TOP_SURF = $select3;
-			$temRecordPt->AXIS1_PT_INT_PT = $select4;
-			$temRecordPt->AXIS2_PT_INT_PT = $select5;
-			$temRecordPt->AXIS3_PT_INT_PT = $select6;
-			$temRecordPt->AXIS1_PT_BOT_SURF = $select7;
-			$temRecordPt->AXIS2_PT_BOT_SURF = $select8;
-			$temRecordPt->AXIS3_PT_BOT_SURF = $select9;
+			$temRecordPt->AXIS1_PT_TOP_SURF = $value1;
+			$temRecordPt->AXIS2_PT_TOP_SURF = $value2;
+			$temRecordPt->AXIS3_PT_TOP_SURF = $value3;
+			$temRecordPt->AXIS1_PT_INT_PT = $value4;
+			$temRecordPt->AXIS2_PT_INT_PT = $value5;
+			$temRecordPt->AXIS3_PT_INT_PT = $value6;
+			$temRecordPt->AXIS1_PT_BOT_SURF = $value7;
+			$temRecordPt->AXIS2_PT_BOT_SURF = $value8;
+			$temRecordPt->AXIS3_PT_BOT_SURF = $value9;
 			$temRecordPt->CONTOUR2D_TEMP_MIN = 0.0;
 			$temRecordPt->CONTOUR2D_TEMP_MAX = 0.0;
 			$temRecordPt->save();
@@ -811,8 +847,7 @@ class Calculator extends Controller
     public function saveEquipmentSettings(Request $request, $idStudyEquipment)
     {
     	$input = $request->all();
-    	$dwellingTimes = [];
-		$temperatures = [];
+    	$dwellingTimes = $temperatures = [];
 
 		if (isset($input['dwellingTimes'])) $newLTs = $input['dwellingTimes'];
 		if (isset($input['temperatures'])) $newLTr = $input['temperatures'];
@@ -834,11 +869,11 @@ class Calculator extends Controller
 		}
     }
 
-    public function runStudyCleaner($idStudy, $idStudyEquipment)
+    public function runStudyCleaner($idStudy, $idStudyEquipment, $number)
     {
     	$ret = 0;
 		$conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $idStudy, $idStudyEquipment);
-		$ret = $this->kernel->getKernelObject('StudyCleaner')->SCStudyClean($conf, 53);
+		$ret = $this->kernel->getKernelObject('StudyCleaner')->SCStudyClean($conf, $number);
 
 		if ($ret == 0 && $this->cal->isStudyHasChilds($idStudy)) {
 			$this->cal->getCalculableStudyEquipments($idStudy, $idStudyEquipment);
@@ -847,7 +882,7 @@ class Calculator extends Controller
 		return $ret;	
     }
 
-    public function startBrainNumericalCalculation($idStudy, $brainMode)
+    public function startBrainNumericalCalculation($idStudy, $idStudyEquipment, $brainMode)
     {
     	$ldMode = 10;
         
@@ -876,23 +911,177 @@ class Calculator extends Controller
                 $ldMode = 10;
         }
 
-        $studyEquipments = StudyEquipment::where('ID_STUDY', $idStudy)->get();
+        $studyEquipment = StudyEquipment::find($idStudyEquipment);
 
-		$results = [];
+		$results = null;
 
-		if (count($studyEquipments) > 0) {
-			for ($i = 0; $i < count($studyEquipments); $i++) { 
-				$idStudyEquipment = $studyEquipments[$i]->ID_STUDY_EQUIPMENTS;
-				$capability = $studyEquipments[$i]->CAPABILITIES;
+		if (count($studyEquipment) > 0) {
+			$conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $idStudy, $idStudyEquipment);
+			$param = new \Cryosoft\stSKBRParam();
 
-				if ($this->equipment->getCapability($capability, 128)) {
-					$conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $idStudy, $idStudyEquipment);
-					$param = new \Cryosoft\stSKBRParam();
-
-					array_push($results, $this->kernel->getKernelObject('BrainCalculator')->BRTeachCalculation($conf, $param, $ldMode));
-				}
-			}
+			$results = $this->kernel->getKernelObject('BrainCalculator')->BRTeachCalculation($conf, $param, $ldMode);
 		}
 		return $results;
+    }
+
+    private function runBrainCalculator($idStudy, $idStudyEquipment, $bOptim, $brainOption, $brainMode)
+    {
+    	if ($this->cal->isStudyHasChilds($idStudy)) {
+    		$this->cal->setChildsStudiesToRecalculate($idStudy, $idStudyEquipment);
+    	}
+
+    	$studyEquipment = StudyEquipment::find($idStudyEquipment);
+
+    	try {
+    		if (!$this->equipment->getCapability($studyEquipment->CAPABILITIES, 128)) 
+    			throw new \Exception("CAN NOT RUN BRAIN CALCULATOR: MULTI TR!!", 1);
+
+    		if ($this->equipment->getCapability($studyEquipment->CAPABILITIES, 64)) $bOptim = false;
+
+    		if ($bOptim) {
+    			if (!$this->doAnalogicBrainOptim($idStudy, $idStudyEquipment, $brainOption)) 
+    				throw new \Exception("OPTIMIZATION - ANA1: PHAMCAST FAILLED !!", 1);
+
+    			if (!$this->startExhaustGasTemp($idStudy, $idStudyEquipment))
+    				throw new \Exception("OPTIMIZATION - EXHAUST GAS TEMP CALCULATION FAILED !!", 1);
+    		}
+
+    		$brainMode = 0;
+        
+	        if ($bOptim) {
+	            switch ($brainOption) {
+	                case 0:
+	                case 3:
+	                case 4:
+	                case 5:
+	                    $brainMode = 0;
+	                    break;
+	                case 1:
+	                    $brainMode = 1;
+	                    break;
+	                case 2:
+	                    $brainMode = 2;
+	                    break;
+
+	                default:
+	                    $brainMode = 0;
+	                    break;
+	            }
+	        } else {
+	            $brainMode = 0;
+	        }
+
+	        $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $idStudy, $idStudyEquipment);
+			$param = new \Cryosoft\stSKBRParam();
+			return $this->kernel->getKernelObject('BrainCalculator')->BRTeachCalculation($conf, $param, $brainMode);
+
+    	} catch (Exception $e) {
+    		return false;
+    	}
+    	return true;
+    }
+
+    private function doAnalogicBrainOptim($idStudy, $idStudyEquipment, $brainOption)
+    {
+    	$ret = true;
+
+        switch ($brainOption) {
+            case 2:
+                $ret = $this->startPhamCastCalculator($idStudy, $idStudyEquipment, false);
+                break;
+
+            case 1:
+                $ret = $this->startPhamCastCalculator($idStudy, $idStudyEquipment, true);
+                break;
+
+            case 3:
+                $ret = false;
+                break;
+
+            case 4:
+                $ret = false;
+                break;
+
+            case 5:
+                $ret = false;
+        }
+
+        return $ret;
+    }
+
+    private function startPhamCastCalculator($idStudy, $idStudyEquipment, $doTr)
+    {
+    	$conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $idStudy, $idStudyEquipment);
+		return $this->kernel->getKernelObject('PhamCastCalculator')->PCCCalculation($conf);
+    }
+
+    private function startExhaustGasTemp($idStudy, $idStudyEquipment)
+    {
+    	$conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $idStudy, $idStudyEquipment);
+		return $this->kernel->getKernelObject('KernelToolCalculator')->KTCalculator($conf, 1);
+    }
+
+    private function startMaxCapacityCalculation(Request $request, $idStudy, $idStudyEquipment)
+    {
+        $input = $request->all();
+    	$lfControlTemp = $lfLoadingRateMax = 0.0;
+        $toc = 0;
+
+        $studyEquipment = StudyEquipment::find($idStudyEquipment);
+
+        if ($this->equipment->getCapability($studyEquipment->CAPABILITIES, 1)) {
+			$temperatures = [];
+
+			if (isset($input['temperatures'])) {
+				$temperatures = $input['temperatures'];
+				if (count($temperatures) > 0) {
+					$lfControlTemp = doubleval($temperatures[0]['value']);
+				}
+			} else {
+				$temperatures = $this->brainCal->getListTr($idStudyEquipment);
+				if (count($temperatures) > 0) {
+					$lfControlTemp = doubleval($temperatures[0]);
+				}
+			}
+        }
+
+        if (isset($input['toc'])) {
+			$toc = $input['toc'];
+			$lfLoadingRateMax = doubleval($toc);
+		}
+
+		$this->runStudyCleaner($idStudy, $idStudyEquipment, 54);
+
+		$conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $idStudy, $idStudyEquipment);
+		$param = new \Cryosoft\stSKBRParam($lfControlTemp, $lfLoadingRateMax);
+		$ldMode = 13;
+
+		return $this->kernel->getKernelObject('BrainCalculator')->BRTeachCalculation($conf, $param, $ldMode);
+    }
+
+    public function getProgressBarStudyEquipment()
+    {
+    	$input = $this->request->all();
+    	$idStudy = null;
+    	$progress = array();
+    	$item = array();
+
+    	if (isset($input['idStudy'])) $idStudy = intval($input['idStudy']);
+
+    	$studyEquipments = StudyEquipment::where('ID_STUDY', $idStudy)->get();
+
+    	if (count($studyEquipments) > 0) {
+    		for ($i = 0; $i < count($studyEquipments); $i++) { 
+	    		$item['EQUIP_NAME'] = $studyEquipments[$i]->EQUIP_NAME;
+	    		$item['id'] = $i;
+	    		array_push($progress, $item);
+	    	}
+    	}
+    	
+    	$array = [
+    		'studyEquipments' => $progress,
+    	];
+
+    	return $array;
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api1;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\Auth\Factory as Auth;
+use App\Models\LayoutGeneration;
 
 class StudyEquipments extends Controller
 {
@@ -42,10 +43,14 @@ class StudyEquipments extends Controller
         $studyEquipments = \App\Models\StudyEquipment::where("ID_STUDY", $idStudy)->orderBy("ID_STUDY_EQUIPMENTS", "ASC")->get();
         $result = array();
         if (count($studyEquipments) > 0) {
+            $i = 0;
             foreach ($studyEquipments as $row) {
+                $layoutGen = LayoutGeneration::where('ID_STUDY_EQUIPMENTS', $row->ID_STUDY_EQUIPMENTS)->first();
                 if ($row->BRAIN_TYPE == 4) {
                     $result[] = $row;
+                    $result[$i]['ORIENTATION'] = $layoutGen->PROD_POSITION;
                 }
+                $i++;
             }
         }
         return $result;

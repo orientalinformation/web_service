@@ -44,6 +44,6 @@ class InitialTemperature extends Model
      */
     public function production()
     {
-        return $this->belongsTo('Production', 'ID_PRODUCTION', 'ID_PRODUCTION');
+        return $this->belongsTo('App\\Models\\Production', 'ID_PRODUCTION', 'ID_PRODUCTION');
     }
 }

@@ -41,7 +41,7 @@ class Price extends Model
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function studies()
+    public function study()
     {
         return $this->belongsTo('App\\Models\\Study', 'ID_STUDY', 'ID_STUDY');
     }

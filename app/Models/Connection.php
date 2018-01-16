@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Sofa\Eloquence\Eloquence; // base trait
+use Sofa\Eloquence\Mappable; // extension trait
 
 /**
  * @property int $ID_USER
@@ -13,6 +15,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class Connection extends Model
 {
+    use Eloquence, Mappable;
+
     /**
      * The table associated with the model.
      * 
@@ -51,6 +55,20 @@ class Connection extends Model
      */
     public $timestamps = false;
 
+    /**
+     * @var string
+     */
+    public $dateFormat = 'Y-m-d H:i:s.u';
+
+    protected $hidden = [
+        'user'
+    ];
+
+    protected $maps = [
+        'user' => ['USERNAM']
+      ];
+  
+      protected $appends = ['USERNAM'];
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */

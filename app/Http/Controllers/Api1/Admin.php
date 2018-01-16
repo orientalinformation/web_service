@@ -22,7 +22,15 @@ use Illuminate\Support\Facades\Hash;
 use App\Models\MinMax;
 use App\Models\ProdcharColorsDef;
 use App\Models\UserUnit;
-
+use Illuminate\Support\Facades\DB;
+use App\Models\Study;
+use App\Models\Component;
+use App\Models\Equipment;
+use App\Models\LineElmt;
+use App\Models\PackingElmt;
+use App\Models\Connection;
+use Carbon\Carbon;
+use App\Models\StudyEquipment;
 class Admin extends Controller
 {	
 	/**
@@ -30,23 +38,26 @@ class Admin extends Controller
 	 */
 	protected $request;
 
-	public function __construct(Request $request)
+	public function __construct(Request $request, Auth $auth)
 	{
 		$this->request = $request;
+		$this->auth = $auth;
 	}
 
 	public function newUser()
 	{
 		$input = $this->request->all();
 
-		$username = isset($input['username']);
-		$email = isset($input['email']);
-		$password = isset($input['password']);
-		$confirm = isset($input['confirmpassword']);
-		if ($username == null || $email == null || $password == null || $confirm == null) return 0;
+		if (!isset($input['username']) || !isset($input['email']) || !isset($input['password']) || !isset($input['confirmpassword']))
+            throw new \Exception("Error Processing Request", 1);   
+
+		$username = $input['username'];
+		$email = $input['email'];
+		$password = $input['password'];
+		$confirm = $input['confirmpassword'];
+
 
 		$hashPassword = Hash::make($password);
-		$hashConfirm = Hash::make($confirm);
 
 		if ($password != $confirm) {
 			return 2;
@@ -60,13 +71,13 @@ class Admin extends Controller
 
 		$tempRecordDef = new TempRecordPtsDef();
 
-		$users = $this->getUsers();
+		$users = User::all();
 
-		// for ($i = 0; $i < count($users); $i++) { 
-		// 	if ($users[$i]->USERNAM == $username) {
-		// 		return 0;
-		// 	}
-		// }
+		for ($i = 0; $i < count($users); $i++) { 
+			if (strtoupper($users[$i]->USERNAM) == strtoupper($username)) {
+				return 0;
+			}
+		}
 
 		if (isset($input['username'])) $user->USERNAM = $username;
 		if (isset($input['password'])) $user->USERPASS = $hashPassword;
@@ -157,8 +168,14 @@ class Admin extends Controller
 
 	public function getUsers()
 	{
-		$users = User::all()->toArray();
-		return $users;
+		$idUserLogon = $this->auth->user()->ID_USER;
+		$offline = User::where('USERPRIO', '<>', 0)->orderBy('USERNAM', 'ASC')->get();
+		
+		$online = Connection::where('DATE_CONNECTION', '<>', null)
+			->where('DATE_DISCONNECTION', null)
+			->where('ID_USER', '<>', $idUserLogon)->get();
+		
+		return compact('online', 'offline');
 	}
 
 	public function getMinMax($limitItem) 
@@ -190,5 +207,130 @@ class Admin extends Controller
 			$userUnit->ID_UNIT = $defaultUnits[$i]->ID_UNIT;
 			$userUnit->save();
 		}
+	}
+
+	public function deleteUser($idUser) 
+	{
+		$user = User::find($idUser);
+
+		if(!$user) {
+			return -1;
+		}else{
+			UserUnit::where('ID_USER', $user->ID_USER)->delete();
+			CalculationParametersDef::where('ID_USER', $user->ID_USER)->delete();
+			TempRecordPtsDef::where('ID_USER', $user->ID_USER)->delete();
+			MeshParamDef::where('ID_USER', $user->ID_USER)->delete();
+			ProdcharColorsDef::where('ID_USER', $user->ID_USER)->delete();
+			Connection::where('ID_USER', $user->ID_USER)->delete();
+			$user->delete();
+
+			return 1;
+		}
+	}
+
+	public function updateUser($idUser)
+	{
+		$input = $this->request->all();
+		if (!isset($input['username']) || !isset($input['email']) || !isset($input['password']) || !isset($input['confirmpassword']))
+            throw new \Exception("Error Processing Request", 1);   
+
+		$username = $input['username'];
+		$password = $input['password'];
+		$confirm = $input['confirmpassword'];
+		$hashPassword = Hash::make($password);
+
+		if ($password != $confirm) {
+			return 2;
+		}
+		$user = User::find($idUser);
+
+		if(!$user){
+			return -1;
+		}else{
+			if (isset($input['username'])) $user->USERNAM = $username;
+			if (isset($input['password'])) $user->USERPASS = $hashPassword;
+			$user->save();
+
+			return 1;
+		}
+	}
+
+	public function disconnectUser($idUser)
+	{
+		$input = $this->request->all();
+
+		if (!isset($input['reset'])) 
+			throw new \Exception("Error Processing Request", 1);
+
+		$reset = $input['reset'];
+		if ($reset == 1) {
+			$this->resetStudiesStatusLockedByUser($idUser);
+		}
+		$this->releaseEltLockedByUser($idUser);
+		$this->disconnectUserDB($idUser);
+
+		return 1;
+	}
+
+	public function releaseEltLockedByUser($idUser)
+	{
+		Study::where('ID_USER', $idUser)
+			->where('OPEN_BY_OWNER', 1)
+			->update(['OPEN_BY_OWNER' => 0]);
+		Component::where('ID_USER', $idUser)
+			->where('OPEN_BY_OWNER', 1)
+			->update(['OPEN_BY_OWNER' => 0]);
+		Equipment::where('ID_USER', $idUser)
+			->where('OPEN_BY_OWNER', 1)
+			->update(['OPEN_BY_OWNER' => 0]);
+		LineElmt::where('ID_USER', $idUser)
+			->where('OPEN_BY_OWNER', 1)
+			->update(['OPEN_BY_OWNER' => 0]);
+		PackingElmt::where('ID_USER', $idUser)
+			->where('OPEN_BY_OWNER', 1)
+			->update(['OPEN_BY_OWNER' => 0]);
+	}
+
+	public function disconnectUserDB($idUser)
+	{
+		$current = Carbon::now();
+		$current->timezone = 'Asia/Ho_Chi_Minh';
+
+		// var_dump($current->toDateTimeString());die;
+		Connection::where('ID_USER', $idUser)
+			->where('DATE_DISCONNECTION', null)
+			->update(['DATE_DISCONNECTION' => $current->toDateTimeString(), 'TYPE_DISCONNECTION' => 3]);
+	}
+
+	public function resetStudiesStatusLockedByUser($idUser)
+	{
+		$studys = Study::where('ID_USER', $idUser)->get();
+		foreach ($studys as $study) {
+			StudyEquipment::with('study')
+			->where('ID_STUDY', $study->ID_STUDY)
+			->where('EQUIP_STATUS', '=', 100000)
+			->update(['EQUIP_STATUS' => 0]);
+		}
+	}
+
+	public function loadConnections()
+	{
+		$input = $this->request->all();
+		if (!isset($input['record'])) 
+			throw new \Exception("Error Processing Request", 1);
+
+		$record = $input['record'];
+		if ($record != 0) {
+			$connections = Connection::with('User')
+			->take($record)
+			->orderBy("DATE_CONNECTION", "DESC")
+			->get();
+		} else {
+			$connections = Connection::with('User')
+			->orderBy("DATE_CONNECTION", "DESC")
+			->get();
+		}
+		
+		return $connections;
 	}
 }

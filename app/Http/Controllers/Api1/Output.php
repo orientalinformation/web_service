@@ -19,6 +19,8 @@ use App\Models\StudEquipprofile;
 use App\Models\RecordPosition;
 use App\Models\TempRecordPts;
 use App\Models\TempRecordData;
+use App\Models\MeshPosition;
+use App\Models\ProductElmt;
 
 use App\Cryosoft\ValueListService;
 use App\Cryosoft\UnitsConverterService;
@@ -27,6 +29,7 @@ use App\Cryosoft\DimaResultsService;
 use App\Cryosoft\EconomicResultsService;
 use App\Cryosoft\StudyService;
 use App\Cryosoft\OutputService;
+use App\Models\LayoutGeneration;
 
 
 
@@ -75,12 +78,13 @@ class Output extends Controller
         $convectionSpeedSymbol = $this->unit->convectionSpeedSymbol();
         $convectionCoeffSymbol = $this->unit->convectionCoeffSymbol();
         $timePositionSymbol = $this->unit->timePositionSymbol();
+        $prodchartDimensionSymbol = $this->unit->prodchartDimensionSymbol();
         $percentSymbol = "%";
         $consumSymbol = $this->unit->consumptionSymbol($this->equip->initEnergyDef($idStudy), 1);
         $consumMaintienSymbol = $this->unit->consumptionSymbol($this->equip->initEnergyDef($idStudy), 2);
         $mefSymbol = $this->unit->consumptionSymbol($this->equip->initEnergyDef($idStudy), 3);
 
-        $ret = compact("productFlowSymbol", "massSymbol", "temperatureSymbol", "percentSymbol", "timeSymbol", "perUnitOfMassSymbol", "enthalpySymbol", "monetarySymbol", "equipDimensionSymbol", "convectionSpeedSymbol", "convectionCoeffSymbol", "timePositionSymbol", "consumSymbol", "consumMaintienSymbol", "mefSymbol");
+        $ret = compact("productFlowSymbol", "massSymbol", "temperatureSymbol", "percentSymbol", "timeSymbol", "perUnitOfMassSymbol", "enthalpySymbol", "monetarySymbol", "equipDimensionSymbol", "convectionSpeedSymbol", "convectionCoeffSymbol", "timePositionSymbol", "prodchartDimensionSymbol", "consumSymbol", "consumMaintienSymbol", "mefSymbol");
         // var_dump($ret);
         return $ret;
     }
@@ -119,6 +123,7 @@ class Output extends Controller
             $item["specificSize"] = $this->equip->getSpecificEquipSize($idStudyEquipment);
             $item["equipName"] = $this->equip->getResultsEquipName($idStudyEquipment);
             $calculate = "";
+            $tr = $ts = $vc = $vep = $tfp = $dhp = $conso= $conso_warning = $toc = $precision = "";
 
             $item["runBrainPopup"] = false;
             if ($this->equip->getCapability($capabilitie, 128)) {
@@ -126,18 +131,18 @@ class Output extends Controller
             }
 
             if (!($this->equip->getCapability($capabilitie, 128))) {
-                $tr = $ts = $vc = $vep = $tfp = $dhp = $conso = $toc = $precision = "";
+                $tr = $ts = $vc = $vep = $tfp = $dhp = $conso= $conso_warning = $toc = $precision = "";
                 $calculate = "disabled";
             } else if (($equipStatus != 0) && ($equipStatus != 1) && ($equipStatus != 100000)) {
-                $tr = $ts = $vc = $vep = $tfp = $dhp = $conso = $toc = $precision = "****";
+                $tr = $ts = $vc = $vep = $tfp = $dhp = $conso = $conso_warning = $toc = $precision = "****";
                 $calculate = "disabled";
             } else if ($equipStatus == 10000) {
-                $tr = $ts = $vc = $vep = $tfp = $dhp = $conso = $toc = $precision = "";
+                $tr = $ts = $vc = $vep = $tfp = $dhp = $conso= $conso_warning = $toc = $precision = "";
                 $calculate = "disabled";
             } else {
                 $dimaResult = DimaResults::where("ID_STUDY_EQUIPMENTS", $idStudyEquipment)->where("DIMA_TYPE", 1)->first();
                 if ($dimaResult == null) {
-                    $tr = $ts = $vc = $vep = $tfp = $dhp = $conso = $toc = $precision = "";
+                    $tr = $ts = $vc = $vep = $tfp = $dhp = $conso= $conso_warning = $toc = $precision = "";
                 } else {
                     switch ($brainType) {
                         case 0:
@@ -177,7 +182,9 @@ class Output extends Controller
 
                         $calculationStatus = $this->dima->getCalculationStatus($dimaResult->DIMA_STATUS);
 
-                        $conso = $this->dima->consumptionCell($lfcoef, $calculationStatus, $valueStr);
+                        $consumptionCell = $this->dima->consumptionCell($lfcoef, $calculationStatus, $valueStr);
+                        $conso = $consumptionCell["value"];
+                        $conso_warning = $consumptionCell["warning"];
 
                     } else {
                         $conso = "****";
@@ -216,6 +223,7 @@ class Output extends Controller
             $item["tfp"] = $tfp;
             $item["dhp"] = $dhp;
             $item["conso"] = $conso;
+            $item["conso_warning"] = $conso_warning;
             $item["toc"] = $toc;
             $item["precision"] = $precision;
 
@@ -254,14 +262,14 @@ class Output extends Controller
             $dimaResult = DimaResults::where("ID_STUDY_EQUIPMENTS", $idStudyEquipment)->where("DIMA_TYPE", 16)->first();
 
             if (!($this->equip->getCapability($capabilitie, 128))) {
-                $tr = $ts = $vc = $vep = $tfp = $dhp = $conso = $toc = $precision = "****";
+                $tr = $ts = $vc = $vep = $tfp = $dhp = $conso = $conso_warning = $toc = $precision = "****";
             } else if ($dimaResult == null) {
-                $tr = $ts = $vc = $vep = $tfp = $dhp = $conso = $toc = $precision = "";
+                $tr = $ts = $vc = $vep = $tfp = $dhp = $conso = $conso_warning = $toc = $precision = "";
             } else {
                 $calculWarning = $this->dima->getCalculationWarning($dimaResult->DIMA_STATUS);
 
                 if ($calculWarning != 0) {
-                    $tr = $ts = $vc = $vep = $tfp = $dhp = $conso = $toc = $precision = "****";
+                    $tr = $ts = $vc = $vep = $tfp = $dhp = $conso = $conso_warning = $toc = $precision = "****";
                 } else {
                     $tr = $this->unit->controlTemperature($dimaResult->SETPOINT);
                     $ts = $this->unit->time($dimaResult->DIMA_TS);
@@ -277,10 +285,13 @@ class Output extends Controller
 
                         $calculationStatus = $this->dima->getCalculationStatus($dimaResult->DIMA_STATUS);
 
-                        $conso = $this->dima->consumptionCell($lfcoef, $calculationStatus, $valueStr);
+                        $consumptionCell = $this->dima->consumptionCell($lfcoef, $calculationStatus, $valueStr);
+                        $conso = $consumptionCell["value"];
+                        $conso_warning = $consumptionCell["warning"];
 
                     } else {
                         $conso = "****";
+                        $conso_warning = "";
                     }
 
                     if ($this->equip->getCapability($capabilitie, 32)) {
@@ -314,6 +325,7 @@ class Output extends Controller
             $item["tfp"] = $tfp;
             $item["dhp"] = $dhp;
             $item["conso"] = $conso;
+            $item["conso_warning"] = $conso_warning;
             $item["toc"] = $toc;
             $item["precision"] = $precision;
 
@@ -777,12 +789,12 @@ class Output extends Controller
             $item["id"] = $idStudyEquipment = $row->ID_STUDY_EQUIPMENTS;
             $item["equipName"] = $equipName = $this->equip->getSpecificEquipName($idStudyEquipment);
 
-            $tr = $ts = $vc = $dhp = $conso = $toc = $trMax = $tsMax = $vcMax = $dhpMax = $consoMax = $tocMax = "";
+            $tr = $ts = $vc = $dhp = $conso = $conso_warning = $toc = $trMax = $tsMax = $vcMax = $dhpMax = $consoMax = $consomax_warning = $tocMax = "";
 
             if (!($this->equip->getCapability($capabilitie , 128))){
-                $tr = $ts = $vc = $dhp = $conso = $toc = $trMax = $tsMax = $vcMax = $dhpMax = $consoMax = $tocMax = "";
+                $tr = $ts = $vc = $dhp = $conso = $conso_warning = $toc = $trMax = $tsMax = $vcMax = $dhpMax = $consoMax = $consomax_warning = $tocMax = "";
             } else if ($equipStatus == 100000) {
-                $tr = $ts = $vc = $dhp = $conso = $toc = $trMax = $tsMax = $vcMax = $dhpMax = $consoMax = $tocMax = "";
+                $tr = $ts = $vc = $dhp = $conso = $conso_warning = $toc = $trMax = $tsMax = $vcMax = $dhpMax = $consoMax = $consomax_warning = $tocMax = "";
             } else {
                 if (($equipStatus != 0) && ($equipStatus != 1) && ($equipStatus != 100000)) {
                     $tr = $ts = $vc = $dhp = $conso = $toc = "****";
@@ -799,9 +811,12 @@ class Output extends Controller
                             $consumption = $dimaResult->CONSUM / $lfcoef;
                             $valueStr = $this->unit->consumption($consumption, $idCoolingFamily, 1);
                             $calculationStatus = $this->dima->getCalculationStatus($dimaResult->DIMA_STATUS);
-                            $conso = $this->dima->consumptionCell($lfcoef, $calculationStatus, $valueStr);
+                            $consumptionCell = $this->dima->consumptionCell($lfcoef, $calculationStatus, $valueStr);
+                            $conso = $consumptionCell["value"];
+                            $conso_warning = $consumptionCell["warning"];
                         } else {
                             $conso = "****";
+                            $conso_warning = "";
                         }
 
                         if ($this->equip->getCapability($capabilitie, 32)) {
@@ -840,9 +855,12 @@ class Output extends Controller
                                 $consumption = $dimaResultMax->CONSUM / $lfcoef;
                                 $valueStr = $this->unit->consumption($consumption, $idCoolingFamily, 1);
                                 $calculationStatus = $this->dima->getCalculationStatus($dimaResultMax->DIMA_STATUS);
-                                $consoMax = $this->dima->consumptionCell($lfcoef, $calculationStatus, $valueStr);
+                                $consumptionCellMax = $this->dima->consumptionCell($lfcoef, $calculationStatus, $valueStr);
+                                $consoMax = $consumptionCellMax["value"];
+                                $consomax_warning = $consumptionCellMax["warning"];
                             } else {
-                                $conso = "****";
+                                $consoMax = "****";
+                                $consomax_warning = "";
                             }
 
                             if ($this->equip->getCapability($capabilitie, 32)) {
@@ -867,12 +885,14 @@ class Output extends Controller
             $item["vc"] = $vc;
             $item["dhp"] = $dhp;
             $item["conso"] = $conso;
+            $item["conso_warning"] = $conso_warning;
             $item["toc"] = $toc;
             $item["trMax"] = $trMax;
             $item["tsMax"] = $tsMax;
             $item["vcMax"] = $vcMax;
             $item["dhpMax"] = $dhpMax;
             $item["consoMax"] = $consoMax;
+            $item["consomax_warning"] = $consomax_warning;
             $item["tocMax"] = $tocMax;
 
             $result[] = $item;
@@ -1013,7 +1033,7 @@ class Output extends Controller
             $viewEquip = false;
             $optionTr = "";
             $addEquipment = false;
-            $tr = $dhp = $conso = $toc = $dhpMax = $consoMax = $tocMax = "";
+            $tr = $dhp = $conso = $conso_warning = $toc = $dhpMax = $consoMax = $consomax_warning = $tocMax = "";
 
             if ($row->NB_TR <= 1 && count($dimaResults) > 0) { 
                 $dimaR = $dimaResults[$trSelect];
@@ -1021,7 +1041,7 @@ class Output extends Controller
                     $tr = "---";
                     $viewEquip = false;
                     $optionTr = "disabled";
-                    $dhp = $conso = $toc = $dhpMax = $consoMax = $tocMax = "---";
+                    $dhp = $conso = $conso_warning = $toc = $dhpMax = $consoMax = $consomax_warning = $tocMax = "---";
                 } else {
                     if ($this->equip->isValidTemperature($idStudyEquipment, $trSelect) && $dimaR != null) {
                         $tr = $this->unit->controlTemperature($dimaR->SETPOINT);
@@ -1340,6 +1360,70 @@ class Output extends Controller
         }
     }
     
+    public function location()
+    {
+        $idStudy = $this->request->input('idStudy');
+        $idStudyEquipment = $this->request->input('idStudyEquipment');
+
+        $tfMesh = [];
+        for ($i = 0; $i < 3; $i++) {
+            $meshPoints = MeshPosition::distinct()->select('MESH_AXIS_POS')->where('ID_STUDY', $idStudy)->where('MESH_AXIS', $i+1)->orderBy('MESH_AXIS_POS')->get();
+            $itemName = [];
+            foreach ($meshPoints as $row) {
+                $item['value'] = $row->MESH_AXIS_POS;
+                $item['name'] = $this->unit->meshesUnit($row->MESH_AXIS_POS * 1000);
+                $itemName[] = $item;
+            }
+            $tfMesh[$i] = array_reverse($itemName);
+        }
+        $meshAxisPos = [];
+        if (!empty($tfMesh)) {
+            $meshAxisPos = $tfMesh;
+            /*$meshAxisPos['x'] = $tfMesh[0];
+            $meshAxisPos['y'] = $tfMesh[1];
+            $meshAxisPos['z'] = $tfMesh[2];*/
+        }
+
+        $productElmt = ProductElmt::where('ID_STUDY', $idStudy)->first();
+        $shape = $productElmt->SHAPECODE;
+        $layoutGen = LayoutGeneration::where('ID_STUDY_EQUIPMENTS', $idStudyEquipment)->first();
+        $parallel = $layoutGen->PROD_POSITION;
+        $v3fSelectedPoints = [];
+
+        $tfMesh = $this->output->convertMeshForAppletDim($shape, $parallel, $tfMesh);
+
+        $tfCoord = $this->output->convertPointForAppletDim($shape, $parallel, $tfMesh); 
+        $v3fSelectedPoints[0][0] = $tfCoord;
+
+        $tfCoord = $this->output->convertPointForAppletDim($shape, $parallel, $tfMesh); 
+        $v3fSelectedPoints[0][1] = $tfCoord;
+
+        $tfCoord = $this->output->convertPointForAppletDim($shape, $parallel, $tfMesh); 
+        $v3fSelectedPoints[0][2] = $tfCoord;
+
+        $tfCoord[0] = 0.0;
+        $tfCoord[1] = $tfMesh[0];
+        $tfCoord[2] = $tfMesh[1];
+
+        $v3fSelectedPoints[1][0] = $tfCoord;
+
+        $tfCoord[0] = $tfMesh[0];
+        $tfCoord[1] = 0.0;
+        $tfCoord[2] = $tfMesh[1];
+        
+        $v3fSelectedPoints[1][1] = $tfCoord;
+
+        $tfCoord[0] = $tfMesh[0];
+        $tfCoord[1] = $tfMesh[1];
+        $tfCoord[2] = 0.0;
+        
+        $v3fSelectedPoints[1][2] = $tfCoord;
+
+        $v3fSelectedPoints[1] = $this->output->convertAxisForAppletDim($shape, $parallel, $v3fSelectedPoints[1]);
+
+
+        return $meshAxisPos;
+    }
 
     public function heatExchange() 
     {
@@ -1449,5 +1533,126 @@ class Output extends Controller
         }
 
         return compact("label", "curve", "result");
+    }
+
+    public function productSection(){
+        $idStudy = $this->request->input('idStudy');
+        $idStudyEquipment = $this->request->input('idStudyEquipment');
+        $selectedAxe = $this->request->input('selectedAxe');
+
+        $productElmt = ProductElmt::where('ID_STUDY', $idStudy)->first();
+        $shape = $productElmt->SHAPECODE;
+        $layoutGen = LayoutGeneration::where('ID_STUDY_EQUIPMENTS', $idStudyEquipment)->first();
+        $orientation = $layoutGen->PROD_POSITION;
+
+        $resultLabel = [];
+        $resultTemperature = [];
+
+        $selPoints = $this->output->getSelectedMeshPoints($idStudy);
+        if (empty($selPoints)) {
+            $selPoints = $this->output->getMeshSelectionDef();
+        }
+
+        $axeTempRecordData = [];
+        if (!empty($selPoints)) {
+            $axeTempRecordData = [
+                [-1.0, $selPoints[9], $selPoints[10]],
+                [$selPoints[11], -1.0, $selPoints[12]],
+                [$selPoints[13], $selPoints[14], -1.0]
+            ];
+        }
+        $axeTemp = [];
+        switch ($selectedAxe) {
+            case 1:
+                array_push($axeTemp, $this->unit->prodchartDimension($selPoints[9]));
+                array_push($axeTemp, $this->unit->prodchartDimension($selPoints[10]));
+                break;
+
+            case 2:
+                array_push($axeTemp, $this->unit->prodchartDimension($selPoints[11]));
+                array_push($axeTemp, $this->unit->prodchartDimension($selPoints[12]));
+                break;
+
+            case 3:
+                array_push($axeTemp, $this->unit->prodchartDimension($selPoints[13]));
+                array_push($axeTemp, $this->unit->prodchartDimension($selPoints[14]));
+                break;
+        }
+
+        $listRecordPos = RecordPosition::where("ID_STUDY_EQUIPMENTS", $idStudyEquipment)->orderBy("RECORD_TIME", "ASC")->get();
+        $nbSteps = TempRecordPts::where("ID_STUDY", $idStudy)->first();
+        $nbSample = $nbSteps->NB_STEPS;
+
+        $nbRecord = count($listRecordPos);
+
+        $lfTS = $listRecordPos[$nbRecord - 1]->RECORD_TIME;
+        $lfStep = $listRecordPos[1]->RECORD_TIME - $listRecordPos[0]->RECORD_TIME;
+        $lEchantillon = $this->output->calculateEchantillon($nbSample, $nbRecord, $lfTS, $lfStep);
+        // return $axeTempRecordData;
+
+        foreach ($lEchantillon as $row) {
+
+            $recordPos = $listRecordPos[$row];
+
+            $itemResult["x"] = $this->unit->time($recordPos->RECORD_TIME);
+            $tempRecordData = $this->output->getTempRecordData($recordPos->ID_REC_POS, $idStudy, $axeTempRecordData, $selectedAxe - 1, $shape, $orientation);
+
+            $item = [];
+            $recAxis = [];
+            $mesAxis = [];
+            if (count($tempRecordData) > 0) {
+                foreach ($tempRecordData as $row) {
+                    $item[] = $this->unit->prodTemperature($row->TEMP);
+                    switch ($selectedAxe) {
+                        case 1:
+                            if (($shape == 1) || ($shape == 2 && $orientation == 1) && ($shape == 9 && $orientation == 1)) {
+                                $recAxisValue = $row->REC_AXIS_Z_POS;
+                            } else if ($shape == 3 || $shape == 5 || $shape == 7) {
+                                $recAxisValue = $row->REC_AXIS_Y_POS;
+                            } else {
+                                $recAxisValue = $row->REC_AXIS_X_POS;
+                            }
+                            break;
+
+                        case 2:
+                            if ($shape == 1 || $shape == 2 || $shape == 9 || $shape == 4 || $shape == 8 || $shape == 6) {
+                                $recAxisValue = $row->REC_AXIS_Y_POS;
+                            } else {
+                                $recAxisValue = $row->REC_AXIS_X_POS;
+                            }
+                            break;
+
+                        case 3:
+                            if (($shape == 3) || ($shape == 2 && $orientation == 1) && ($shape == 9)) {
+                                $recAxisValue = $row->REC_AXIS_X_POS;
+                            } else {
+                                $recAxisValue = $row->REC_AXIS_Z_POS;
+                            }
+                            break;
+                    }
+                    $recAxis[] = $recAxisValue;
+                    $mesAxis[] = $this->output->getAxisForPosition2($idStudy, $recAxisValue, $selectedAxe);
+                    $meshPoints = MeshPosition::select('MESH_AXIS_POS')->where('ID_STUDY', $idStudy)->where('MESH_AXIS', $selectedAxe)->orderBy('MESH_AXIS_POS')->first();
+                }
+            }
+
+            $resultLabel[] = $itemResult["x"];
+            $resultTemperature[] = $item;
+        }
+
+        $result = [];
+        $resultValue = [];
+
+        foreach ($resultTemperature as $row) {
+            foreach ($row as $key => $value) {
+                $resultValue[$key][] = $value;
+            }
+        }
+        $result["recAxis"] = $recAxis;
+        $result["mesAxis"] = $mesAxis;
+        $result["resultValue"] = $resultValue;
+
+
+        return compact("axeTemp", "resultLabel", "result");
     }
 }
