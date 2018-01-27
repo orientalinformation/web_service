@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Sofa\Eloquence\Eloquence; // base trait
+use Sofa\Eloquence\Mappable; // extension trait
 
 /**
  * @property int $ID_TEMP_RECORD_DATA
@@ -18,6 +20,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class TempRecordData extends Model
 {
+    use Eloquence, Mappable;
     /**
      * The table associated with the model.
      * 
@@ -35,12 +38,27 @@ class TempRecordData extends Model
      */
     protected $primaryKey = 'ID_TEMP_RECORD_DATA';
 
+    protected $hidden = [
+        'recordPosition'
+    ];
+
     /**
      * Indicates if the model should be timestamped.
      * 
      * @var bool
      */
     public $timestamps = false;
+
+    protected $maps = [
+      'recordPosition' => ['ID_STUDY_EQUIPMENTS', 'RECORD_TIME']
+    ];
+
+    /**
+     * @var array
+     */
+    protected $appends = [
+        'ID_STUDY_EQUIPMENTS', 'RECORD_TIME'
+    ];
 
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo

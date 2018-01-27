@@ -122,19 +122,31 @@ class Products extends Controller
         $description = $input['description'];
         $computedmass = $input['computedmass'];
         $realmass = $input['realmass'];
-
+        
         $nElements = \App\Models\ProductElmt::find($idElement);
+        $oldRealMass = $nElements->PROD_ELMT_REALWEIGHT;
+        $oldDim2 = $nElements->SHAPE_PARAM2;
+
         $nElements->PROD_ELMT_NAME = $description;
         $nElements->SHAPE_PARAM2 = $dim2;
         $nElements->PROD_ELMT_WEIGHT = $computedmass;
         $nElements->PROD_ELMT_REALWEIGHT = $realmass;
         $nElements->save();
 
-        $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $id, $idElement);
-        $ok2 = $this->kernel->getKernelObject('WeightCalculator')->WCWeightCalculation($product->ID_STUDY,  $conf, 2);
+        $ok1 = $ok2 = 0;
 
-        $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $id);
-        $ok2 = $this->kernel->getKernelObject('WeightCalculator')->WCWeightCalculation($product->ID_STUDY,  $conf, 3);
+        if ($oldRealMass != $realmass) {
+            $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $id, $idElement);
+            $ok2 = $this->kernel->getKernelObject('WeightCalculator')->WCWeightCalculation($product->ID_STUDY, $conf, 3);
+        } elseif ($oldDim2 != $dim2) {
+            $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $id, $idElement);
+            $ok1 = $this->kernel->getKernelObject('WeightCalculator')->WCWeightCalculation($product->ID_STUDY, $conf, 2);
+
+            $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $id);
+            $ok2 = $this->kernel->getKernelObject('WeightCalculator')->WCWeightCalculation($product->ID_STUDY, $conf, 3);
+        }
+
+        
 
         return compact('ok1', 'ok2', 'idElement');
     }

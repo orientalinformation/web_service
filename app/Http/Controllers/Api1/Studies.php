@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api1;
 
 use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\Controller;
+use Illuminate\Http\Response;
 use App\Models\MeshGeneration;
 use App\Models\Product;
 use App\Models\ProductElmt;
@@ -18,6 +19,7 @@ use Illuminate\Contracts\Auth\Factory as Auth;
 use App\Kernel\KernelService;
 use App\Cryosoft\UnitsConverterService;
 use App\Cryosoft\ValueListService;
+use App\Cryosoft\LineService;
 use App\Models\MinMax;
 use App\Models\PrecalcLdgRatePrm;
 use App\Models\LayoutGeneration;
@@ -35,7 +37,6 @@ use App\Models\Report;
 use App\Models\EconomicResults;
 use App\Models\PipeGen;
 use App\Models\PipeRes;
-
 
 class Studies extends Controller
 {
@@ -64,20 +65,21 @@ class Studies extends Controller
      * @var App\Cryosoft\ValueListService
      */
     protected $value;
-    
+
 
     /**
      * Create a new controller instance.
      *
      * @return void
      */
-    public function __construct(Request $request, Auth $auth, KernelService $kernel, UnitsConverterService $convert, ValueListService $value)
+    public function __construct(Request $request, Auth $auth, KernelService $kernel, UnitsConverterService $convert, ValueListService $value, LineService $lineE)
     {
         $this->request = $request;
         $this->auth = $auth;
         $this->kernel = $kernel;
         $this->convert = $convert;
         $this->value = $value;
+        $this->lineE = $lineE;
     }
 
     public function findStudies()
@@ -222,7 +224,10 @@ class Studies extends Controller
         $duplicateStudy = Study::where('STUDY_NAME', '=', $input['name'])->count();
         if($duplicateStudy){
 
-            return 1002;
+            return response([
+                'code' => 1002,
+                'message' => 'Duplicate Study Name!'
+            ], 406);
         }
         
         if($studyCurrent != null) {
@@ -480,13 +485,19 @@ class Studies extends Controller
 
                 
 
-                return 1000;
+                return $study;
 
             } else {
-                return 1001;
+                return response([
+                    'code' => 1001,
+                    'message' => 'Unknown error!'
+                ], 406); // Status code here
             }
         } else {
-            echo "Id study is null";
+           return response([
+                    'code' => 1003,
+                    'message' => 'Study id not found'
+                ], 406); // Status code here
         }
 
     }
@@ -537,30 +548,33 @@ class Studies extends Controller
             $tempRecordPts->NB_STEPS = $tempRecordPtsDef->NB_STEPS_DEF;
             $tempRecordPts->ID_STUDY = $id;
 
-            $tempRecordPts->AXIS1_PT_TOP_SURF = $tempRecordPtsDef->AXIS1_PT_TOP_SURF_DEF;
-            $tempRecordPts->AXIS2_PT_TOP_SURF = $tempRecordPtsDef->AXIS2_PT_TOP_SURF_DEF;
-            $tempRecordPts->AXIS3_PT_TOP_SURF = $tempRecordPtsDef->AXIS3_PT_TOP_SURF_DEF;
+            $tempRecordPts->AXIS1_PT_TOP_SURF = 0;
+            $tempRecordPts->AXIS2_PT_TOP_SURF = 0;
+            $tempRecordPts->AXIS3_PT_TOP_SURF = 0;
 
-            $tempRecordPts->AXIS1_PT_INT_PT = $tempRecordPtsDef->AXIS1_PT_INT_PT_DEF;
-            $tempRecordPts->AXIS2_PT_INT_PT = $tempRecordPtsDef->AXIS2_PT_INT_PT_DEF;
-            $tempRecordPts->AXIS3_PT_INT_PT = $tempRecordPtsDef->AXIS3_PT_INT_PT_DEF;
+            $tempRecordPts->AXIS1_PT_INT_PT = 0;
+            $tempRecordPts->AXIS2_PT_INT_PT = 0;
+            $tempRecordPts->AXIS3_PT_INT_PT = 0;
 
-            $tempRecordPts->AXIS1_PT_BOT_SURF = $tempRecordPtsDef->AXIS1_PT_BOT_SURF_DEF;
-            $tempRecordPts->AXIS2_PT_BOT_SURF = $tempRecordPtsDef->AXIS2_PT_BOT_SURF_DEF;
-            $tempRecordPts->AXIS3_PT_BOT_SURF = $tempRecordPtsDef->AXIS3_PT_BOT_SURF_DEF;
+            $tempRecordPts->AXIS1_PT_BOT_SURF = 0;
+            $tempRecordPts->AXIS2_PT_BOT_SURF = 0;
+            $tempRecordPts->AXIS3_PT_BOT_SURF = 0;
 
-            $tempRecordPts->AXIS1_AX_2 = $tempRecordPtsDef->AXIS1_AX_2_DEF;
-            $tempRecordPts->AXIS1_AX_3 = $tempRecordPtsDef->AXIS1_AX_3_DEF;
+            $tempRecordPts->AXIS1_AX_2 = 0;
+            $tempRecordPts->AXIS1_AX_3 = 0;
 
-            $tempRecordPts->AXIS2_AX_3 = $tempRecordPtsDef->AXIS2_AX_3_DEF;
-            $tempRecordPts->AXIS2_AX_1 = $tempRecordPtsDef->AXIS2_AX_1_DEF;
+            $tempRecordPts->AXIS2_AX_3 = 0;
+            $tempRecordPts->AXIS2_AX_1 = 0;
 
-            $tempRecordPts->AXIS3_AX_1 = $tempRecordPtsDef->AXIS3_AX_1_DEF;
-            $tempRecordPts->AXIS3_AX_2 = $tempRecordPtsDef->AXIS3_AX_2_DEF;
+            $tempRecordPts->AXIS3_AX_1 = 0;
+            $tempRecordPts->AXIS3_AX_2 = 0;
 
-            $tempRecordPts->AXIS1_PL_2_3 = $tempRecordPtsDef->AXIS1_PL_2_3_DEF;
-            $tempRecordPts->AXIS2_PL_1_3 = $tempRecordPtsDef->AXIS2_PL_1_3_DEF;
-            $tempRecordPts->AXIS3_PL_1_2 = $tempRecordPtsDef->AXIS3_PL_1_2_DEF;
+            $tempRecordPts->AXIS1_PL_2_3 = 0;
+            $tempRecordPts->AXIS2_PL_1_3 = 0;
+            $tempRecordPts->AXIS3_PL_1_2 = 0;
+
+            $tempRecordPts->CONTOUR2D_TEMP_MIN = 0;
+            $tempRecordPts->CONTOUR2D_TEMP_MAX = 0;
 
             $tempRecordPts->save();
         }
@@ -734,15 +748,17 @@ class Studies extends Controller
     public function updateProduct($id) 
     {
         $study = \App\Models\Study::find($id);
-        $product = $study->product;
-        $input = $this->request->all();
+        $product = $study->products->first();
+        $input = $this->request->json()->all();
 
         if (isset($input['name']) && !empty($input['name'])) {
             $product->PRODNAME = $input['name'];
             $product->save();
         }
 
-        if (isset($input['dim1']) || isset($input['dim2']) || isset($input['dim3'])) {
+        $ok = 0;
+
+        if (isset($input['dim1']) || isset($input['dim3'])) {
             $elements = $product->productElmts;
             if ($elements->count() > 0) {
                 foreach ($elements as $elmt) {
@@ -750,10 +766,14 @@ class Studies extends Controller
                     if (isset($input['dim2'])) $elmt->SHAPE_PARAM2 = floatval($input['dim2']);
                     if (isset($input['dim3'])) $elmt->SHAPE_PARAM3 = floatval($input['dim3']);
                     $elmt->save();
-                }
+                    $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $product->ID_PROD, intval($elmt->ID_PRODUCT_ELMT));
+                    $ok = $this->kernel->getKernelObject('WeightCalculator')->WCWeightCalculation($id, $conf, 2);
+                }                
+                $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $product->ID_PROD);
+                $ok = $this->kernel->getKernelObject('WeightCalculator')->WCWeightCalculation($id, $conf, 4);
             }
         }
-        return 0;
+        return $ok;
     }
 
     public function getStudyPackingLayers($id)
@@ -835,6 +855,7 @@ class Studies extends Controller
         $study->CHAINING_NODE_DECIM_ENABLE = 0;
         $study->HAS_CHILD = 0;
         $study->TO_RECALCULATE = 0;
+        $study->ID_REPORT = 0;
         $study->save();
 
         $nbMF 					= (float) MinMax::where('LIMIT_ITEM', $this->value->MIN_MAX_DAILY_STARTUP)->first()->DEFAULT_VALUE;
@@ -878,6 +899,35 @@ class Studies extends Controller
         $tempRecordPtsDef = TempRecordPtsDef::where('ID_USER', $this->auth->user()->ID_USER)->first();
         $tempRecordPts->ID_STUDY = $study->ID_STUDY;
         $tempRecordPts->NB_STEPS = $tempRecordPtsDef->NB_STEPS_DEF;
+
+        $tempRecordPts->AXIS1_PT_TOP_SURF = 0;
+        $tempRecordPts->AXIS2_PT_TOP_SURF = 0;
+        $tempRecordPts->AXIS3_PT_TOP_SURF = 0;
+
+        $tempRecordPts->AXIS1_PT_INT_PT = 0;
+        $tempRecordPts->AXIS2_PT_INT_PT = 0;
+        $tempRecordPts->AXIS3_PT_INT_PT = 0;
+
+        $tempRecordPts->AXIS1_PT_BOT_SURF = 0;
+        $tempRecordPts->AXIS2_PT_BOT_SURF = 0;
+        $tempRecordPts->AXIS3_PT_BOT_SURF = 0;
+
+        $tempRecordPts->AXIS1_AX_2 = 0;
+        $tempRecordPts->AXIS1_AX_3 = 0;
+
+        $tempRecordPts->AXIS2_AX_3 = 0;
+        $tempRecordPts->AXIS2_AX_1 = 0;
+
+        $tempRecordPts->AXIS3_AX_1 = 0;
+        $tempRecordPts->AXIS3_AX_2 = 0;
+
+        $tempRecordPts->AXIS1_PL_2_3 = 0;
+        $tempRecordPts->AXIS2_PL_1_3 = 0;
+        $tempRecordPts->AXIS3_PL_1_2 = 0;
+
+        $tempRecordPts->CONTOUR2D_TEMP_MIN = 0;
+        $tempRecordPts->CONTOUR2D_TEMP_MAX = 0;
+
         $tempRecordPts->save();
 
         $study->ID_PROD = $product->ID_PROD;
@@ -1329,12 +1379,78 @@ class Studies extends Controller
             $itemName = [];
             foreach ($meshPoints as $row) {
                 $item['value'] = $row->MESH_AXIS_POS;
-                $item['name'] = $this->convert->meshesUnit($row->MESH_AXIS_POS * 1000);
+                $item['name'] = $this->convert->meshesUnit($row->MESH_AXIS_POS);
                 $itemName[] = $item;
             }
             $tfMesh[$i] = array_reverse($itemName);
         }
 
         return $tfMesh;
+    }
+
+    public function loadPipeline($id) {
+        $idIsolation = 5;
+        $diameter = 0.0;
+        $idPipeGen = 0;
+        $insulatedLineLength = 0.0;
+        $nonInsulatedLineLength = 0.0;
+        $elbowsQuantity = 0;
+        $teesQuantity = 0;
+        $insulatedValvesQuantity = 0;
+        $nonInsulatedValvesQuantity = 0;
+        $storageTank = "";
+        $storageTankCapacity = 0;
+        $height = 0.0;
+        $pressure = 0.0;
+        $gasTemperature = 0.0;
+
+        // $studyCurr = Study::find($id);
+        // $studyEquip = StudyEquipment::where('ID_STUDY', $id)->get();
+        $pipegen = $this->lineE->loadPipeline($id);
+
+        if($pipegen != null) {
+            $listLineDefinition = $this->lineE->getListLineDefinition($pipegen->ID_PIPE_GEN);
+        }
+
+        $idCoolingFamily = $this->lineE->getIdCoolingFamily($id);
+        $listLineDiametre = $this->lineE->linegetListLineDiametre($idCoolingFamily, $idIsolation);
+        $userCurr = LineElmt::where('ID_USER', '!=', $this->auth->user()->ID_USER)->get();
+
+        $storageTank = $this->line->getComboLineElmt(7, $idCoolingFamily, $idIsolation, $diameter, $userCurr, $studyCurr, 
+            $this->line->getListLineDefinition($idPipeGen));
+
+        if($pipegen !=  null) {
+            $idPipeGen = $pipegen->ID_PIPE_GEN;
+            $insulatedLineLength = $pipegen->INSULLINE_LENGHT;
+            $nonInsulatedLineLength = $pipegen->NOINSULLINE_LENGHT;
+            $elbowsQuantity = $pipegen->ELBOWS;
+            $teesQuantity = $pipegen->TEES;
+            $insulatedValvesQuantity = $pipegen->INSUL_VALVES;
+            $nonInsulatedValvesQuantity = $pipegen->NOINSUL_VALVES;
+            $height = $pipegen->HEIGHT;
+            $pressure = $pipegen->PRESSURE;
+            $gasTemperature = $pipegen->GAS_TEMP;
+            $storageTankCapacity = $pipegen->FLUID;
+        }
+
+        return $pipegen;
+    }
+
+    public function getStudyComment($id) {
+        // @class: \App\Models\Study
+        $study = Study::find($id);
+    }
+
+    public function postStudyComment($id) {
+        // @class: \App\Models\Study
+        $study = Study::find($id);
+        $input = $this->request->json()->all();
+
+        if (!empty($input['comment'])) {
+            $study->COMMENT_TXT = $input['comment'];
+            $study->save();
+        }
+
+        return $study;
     }
 }

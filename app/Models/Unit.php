@@ -26,6 +26,11 @@ class Unit extends Model
      */
     protected $fillable = ['ID_UNIT', 'TYPE_UNIT', 'SYMBOL', 'COEFF_A', 'COEFF_B'];
 
+    protected $casts = [
+        'COEFF_A' => 'double',
+        'COEFF_B' => 'double',
+    ];
+
     /**
      * @var string
      */

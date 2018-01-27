@@ -201,4 +201,15 @@ class ValueListService
     public $MINMAX_LINE_ELTLOSSES1 					= 1111;
     public $MINMAX_TANK_ELTLOSSES1 					= 1112;
     public $MINMAX_LINE_ELTLOSSES2 					= 1113;
+    //Reference data
+    public $BROUILLON = 1;
+    public $TEST = 2;
+    public $ACTIF = 3;
+    public $CERTIFIE = 4;
+    public $DISABLED = 5;
+    public $SLEEPING = 6;
+    public $SLEEPING_COPY = 7;
+    public $ACTIVE_FROM_SLEEPING = 8;
+    public $OBSOLETE = 9;
+
 }

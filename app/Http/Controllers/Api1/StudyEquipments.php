@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\Auth\Factory as Auth;
 use App\Models\LayoutGeneration;
+use App\Models\RecordPosition;
 
 class StudyEquipments extends Controller
 {
@@ -54,5 +55,11 @@ class StudyEquipments extends Controller
             }
         }
         return $result;
+    }
+
+    public function getRecordPosition($id)
+    {
+        $recordPosition = RecordPosition::where('ID_STUDY_EQUIPMENTS', $id)->orderBy('RECORD_TIME', 'ASC')->get();
+        return $recordPosition;
     }
 }

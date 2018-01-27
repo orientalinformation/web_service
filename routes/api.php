@@ -415,14 +415,6 @@ $router->GET('/api/v1/output/temperatureProfile/{idStudyEquipment}', 'Api1\\Outp
 $router->GET('/api/v1/common/economic/{idStudy}', 'Api1\\Output@getAnalyticalEconomic');
 
 /**
- * GET optimumcalculator
- * Summary: 
- * Notes: get head balance result/products/{id}/packingLayers
- * Output-Formats: [application/json]
- */
-$router->GET('/api/v1/optimumcalculator', 'Api1\\Calculator@getOptimumCalculator');
-
-/**
  * GET StudyPackingLayers
  * Summary: 
  * Notes: get head balance result
@@ -439,20 +431,28 @@ $router->GET('/api/v1/studies/{id}/packingLayers', 'Api1\\Studies@getStudyPackin
 $router->POST('/api/v1/studies/{id}/packingLayers', 'Api1\\Studies@savePacking');
 
 /**
- * POST start caluclate
- * Summary: 
- * Notes: get head balance result
- * Output-Formats: [application/json]
- */
-$router->POST('/api/v1/startcalculate', 'Api1\\Calculator@startCalculate');
-
-/**
  * GET start Estimation
  * Summary: 
  * Notes: get head balance result
  * Output-Formats: [application/json]
  */
 $router->GET('/api/v1/studies/{id}/calculate', 'Api1\\Calculator@startStudyCalculation');
+
+/**
+ * GET findLines
+ * Summary: 
+ * Notes: Get a list of line
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/studies/{id}/getListLine', 'Api1\\Studies@loadPipeline');
+
+/**
+ * PUT createLine
+ * Summary: 
+ * Notes: 
+ * Output-Formats: [application/json]
+ */
+$router->PUT('/api/v1/lines', 'Api1\\Lines@createLine');
 
 
 include_once("api_ngonc.php");

@@ -223,6 +223,52 @@ class OutputService
         }
     }
 
+    public function convertPointForDB($ldShape, $bIsParallel, $appDim) {
+        $dbDim = [];
+
+        switch ($ldShape) {
+            case 1:
+                $dbDim = [$appDim['x'], $appDim['y'], $appDim['z']];
+                break;
+
+            case 2:
+            case 9:
+                if ($bIsParallel) {
+                    $dbDim = [$appDim['z'], $appDim['y'], $appDim['x']];
+                } else {
+                    $dbDim = [$appDim['x'], $appDim['y'], $appDim['z']];
+                }
+                break;
+
+            case 3:
+                if ($bIsParallel) {
+                    $dbDim = [$appDim['y'], $appDim['z'], $appDim['x']];
+                } else {
+                    $dbDim = [$appDim['y'], $appDim['x'], $appDim['z']];
+                }
+                break;
+
+            case 4:
+            case 5:
+                $dbDim = [$appDim['x'], $appDim['y'], $appDim['z']];
+                break;
+
+            case 7:
+            case 8:
+                $dbDim = [$appDim['y'], $appDim['x'], $appDim['z']];
+                break;
+
+            case 6:
+                $dbDim = [$appDim['x'], $appDim['y'], $appDim['z']];
+                break;
+
+            default:
+                $dbDim = [$appDim['x'], $appDim['y'], $appDim['z']];
+        }
+
+        return $dbDim;
+    }
+
     public function getSelectedMeshPoint($iType, $iObj)
     {
         
@@ -303,7 +349,7 @@ class OutputService
                         $rMeshPositionY = MeshPosition::where('ID_STUDY', $idStudy)->where('MESH_AXIS', 2)->where('MESH_AXIS_POS', $axeTempRecordData[$selectedAxe][1])->first();
                         $rMeshPositionX = MeshPosition::where('ID_STUDY', $idStudy)->where('MESH_AXIS', 3)->where('MESH_AXIS_POS', $axeTempRecordData[$selectedAxe][2])->first();
 
-                        $result = TempRecordData::where("ID_REC_POS", $idRecPos)->where('REC_AXIS_Y_POS', $rMeshPositionY->MESH_ORDER)->where('REC_AXIS_X_POS', $rMeshPositionX->REC_AXIS_X_POS)->orderBy('REC_AXIS_Z_POS', 'ASC')->get();
+                        $result = TempRecordData::where("ID_REC_POS", $idRecPos)->where('REC_AXIS_Y_POS', $rMeshPositionY->MESH_ORDER)->where('REC_AXIS_X_POS', $rMeshPositionX->MESH_ORDER)->orderBy('REC_AXIS_Z_POS', 'ASC')->get();
                     } else {
                         $rMeshPositionY = MeshPosition::where('ID_STUDY', $idStudy)->where('MESH_AXIS', 2)->where('MESH_AXIS_POS', $axeTempRecordData[$selectedAxe][1])->first();
                         $result = TempRecordData::where("ID_REC_POS", $idRecPos)->where('REC_AXIS_Y_POS', $rMeshPositionY->MESH_ORDER)->where('REC_AXIS_Z_POS', 0)->orderBy('REC_AXIS_X_POS', 'ASC')->get();
@@ -372,9 +418,16 @@ class OutputService
 
                 case 2: 
                 case 9: 
-                    $rMeshPosition = MeshPosition::where('ID_STUDY', $idStudy)->where('MESH_AXIS', 1)->where('MESH_AXIS_POS', $axeTempRecordData[$selectedAxe][0])->first();
+                    if ($orientation == 1) {
+                        $rMeshPosition = MeshPosition::where('ID_STUDY', $idStudy)->where('MESH_AXIS', 2)->where('MESH_AXIS_POS', $axeTempRecordData[$selectedAxe][1])->first();
 
-                    $result = TempRecordData::where("ID_REC_POS", $idRecPos)->where('REC_AXIS_Y_POS', $rMeshPosition->MESH_ORDER)->where('REC_AXIS_Z_POS', 0)->orderBy('REC_AXIS_X_POS', 'ASC')->get();
+                        $result = TempRecordData::where("ID_REC_POS", $idRecPos)->where('REC_AXIS_Y_POS', $rMeshPosition->MESH_ORDER)->where('REC_AXIS_Z_POS', 0)->orderBy('REC_AXIS_X_POS', 'ASC')->get();
+                    } else {
+                        $rMeshPositionX = MeshPosition::where('ID_STUDY', $idStudy)->where('MESH_AXIS', 1)->where('MESH_AXIS_POS', $axeTempRecordData[$selectedAxe][0])->first();
+                        $rMeshPositionY = MeshPosition::where('ID_STUDY', $idStudy)->where('MESH_AXIS', 2)->where('MESH_AXIS_POS', $axeTempRecordData[$selectedAxe][1])->first();
+
+                        $result = TempRecordData::where("ID_REC_POS", $idRecPos)->where('REC_AXIS_X_POS', $rMeshPositionX->MESH_ORDER)->where('rMeshPositionY', $rMeshPositionY->MESH_ORDER)->orderBy('REC_AXIS_Z_POS', 'ASC')->get();
+                    }
                     
                     break;
 
@@ -398,5 +451,26 @@ class OutputService
         if (!empty($rMeshPosition)) $result = $this->unit->prodchartDimension($rMeshPosition->MESH_AXIS_POS);
 
         return $result;
+    }
+
+    public function getTemperatureBorne($idStudyEquipment) {
+        
+    }
+
+    public function mixRange($color1, $color2, $MIN = 1, $MAX = 10)
+    {
+        $range = rand($MIN, $MAX);
+     
+        $r = hexdec(substr($color1,0,2));
+        $g = hexdec(substr($color1,2,2));
+        $b = hexdec(substr($color1,4,2));
+         
+        $gr = (hexdec(substr($color2,0,2))-$r)/$MAX; //Graduation Size Red
+        $gg = (hexdec(substr($color2,2,2))-$g)/$MAX;
+        $gb = (hexdec(substr($color2,4,2))-$b)/$MAX;
+         
+        return str_pad(dechex($r+($gr*$range)),2,'0',STR_PAD_LEFT) .
+            str_pad(dechex($g+($gg*$range)),2,'0',STR_PAD_LEFT) .
+            str_pad(dechex($b+($gb*$range)),2,'0',STR_PAD_LEFT);
     }
 }

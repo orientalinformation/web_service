@@ -65,10 +65,10 @@ class Connection extends Model
     ];
 
     protected $maps = [
-        'user' => ['USERNAM']
+        'user' => ['USERNAM', 'USERMAIL']
       ];
   
-      protected $appends = ['USERNAM'];
+      protected $appends = ['USERNAM', 'USERMAIL'];
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */

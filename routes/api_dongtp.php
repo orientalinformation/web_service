@@ -71,3 +71,99 @@ $router->GET('/api/v1/calculator/brainoptim', 'Api1\\Calculator@getBrainOptim');
  * Output-Formats: [application/json]
  */
 $router->GET('/api/v1/calculator/progressbar', 'Api1\\Calculator@getProgressBarStudyEquipment');
+
+/**
+ * GET optimumcalculator
+ * Summary: 
+ * Notes: get head balance result/products/{id}/packingLayers
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/calculator/optimumcalculator', 'Api1\\Calculator@getOptimumCalculator');
+
+/**
+ * POST start caluclate
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/calculator/startcalculate', 'Api1\\Calculator@startCalculate');
+
+/**
+ * GET Data family
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/referencedata/component', 'Api1\\ReferenceData@getDataComponent');
+
+/**
+ * PUT Data family
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->PUT('/api/v1/referencedata/component', 'Api1\\ReferenceData@saveDataComponent');
+
+/**
+ * PUT Data family
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->PUT('/api/v1/referencedata/calculatefreeze', 'Api1\\ReferenceData@calculateFreeze');
+
+/**
+ * GET Data temperatures
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/referencedata/component/{id}', 'Api1\\ReferenceData@getTemperaturesByIdComp');
+
+/**
+ * Delete Component
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->DELETE('/api/v1/referencedata/component/{id}', 'Api1\\ReferenceData@deleteComponent');
+
+/**
+ * GET Data family
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/referencedata/components', 'Api1\\ReferenceData@getMyComponent');
+
+/**
+ * PUT Data family
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->PUT('/api/v1/referencedata/calculate', 'Api1\\ReferenceData@startFCCalculate');
+
+/**
+ * GET Data compenths
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/referencedata/compenths/{idComp}', 'Api1\\ReferenceData@getCompenthsByIdComp');
+
+/**
+ * GET Data compenth
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/referencedata/compenth/{id}', 'Api1\\ReferenceData@getCompenthById');
+
+/**
+ * PUT update compenth
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->PUT('/api/v1/referencedata/compenth', 'Api1\\ReferenceData@updateCompenth');

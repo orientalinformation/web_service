@@ -44,9 +44,9 @@ class DimaResultsService
                 $sConso["warning"] = "";
             } else if (($calculationStatus & 0x100) != 0) {
                 $sConso["value"] = "";
-                $sConso["warning_fluid"] = "";
+                $sConso["warning"] = "warning_fluid";
                 if (($calculationStatus & 0x10) != 0) {
-                    $sConso["warning_fluid"] = "warning_dhp";
+                    $sConso["warning"] = "warning_dhp";
                 }
 
             } else if (($calculationStatus & 0x10) != 0) {

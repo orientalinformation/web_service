@@ -87,3 +87,19 @@ $router->PUT('/api/v1/studies/{id}/equipments', 'Api1\\Studies@addEquipment');
  * Output-Formats: [application/json]
  */
 $router->DELETE('/api/v1/studies/{id}/equipments/{idEquip}', 'Api1\\Studies@removeStudyEquipment');
+
+/**
+ * GET getStudyComment
+ * Summary: 
+ * Notes: 
+ * Output-Formats: [application/json]
+ */
+
+$router->GET('/api/v1/studies/{id}/comment', 'Api1\\Studies@getStudyComment');
+/**
+ * PATCH postStudyComment
+ * Summary: 
+ * Notes: 
+ * Output-Formats: [application/json]
+ */
+$router->PATCH('/api/v1/studies/{id}/comment', 'Api1\\Studies@postStudyComment');
