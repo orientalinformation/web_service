@@ -7,6 +7,7 @@ use App\Cryosoft\ValueListService;
 use App\Cryosoft\UnitsConverterService;
 
 use App\Models\Study;
+use App\Models\Price;
 
 class StudyService
 {
@@ -65,5 +66,36 @@ class StudyService
         return $disabled;
     }
 
+    public function getStudyPrice($study) {
+        if ($study->OPTION_ECO != 0) {
+
+            if ($study->ID_PRICE == 0) {
+                $price = new Price();
+                $price->ID_STUDY = $study->ID_STUDY;
+                $price->ENERGY = 0;
+                $price->ECO_IN_CRYO1 = 0;
+                $price->ECO_IN_PBP1 = 0;
+                $price->ECO_IN_CRYO2 = 0;
+                $price->ECO_IN_PBP2 = 0;
+                $price->ECO_IN_CRYO3 = 0;
+                $price->ECO_IN_PBP3 = 0;
+                $price->ECO_IN_CRYO4 = 0;
+                $price->ECO_IN_MINMP = 0;
+                $price->ECO_IN_MAXMP = 0;
+                $price->save();
+                $study->ID_PRICE = $price->ID_PRICE;
+                $study->update();
+
+                return $price->ENERGY;
+            } else {
+                $price = Price::find($study->ID_PRICE);
+
+                if ($price) 
+                    return $price->ENERGY;
+            }
+        }
+        
+        return 0;
+    }
     
 }

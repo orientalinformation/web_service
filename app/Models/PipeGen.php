@@ -41,6 +41,20 @@ class PipeGen extends Model
     protected $primaryKey = 'ID_PIPE_GEN';
 
     /**
+     * @var array
+    */
+    protected $casts = [
+        'INSULLINE_LENGHT'    => 'double',
+        'NOINSULLINE_LENGHT'     => 'double',
+        'ELBOWS'    => 'double',
+        'TEES'     => 'double',
+        'INSUL_VALVES'    => 'double',
+        'NOINSUL_VALVES'     => 'double',
+        'HEIGHT'    => 'double',
+        'PRESSURE'     => 'double',
+        'GAS_TEMP'    => 'double',
+    ];
+    /**
      * Indicates if the model should be timestamped.
      * 
      * @var bool
@@ -60,6 +74,6 @@ class PipeGen extends Model
      */
     public function lineDefinitions()
     {
-        return $this->hasMany('LineDefinition', 'ID_PIPE_GEN', 'ID_PIPE_GEN');
+        return $this->hasMany('App\\Models\\LineDefinition', 'ID_PIPE_GEN', 'ID_PIPE_GEN');
     }
 }

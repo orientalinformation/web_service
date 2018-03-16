@@ -45,10 +45,10 @@ class EquipmentsService
             $equipVestion = $studyEquipment->EQUIP_VERSION;
 
             $sEquipName = $seriesName . " - ". $equipParameterUnit." x ".$eqpWidthUnit." (v".$equipVestion.")";
-         } else if (($this->getCapability($capabilitie , 1048576)) && ($studyEquipment->EQP_LENGTH != -1.0) && ($studyEquipment->EQP_WIDTH != -1.0)) {
-            $stdEqpLength = $this->unit->unitConvert($this->value->EQUIP_DIMENSION, $studyEquipment->EQP_LENGTH);
-            $stdeqpWidth = $this->unit->unitConvert($this->value->EQUIP_DIMENSION, $studyEquipment->EQP_WIDTH);
-            $sEquipName = $studyEquipment->EQUIP_NAME . " - " . $stdEqpLength . "x" . $sEquipName;
+         } else if (($this->getCapability($capabilitie , 1048576)) && ($studyEquipment->STDEQP_LENGTH != -1.0) && ($studyEquipment->STDEQP_WIDTH != -1.0)) {
+            $stdEqpLength = $this->unit->equipDimension($studyEquipment->STDEQP_LENGTH);
+            $stdeqpWidth = $this->unit->equipDimension($studyEquipment->STDEQP_WIDTH);
+            $sEquipName = $studyEquipment->EQUIP_NAME . " - (" . $stdEqpLength . "x" . $stdeqpWidth . ")";
         } else {
             $sEquipName = $studyEquipment->EQUIP_NAME;
         }
@@ -60,39 +60,43 @@ class EquipmentsService
     public function getResultsEquipName($idStudyEquipment) {
         $sEquipName = "";
         $studyEquipment = StudyEquipment::where("ID_STUDY_EQUIPMENTS", $idStudyEquipment)->first();
-        $capabilitie = $studyEquipment->CAPABILITIES;
+        if (!empty($studyEquipment)) {
+            $capabilitie = $studyEquipment->CAPABILITIES;
 
-        if (($studyEquipment->STD == 1) && (!($this->getCapability($capabilitie , 32768))) && (!($this->getCapability($capabilitie , 1048576)))) {
-            $seriesName = $studyEquipment->SERIES_NAME;
-            $equipParameter = $studyEquipment->EQP_LENGTH + $studyEquipment->NB_MODUL * $studyEquipment->MODUL_LENGTH;
-            $equipParameterUnit = $this->unit->unitConvert($this->value->EQUIP_DIMENSION, $equipParameter);
-            $eqpWidthUnit = $this->unit->unitConvert($this->value->EQUIP_DIMENSION, $studyEquipment->EQP_WIDTH);
-            $equipVestion = $studyEquipment->EQUIP_VERSION;
+            if (($studyEquipment->STD == 1) && (!($this->getCapability($capabilitie , 32768))) && (!($this->getCapability($capabilitie , 1048576)))) {
+                $seriesName = $studyEquipment->SERIES_NAME;
+                $equipParameter = $studyEquipment->EQP_LENGTH + $studyEquipment->NB_MODUL * $studyEquipment->MODUL_LENGTH;
+                $equipParameterUnit = $this->unit->equipDimension($equipParameter);
+                $eqpWidthUnit = $this->unit->equipDimension($studyEquipment->EQP_WIDTH);
+                $equipVestion = $studyEquipment->EQUIP_VERSION;
 
-            $sEquipName = $seriesName . " - ". $equipParameterUnit." x ".$eqpWidthUnit." (v".$equipVestion.")";
+                $sEquipName = $seriesName . " - " . $equipParameterUnit ." x " . $eqpWidthUnit . " (v". $equipVestion. ")";
 
-        } else if (($this->getCapability($capabilitie , 1048576)) && ($studyEquipment->EQP_LENGTH != -1.0) && ($equip->EQP_WIDTH != -1.0)) {
-            $sEquipName = $studyEquipment->EQUIP_NAME . " - " . $this->getSpecificEquipSize($idStudyEquipment);
-        } else {
-            $sEquipName = $studyEquipment->EQUIP_NAME;
-        }
+            } else if (($this->getCapability($capabilitie , 1048576)) && !($this->getCapability($capabilitie , 2097152)) && ($studyEquipment->STDEQP_LENGTH != -1.0) && ($studyEquipment->STDEQP_WIDTH != -1.0)) {
+                $sEquipName = $studyEquipment->EQUIP_NAME . " - " . $this->getSpecificEquipSize($idStudyEquipment);
+            } else {
+                $sEquipName = $studyEquipment->EQUIP_NAME;
+            }
 
-        return $sEquipName;
+            return $sEquipName;
+        } 
     }
 
     public function getSpecificEquipSize($idStudyEquipment) {
         $sEquipName = "";
         $studyEquipment = StudyEquipment::where("ID_STUDY_EQUIPMENTS", $idStudyEquipment)->first();
-        $capabilitie = $studyEquipment->CAPABILITIES;
+        if (!empty($studyEquipment)) {
+            $capabilitie = $studyEquipment->CAPABILITIES;
 
-        if (($this->getCapability($capabilitie , 1048576)) && ($studyEquipment->EQP_LENGTH != -1.0) && ($studyEquipment->EQP_WIDTH != -1.0)) {
+            if (($this->getCapability($capabilitie , 1048576)) && ($studyEquipment->STDEQP_LENGTH != -1.0) && ($studyEquipment->STDEQP_WIDTH != -1.0)) {
 
-            $stdEqpLength = $this->unit->unitConvert($this->value->EQUIP_DIMENSION, $studyEquipment->EQP_LENGTH);
-            $stdeqpWidth = $this->unit->unitConvert($this->value->EQUIP_DIMENSION, $studyEquipment->EQP_WIDTH);
+                $stdEqpLength = $this->unit->equipDimension($studyEquipment->STDEQP_LENGTH);
+                $stdeqpWidth = $this->unit->equipDimension($studyEquipment->STDEQP_WIDTH);
 
-            $sEquipName = "(" . $stdEqpLength . "x" . $stdeqpWidth + ")";
-        }
-
+                $sEquipName = "(" . $stdEqpLength . "x" . $stdeqpWidth . ")";
+            }
+            
+        } 
         return $sEquipName;
     }
     
@@ -154,5 +158,29 @@ class EquipmentsService
 
         return $std;
     }
+
+    public function cryogenPrice($value, $energy) {
+        if ($energy == 2) {
+            $snrjUnitLabel = CONSUMPTION_UNIT_LN2;
+        } else if ($energy == 3) {
+            $snrjUnitLabel = CONSUMPTION_UNIT_CO2;
+        } else {
+            $snrjUnitLabel = CONSUMPTION_UNIT;
+        }
+
+        return $this->unit->unitConvertUser($snrjUnitLabel, $value, 3);
+    }
     
+
+    public function cryogenPriceSave($value, $energy) {
+        if ($energy == 2) {
+            $snrjUnitLabel = CONSUMPTION_UNIT_LN2;
+        } else if ($energy == 3) {
+            $snrjUnitLabel = CONSUMPTION_UNIT_CO2;
+        } else {
+            $snrjUnitLabel = CONSUMPTION_UNIT;
+        }
+
+        return $this->unit->unitConvertUserSave($snrjUnitLabel, $value);
+    }
 }

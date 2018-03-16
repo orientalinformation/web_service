@@ -380,6 +380,10 @@ class CalculateService
 					$value = floatval($select[$i]['label']);
 				}
 			}
+
+			if ($value == 0.0) {
+				$value = floatval($select[0]['label']);
+			}
 		} else {
 			$value = 0.0;
 		}

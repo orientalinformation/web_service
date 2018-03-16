@@ -12,24 +12,31 @@ use App\Kernel\KernelService;
 use App\Models\Production;
 use App\Models\InitialTemperature;
 use App\Models\Study;
+use App\Cryosoft\MeshService;
+use App\Cryosoft\UnitsConverterService;
 
 class Products extends Controller
 {
 
     /**
-     * @var Illuminate\Http\Request
+     * @var \Illuminate\Http\Request
      */
     protected $request;
 
     /**
-     * @var Illuminate\Contracts\Auth\Factory
+     * @var \Illuminate\Contracts\Auth\Factory
      */
     protected $auth;
 
     /**
-     * @var App\Kernel\KernelService
+     * @var \App\Kernel\KernelService
      */
     protected $kernel;
+
+    /**
+     * @var \App\Cryosoft\MeshService
+     */
+    protected $mesh;
 
     /**
      * Products constructor.
@@ -37,11 +44,13 @@ class Products extends Controller
      * @param Auth $auth
      * @param KernelService $kernel
      */
-    public function __construct(Request $request, Auth $auth, KernelService $kernel)
+    public function __construct(Request $request, Auth $auth, KernelService $kernel, MeshService $mesh, UnitsConverterService $unit)
     {
         $this->request = $request;
         $this->auth = $auth;
+        $this->mesh = $mesh;
         $this->kernel = $kernel;
+        $this->unit = $unit;
     }
 
     /**
@@ -74,10 +83,10 @@ class Products extends Controller
         $elmt->SHAPE_PARAM2 = 0.01; //default 1cm
 
         if (isset($input['dim1']))
-            $elmt->SHAPE_PARAM1 = $input['dim1'];
+            $elmt->SHAPE_PARAM1 = $this->unit->prodDimensionSave($input['dim1']);
 
         if (isset($input['dim3']))
-            $elmt->SHAPE_PARAM3 = $input['dim3'];
+            $elmt->SHAPE_PARAM3 = $this->unit->prodDimensionSave($input['dim3']);
 
         $elmt->PROD_ELMT_NAME = "";
 
@@ -118,47 +127,58 @@ class Products extends Controller
             throw new \Exception("Error Processing Request", 1);            
 
         $idElement = $input['elementId'];
-        $dim2 = $input['dim2'];
+        $dim2 = round(doubleval($input['dim2']), 4);
         $description = $input['description'];
         $computedmass = $input['computedmass'];
         $realmass = $input['realmass'];
         
         $nElements = \App\Models\ProductElmt::find($idElement);
         $oldRealMass = $nElements->PROD_ELMT_REALWEIGHT;
-        $oldDim2 = $nElements->SHAPE_PARAM2;
+        $oldDim2 = round(doubleval($nElements->SHAPE_PARAM2), 4);
 
         $nElements->PROD_ELMT_NAME = $description;
-        $nElements->SHAPE_PARAM2 = $dim2;
-        $nElements->PROD_ELMT_WEIGHT = $computedmass;
-        $nElements->PROD_ELMT_REALWEIGHT = $realmass;
+        $nElements->SHAPE_PARAM2 = $this->unit->prodDimensionSave($dim2);
+        $nElements->PROD_ELMT_WEIGHT = $this->unit->massSave($computedmass);
+        $nElements->PROD_ELMT_REALWEIGHT = $this->unit->massSave($realmass);
         $nElements->save();
 
         $ok1 = $ok2 = 0;
 
-        if ($oldRealMass != $realmass) {
-            $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $id, $idElement);
-            $ok2 = $this->kernel->getKernelObject('WeightCalculator')->WCWeightCalculation($product->ID_STUDY, $conf, 3);
-        } elseif ($oldDim2 != $dim2) {
+        if ($oldDim2 != $dim2) {
             $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $id, $idElement);
             $ok1 = $this->kernel->getKernelObject('WeightCalculator')->WCWeightCalculation($product->ID_STUDY, $conf, 2);
 
             $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $id);
             $ok2 = $this->kernel->getKernelObject('WeightCalculator')->WCWeightCalculation($product->ID_STUDY, $conf, 3);
+        } elseif ($oldRealMass != $realmass) {
+            $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $id, $idElement);
+            $ok2 = $this->kernel->getKernelObject('WeightCalculator')->WCWeightCalculation($product->ID_STUDY, $conf, 3);
         }
 
-        
-
-        return compact('ok1', 'ok2', 'idElement');
+        return compact('oldDim2', 'dim2', 'ok1', 'ok2', 'idElement');
     }
 
     public function getProductViewModel($id) {
-        $product = Product::find($id);
-        $elements = \App\Models\ProductElmt::where('ID_PROD', $id)->orderBy('SHAPE_POS2', 'DESC')->get();
+        $product = Product::findOrFail($id);
+        $product->PROD_WEIGHT = $this->unit->mass($product->PROD_WEIGHT);
+        $product->PROD_REALWEIGHT = $this->unit->mass($product->PROD_REALWEIGHT);
+
+
+        $products = \App\Models\ProductElmt::where('ID_PROD', $id)->orderBy('SHAPE_POS2', 'DESC')->get();
         $specificDimension = 0.0;
 
-        foreach ($elements as $elmt) {
-            $specificDimension += $elmt->SHAPE_PARAM2;
+        $elements = [];
+        foreach ($products as $key => $pr) {
+            $elements[$key] = $pr;
+            $specificDimension += $pr->SHAPE_PARAM2;
+            $elements[$key]['SHAPE_PARAM1'] = $this->unit->prodDimension($pr->SHAPE_PARAM1);
+            $elements[$key]['SHAPE_PARAM2'] = $this->unit->prodDimension($pr->SHAPE_PARAM2);
+            $elements[$key]['SHAPE_PARAM3'] = $this->unit->prodDimension($pr->SHAPE_PARAM3);
+            $elements[$key]['PROD_ELMT_WEIGHT'] = $this->unit->mass($pr->PROD_ELMT_WEIGHT);
+            $elements[$key]['PROD_ELMT_REALWEIGHT'] = $this->unit->mass($pr->PROD_ELMT_REALWEIGHT);
         }
+
+        $specificDimension = $this->unit->prodDimension($specificDimension);
 
         return compact('product', 'elements', 'specificDimension');
     }
@@ -207,7 +227,14 @@ class Products extends Controller
             throw new \Exception("Error Processing Request. Product ID not found", 1);
 
         $meshGeneration = $product->meshGenerations->first();
-
+        if ($meshGeneration) {
+            $meshGeneration->MESH_1_SIZE = $this->unit->meshesUnit($meshGeneration->MESH_1_SIZE);
+            $meshGeneration->MESH_2_SIZE = $this->unit->meshesUnit($meshGeneration->MESH_2_SIZE);
+            $meshGeneration->MESH_3_SIZE = $this->unit->meshesUnit($meshGeneration->MESH_3_SIZE);
+            $meshGeneration->MESH_1_INT = $this->unit->meshesUnit($meshGeneration->MESH_1_INT);
+            $meshGeneration->MESH_2_INT = $this->unit->meshesUnit($meshGeneration->MESH_2_INT);
+            $meshGeneration->MESH_3_INT = $this->unit->meshesUnit($meshGeneration->MESH_3_INT);
+        }
         $elements = $product->productElmts;
         $elmtMeshPositions = [];
 
@@ -231,6 +258,29 @@ class Products extends Controller
     }
 
     public function generateMesh($idProd) {
+        /** @var Product $product */
+        $product = Product::findOrFail($idProd);
+
+        if (!$product)
+            throw new \Exception("Error Processing Request. Product ID not found", 1);
+
+        $input = $this->request->json()->all();
+        $mesh_type = intval($input['mesh_type']);
+        // @TODO: implement unit service
+        $size1 = floatval($input['size1']) /1000;
+        $size2 = floatval($input['size2']) /1000;
+        $size3 = floatval($input['size3']) /1000;
+
+        /** @var MeshGeneration $meshGeneration */
+        $meshGeneration = $this->mesh->findGenerationByProduct($product);
+        $mode = MeshService::MAILLAGE_MODE_REGULAR;
+
+        if ($mesh_type != MeshService::REGULAR_MESH){
+            $mode = MeshService::MAILLAGE_MODE_IRREGULAR;
+        }
+        
+        $this->mesh->generate($meshGeneration, $mesh_type, $mode, $size1, $size2, $size3);
+        
         return 0;
     }
 
@@ -247,71 +297,9 @@ class Products extends Controller
             throw new \Exception("Error Processing Request. Product ID not found", 1);
 
         /** @var MeshGeneration $meshGeneration */
-        $meshGeneration = MeshGeneration::where('ID_PROD', $product->ID_PROD)->first();
-
-        if (!$meshGeneration) {
-            $meshGeneration = new MeshGeneration();
-            $meshGeneration->ID_PROD = $product->ID_PROD;
-            $meshGeneration->save();
-        }
-
-        $product->ID_MESH_GENERATION = $meshGeneration->ID_MESH_GENERATION;
-        $product->save();
-
-        // regular mesh
-        $calcultype = 1; //estimation
-
-        $meshGeneration->MESH_1_FIXED = $calcultype;
-        $meshGeneration->MESH_2_FIXED = $calcultype;
-        $meshGeneration->MESH_3_FIXED = $calcultype;
-
-        $meshGeneration->MESH_1_MODE = 0;
-        $meshGeneration->MESH_2_MODE = 0;
-        $meshGeneration->MESH_3_MODE = 0;
-
-        $meshGeneration->MESH_1_SIZE = -1;
-        $meshGeneration->MESH_2_SIZE = -1;
-        $meshGeneration->MESH_3_SIZE = -1;
-        $meshGeneration->save();
-
-//        if( Meshtype.equals("iregular") )
-//        {
-//            byte calcultype = 0;//
-//			mg.setMesh1Fixed(calcultype);
-//			mg.setMesh2Fixed(calcultype);
-//			mg.setMesh3Fixed(calcultype);
-//			short cal = ValuesList.MAILLAGE_MODE_IRREGULAR;
-//			mg.setMesh1Mode(cal);
-//			mg.setMesh2Mode(cal);
-//			mg.setMesh3Mode(cal);
-//			mg.setMesh1Ratio(meshParamDefault.getMeshRatio());
-//			mg.setMesh2Ratio(meshParamDefault.getMeshRatio());
-//			mg.setMesh3Ratio(meshParamDefault.getMeshRatio());
-//			mg.setMesh1Int(meshSize1);
-//			mg.setMesh2Int(meshSize2);
-//			mg.setMesh3Int(meshSize3);
-//			mg.setMesh1Size(calcultype);
-//			mg.setMesh2Size(calcultype);
-//			mg.setMesh3Size(calcultype);
-//		}
-
-        // run study cleaner, mode 51
-        $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $product->ID_STUDY, -1);
-        $this->kernel->getKernelObject('StudyCleaner')->SCStudyClean($conf, SC_CLEAN_OUTPUT_SIZINGCONSO);
-
-
-        $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $product->ID_STUDY);
-        $this->kernel->getKernelObject('MeshBuilder')->MBMeshBuild($conf);
-
-        $meshGeneration = MeshGeneration::where('ID_PROD', $product->ID_PROD)->first();
-
-        $elements = $product->productElmts;
-        $elmtMeshPositions = [];
-
-        foreach ($elements as $elmt) {
-            $meshPositions = \App\Models\MeshPosition::where('ID_PRODUCT_ELMT', $elmt->ID_PRODUCT_ELMT)->get();
-            array_push($elmtMeshPositions, $meshPositions);
-        }
+        $meshGeneration = $this->mesh->findGenerationByProduct($product);
+        
+        $this->mesh->generate($meshGeneration, MeshService::REGULAR_MESH, MeshService::MAILLAGE_MODE_REGULAR);
 
         // KernelToolsCalculation kerneltools = new KernelToolsCalculation(
         //     CryosoftDB . CRYOSOFT_DB_ODBCNAME,
@@ -323,8 +311,6 @@ class Products extends Controller
         //     0,
         //     0
         // );
-
-        return compact('meshGeneration', 'elements', 'elmtMeshPositions');
     }
 
     /**
@@ -340,6 +326,9 @@ class Products extends Controller
 
         if (!$product)
             throw new \Exception("Error Processing Request. Product ID not found", 1);
+
+        $product->PROD_ISO = 1;
+        $product->save();
         
         $study = Study::findOrFail($product->ID_STUDY);
 

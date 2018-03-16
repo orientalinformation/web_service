@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Contracts\Auth\Factory as Auth;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Hash;
+use App\Models\ProdcharColorsDef;
 use App\Models\User;
 use App\Models\CoolingFamily;
 use App\Models\Translation;
@@ -263,5 +264,17 @@ class Users extends Controller
     public function getUser($id)
     {
         return User::find($id);
+    }
+
+    public function getColorDefs()
+    {
+        $colors = ProdcharColorsDef::where('ID_USER', $this->auth->user()->ID_USER)->orderBy('LAYER_ORDER', 'ASC')->get();
+        $ret = [];
+
+        foreach ($colors as $color) {
+            array_push($ret, $color->colorPalette);
+        }
+
+        return $ret;
     }
 }

@@ -44,6 +44,12 @@ class MeshGeneration extends Model
      */
     protected $fillable = ['ID_MESH_GENERATION', 'ID_PROD', 'MESH_1_FIXED', 'MESH_2_FIXED', 'MESH_3_FIXED', 'MESH_1_MODE', 'MESH_2_MODE', 'MESH_3_MODE', 'MESH_1_NB', 'MESH_2_NB', 'MESH_3_NB', 'MESH_1_SIZE', 'MESH_2_SIZE', 'MESH_3_SIZE', 'MESH_1_INT', 'MESH_2_INT', 'MESH_3_INT', 'MESH_1_RATIO', 'MESH_2_RATIO', 'MESH_3_RATIO', 'BEST_1_NB', 'BEST_2_NB', 'BEST_3_NB'];
 
+    protected $casts = [
+        'MESH_1_SIZE' => 'double',
+        'MESH_2_SIZE' => 'double',
+        'MESH_3_SIZE' => 'double',
+    ];
+
     /**
      * @var string
      */

@@ -9,8 +9,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $ID_PROD
  * @property int $ID_COLOR
  * @property int $LAYER_ORDER
- * @property-read PRODUCT $pRODUCT
- * @property-read COLORPALETTE $cOLORPALETTE
+ * @property-read App\Models\Product $product
+ * @property-read App\Models\ColorPalette $colorPalette
  */
 class ProdcharColor extends Model
 {
@@ -41,16 +41,16 @@ class ProdcharColor extends Model
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function pRODUCT()
+    public function product()
     {
-        return $this->belongsTo('PRODUCT', 'ID_PROD', 'ID_PROD');
+        return $this->belongsTo('App\\Models\\Product', 'ID_PROD', 'ID_PROD');
     }
 
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function cOLORPALETTE()
+    public function colorPalette()
     {
-        return $this->belongsTo('COLORPALETTE', 'ID_COLOR', 'ID_COLOR');
+        return $this->belongsTo('App\\Models\\ColorPalette', 'ID_COLOR', 'ID_COLOR');
     }
 }

@@ -9,8 +9,8 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $ID_USER
  * @property int $ID_COLOR
  * @property int $LAYER_ORDER
- * @property-read ColorPalette $colorPalette
- * @property-read User $user
+ * @property-read App\Models\ColorPalette $colorPalette
+ * @property-read App\Models\User $user
  */
 class ProdcharColorsDef extends Model
 {

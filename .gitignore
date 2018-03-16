@@ -6,3 +6,12 @@ Homestead.yaml
 /.swagger*
 /lib/*
 /.vscode/*
+/public/heatmap/*
+/public/reports/*
+/public/sizing/*
+/public/uploads/*
+/public/timeBased/*
+/public/heatExchange/*
+/public/productSection/*
+/storage/app/*
+

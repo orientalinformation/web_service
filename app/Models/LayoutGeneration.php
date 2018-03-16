@@ -40,6 +40,8 @@ class LayoutGeneration extends Model
      */
     protected $casts = [
         'PROD_POSITION' => 'integer',
+        'SHELVES_LENGTH' => 'double',
+        'SHELVES_WIDTH' => 'double',
     ];
 
     /**

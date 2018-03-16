@@ -48,16 +48,16 @@ class UserUnit extends Model
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function lN2USER()
+    public function user()
     {
-        return $this->belongsTo('LN2USER', 'ID_USER', 'ID_USER');
+        return $this->belongsTo('App\\Models\\User', 'ID_USER', 'ID_USER');
     }
 
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function uNIT()
+    public function unit()
     {
-        return $this->belongsTo('UNIT', 'ID_UNIT', 'ID_UNIT');
+        return $this->belongsTo('App\\Models\\Unit', 'ID_UNIT', 'ID_UNIT');
     }
 }

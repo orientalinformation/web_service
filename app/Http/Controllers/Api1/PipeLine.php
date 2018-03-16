@@ -73,24 +73,30 @@ class PipeLine extends Controller
         $current = Carbon::now('Asia/Ho_Chi_Minh');
         $idUserLogon = $this->auth->user()->ID_USER;
         $input = $this->request->all();
+        
+        if (isset($input['LABEL'])) $name = $input['LABEL'];
 
-        if (!isset($input['LABEL']) || !isset($input['LINE_VERSION']) || !isset($input['LINE_COMMENT']) || !isset($input['MANUFACTURER']) 
-        || !isset($input['ELT_TYPE']) || !isset($input['ID_COOLING_FAMILY']) || !isset($input['INSULATION_TYPE']) || !isset($input['ELMT_PRICE'])
-        || !isset($input['ELT_SIZE']) || !isset($input['ELT_LOSSES_1']) || !isset($input['ELT_LOSSES_2']) || !isset($input['LINE_RELEASE']))
-            throw new \Exception("Error Processing Request", 1);
+        if (isset($input['LINE_VERSION'])) $version = $input['LINE_VERSION'];
 
-        $name = $input['LABEL'];
-        $version = $input['LINE_VERSION'];
-        $comment = $input['LINE_COMMENT'];
-        $manu = $input['MANUFACTURER'];
-        $type = $input['ELT_TYPE'];
-        $cooling = $input['ID_COOLING_FAMILY'];
-        $insulation = $input['INSULATION_TYPE'];
-        $price = $input['ELMT_PRICE'];
-        $size = $input['ELT_SIZE'];
-        $losses1 = $input['ELT_LOSSES_1'];
-        $losses2 = $input['ELT_LOSSES_2'];
-        $release = $input['LINE_RELEASE'];
+        if (isset($input['LINE_COMMENT'])) $comment = $input['LINE_COMMENT'];
+
+        if (isset($input['MANUFACTURER'])) $manu = $input['MANUFACTURER'];
+
+        if (isset($input['ELT_TYPE'])) $type = $input['ELT_TYPE'];
+
+        if (isset($input['ID_COOLING_FAMILY'])) $cooling = $input['ID_COOLING_FAMILY'];
+
+        if (isset($input['INSULATION_TYPE'])) $insulation = $input['INSULATION_TYPE'];
+
+        if (isset($input['ELMT_PRICE'])) $price = $input['ELMT_PRICE'];
+
+        if (isset($input['ELT_SIZE'])) $size = $input['ELT_SIZE'];
+
+        if (isset($input['ELT_LOSSES_1'])) $losses1 = $input['ELT_LOSSES_1'];
+
+        if (isset($input['ELT_LOSSES_2'])) $losses2 = $input['ELT_LOSSES_2'];
+
+        if (isset($input['LINE_RELEASE'])) $release = $input['LINE_RELEASE'];
 
         if ($price == '') $price = 0;
         
@@ -108,11 +114,20 @@ class PipeLine extends Controller
 
         if ($comment == '') $comment =  'Created on ' . $current->toDateTimeString() . ' by '. $this->auth->user()->USERNAM ;
 
-        $lineElmts = Translation::where('TRANS_TYPE', 27)->get();
+        $listLabelLine = Translation::where('TRANS_TYPE', 27)->get();
 
-        for ($i = 0; $i < count($lineElmts); $i++) { 
-			if ($lineElmts[$i]->LABEL == $name) {
-				return 0;
+        for ($i = 0; $i < count($listLabelLine); $i++) { 
+
+			if ($listLabelLine[$i]->LABEL == $name) {
+                $lineExist = LineElmt::find(intval($listLabelLine[$i]->ID_TRANSLATION));
+
+                if ($lineExist) {
+
+                    if (doubleval($lineExist->LINE_VERSION) == doubleval($version)) {
+
+                        return 0;
+                    }
+                }
 			}
         }
 
@@ -142,7 +157,10 @@ class PipeLine extends Controller
         $translation->LABEL = $name;
         $translation->save();
 
-        return 1;
+        return LineElmt::where('ID_USER', $this->auth->user()->ID_USER)
+        ->join('Translation', 'ID_PIPELINE_ELMT', '=', 'Translation.ID_TRANSLATION')
+        ->where('Translation.TRANS_TYPE', 27)->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
+        ->where('ID_PIPELINE_ELMT', $idLineElmt)->first();
     }
 
     public function deletePipeLine($idLineElmt)
@@ -165,29 +183,37 @@ class PipeLine extends Controller
         return 1;
     }
 
-    public function updatePipeLine($idPipeLine)
+    public function updatePipeLine()
     {
         $current = Carbon::now('Asia/Ho_Chi_Minh');
         $idUserLogon = $this->auth->user()->ID_USER;
         $input = $this->request->all();
 
-        if (!isset($input['LABEL']) || !isset($input['LINE_VERSION']) || !isset($input['LINE_COMMENT']) || !isset($input['MANUFACTURER']) 
-        || !isset($input['ELT_TYPE']) || !isset($input['ID_COOLING_FAMILY']) || !isset($input['INSULATION_TYPE']) || !isset($input['ELMT_PRICE'])
-        || !isset($input['ELT_SIZE']) || !isset($input['ELT_LOSSES_1']) || !isset($input['ELT_LOSSES_2']) || !isset($input['LINE_RELEASE']))
-            throw new \Exception("Error Processing Request", 1);
+        if (isset($input['ID_PIPELINE_ELMT'])) $idPipeLine = $input['ID_PIPELINE_ELMT'];
 
-        $name = $input['LABEL'];
-        $version = $input['LINE_VERSION'];
-        $comment = $input['LINE_COMMENT'];
-        $manu = $input['MANUFACTURER'];
-        $type = $input['ELT_TYPE'];
-        $cooling = $input['ID_COOLING_FAMILY'];
-        $insulation = $input['INSULATION_TYPE'];
-        $price = $input['ELMT_PRICE'];
-        $size = $input['ELT_SIZE'];
-        $losses1 = $input['ELT_LOSSES_1'];
-        $losses2 = $input['ELT_LOSSES_2'];
-        $release = $input['LINE_RELEASE'];
+        if (isset($input['LABEL'])) $name = $input['LABEL'];
+
+        if (isset($input['LINE_VERSION'])) $version = $input['LINE_VERSION'];
+
+        if (isset($input['LINE_COMMENT'])) $comment = $input['LINE_COMMENT'];
+
+        if (isset($input['MANUFACTURER'])) $manu = $input['MANUFACTURER'];
+
+        if (isset($input['ELT_TYPE'])) $type = $input['ELT_TYPE'];
+
+        if (isset($input['ID_COOLING_FAMILY'])) $cooling = $input['ID_COOLING_FAMILY'];
+
+        if (isset($input['INSULATION_TYPE'])) $insulation = $input['INSULATION_TYPE'];
+
+        if (isset($input['ELMT_PRICE'])) $price = $input['ELMT_PRICE'];
+
+        if (isset($input['ELT_SIZE'])) $size = $input['ELT_SIZE'];
+
+        if (isset($input['ELT_LOSSES_1'])) $losses1 = $input['ELT_LOSSES_1'];
+
+        if (isset($input['ELT_LOSSES_2'])) $losses2 = $input['ELT_LOSSES_2'];
+
+        if (isset($input['LINE_RELEASE'])) $release = $input['LINE_RELEASE'];
 
         if ($price == '') $price = 0;
         
@@ -210,45 +236,84 @@ class PipeLine extends Controller
         if (!$lineElmt) {
             return -1;
         } else {
-            Translation::where('TRANS_TYPE', 27)->where('ID_TRANSLATION', $idPipeLine)->update(['LABEL' => $name]);;
-            $lineElmt->LINE_VERSION = $version;
-            $lineElmt->LINE_COMMENT = $comment;
-            $lineElmt->MANUFACTURER = $manu;
-            $lineElmt->ELT_TYPE = $type;
-            $lineElmt->ID_COOLING_FAMILY = $cooling;
-            $lineElmt->INSULATION_TYPE = $insulation;
-            $lineElmt->ELMT_PRICE = $price;
-            $lineElmt->ELT_SIZE = $size;
-            $lineElmt->ELT_LOSSES_1 = $losses1;
-            $lineElmt->ELT_LOSSES_2 = $losses2;
-            $lineElmt->LINE_RELEASE = $release;
-            $lineElmt->ELT_IMP_ID_STUDY = 0;
-            $lineElmt->update();
+            $lineCurr = Translation::where('TRANS_TYPE', 27)->where('ID_TRANSLATION', $idPipeLine)->first();
+            if ($lineCurr) {
 
-            LineElmt::where('ID_PIPELINE_ELMT', $idPipeLine)
-            ->update(['LINE_DATE' => $current->toDateTimeString()]);
+                if ($lineCurr->LABEL != $name) {
+                    $listLabelLine = Translation::where('TRANS_TYPE', 27)->get();
+                    $idLineExist = 0;
+
+                    for ($i = 0; $i < count($listLabelLine); $i++) { 
+
+                        if ($listLabelLine[$i]->LABEL == $name) {
+                            $idLineExist = $listLabelLine[$i]->ID_TRANSLATION;
+                            $lineExist = LineElmt::find(intval($idLineExist));
+
+                            if ($lineExist) {
+
+                                if (doubleval($lineExist->LINE_VERSION) == doubleval($version)) {
+
+                                    return 0;
+                                }
+                            }
+                        }
+                    }
+                }
+                Translation::where('TRANS_TYPE', 27)->where('ID_TRANSLATION', $idPipeLine)->update(['LABEL' => $name]);;
+                $lineElmt->LINE_VERSION = $version;
+                $lineElmt->LINE_COMMENT = $comment;
+                $lineElmt->MANUFACTURER = $manu;
+                $lineElmt->ELT_TYPE = $type;
+                $lineElmt->ID_COOLING_FAMILY = $cooling;
+                $lineElmt->INSULATION_TYPE = $insulation;
+                $lineElmt->ELMT_PRICE = $price;
+                $lineElmt->ELT_SIZE = $size;
+                $lineElmt->ELT_LOSSES_1 = $losses1;
+                $lineElmt->ELT_LOSSES_2 = $losses2;
+                $lineElmt->LINE_RELEASE = $release;
+                $lineElmt->ELT_IMP_ID_STUDY = 0;
+                $lineElmt->update();
+
+                LineElmt::where('ID_PIPELINE_ELMT', $idPipeLine)
+                ->update(['LINE_DATE' => $current->toDateTimeString()]);
+            }
+
+            return LineElmt::where('ID_USER', $this->auth->user()->ID_USER)
+            ->join('Translation', 'ID_PIPELINE_ELMT', '=', 'Translation.ID_TRANSLATION')
+            ->where('Translation.TRANS_TYPE', 27)->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
+            ->where('ID_PIPELINE_ELMT', $idPipeLine)->first();
         }
-
-        return 1;
     }
 
-    public function saveAsPipeLine($idOldLine)
+    public function saveAsPipeLine()
     {
         $current = Carbon::now('Asia/Ho_Chi_Minh');
         $idUserLogon = $this->auth->user()->ID_USER;
         $input = $this->request->all();
 
-        if (!isset($input['name']))
-            throw new \Exception("Error Processing Request", 1);
+        if (isset($input['ID_PIPELINE_ELMT'])) $idOldLine = $input['ID_PIPELINE_ELMT'];
 
-        $name = $input['name'];
+        if (isset($input['LABEL'])) $name = $input['LABEL'];
+
+
         $lineElmtOld = LineElmt::find($idOldLine);
         $comment = $lineElmtOld->LINE_COMMENT;
-        $lineElmts = Translation::where('TRANS_TYPE', 27)->get();
+        $listLabelLine = Translation::where('TRANS_TYPE', 27)->get();
+        $idLineExist = 0;
 
-        for ($i = 0; $i < count($lineElmts); $i++) { 
-			if ($lineElmts[$i]->LABEL == $name) {
-				return 0;
+        for ($i = 0; $i < count($listLabelLine); $i++) { 
+
+			if ($listLabelLine[$i]->LABEL == $name) {
+                $idLineExist = $listLabelLine[$i]->ID_TRANSLATION;
+                $lineExist = LineElmt::find(intval($idLineExist));
+
+                if ($lineExist) {
+
+                    if (doubleval($lineExist->LINE_VERSION) == doubleval(0)) {
+
+                        return 0;
+                    }
+                }
 			}
         }
         $lineElmt = new LineElmt();
@@ -277,6 +342,9 @@ class PipeLine extends Controller
         $translation->LABEL = $name;
         $translation->save();
 
-        return 1;
+        return LineElmt::where('ID_USER', $this->auth->user()->ID_USER)
+        ->join('Translation', 'ID_PIPELINE_ELMT', '=', 'Translation.ID_TRANSLATION')
+        ->where('Translation.TRANS_TYPE', 27)->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
+        ->where('ID_PIPELINE_ELMT', $idLineElmt)->first();
     }
 }

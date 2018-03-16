@@ -41,7 +41,7 @@ class DimaResults extends Model
      * @var bool
      */
     public $timestamps = false;
-
+    
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */

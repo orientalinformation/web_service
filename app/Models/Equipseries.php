@@ -45,10 +45,10 @@ class Equipseries extends Model
     public $timestamps = false;
 
     protected $maps = [
-      'equipfamily' => ['BATCH_PROCESS']
+      'equipfamily' => ['BATCH_PROCESS', 'TYPE_CELL']
     ];
 
-    protected $appends = ['BATCH_PROCESS'];
+    protected $appends = ['BATCH_PROCESS', 'TYPE_CELL'];
 
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo

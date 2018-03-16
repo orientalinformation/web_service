@@ -72,7 +72,7 @@ class StudyEquipment extends Model
      * @var array
      */
     protected $hidden = [
-        'equipment'
+        'equipment', 'study'
     ];
 
     /**
@@ -88,10 +88,11 @@ class StudyEquipment extends Model
     public $timestamps = false;
 
     protected $maps = [
-      'equipment' => ['ID_COOLING_FAMILY', 'EQUIP_NAME', 'CAPABILITIES', 'MODUL_LENGTH', 'EQP_LENGTH', 'EQP_WIDTH', 
+       'equipment' => ['ID_COOLING_FAMILY', 'EQUIP_NAME', 'CAPABILITIES', 'MODUL_LENGTH', 'EQP_LENGTH', 'EQP_WIDTH', 
         'EQUIP_VERSION', 'STD', 'ITEM_TR', 'NB_TR', 'SERIES_NAME', 'BATCH_PROCESS',
         'NB_TS', 'NB_VC', 'EQP_HEIGHT', 'EQUIP_RELEASE'
-        ]
+        ],
+        'study' => ['USERNAM']
     ];
 
     /**
@@ -100,7 +101,7 @@ class StudyEquipment extends Model
     protected $appends = [
         'ID_COOLING_FAMILY', 'EQUIP_NAME', 'CAPABILITIES', 'MODUL_LENGTH', 'EQP_LENGTH',
         'EQP_WIDTH', 'EQUIP_VERSION', 'STD', 'ITEM_TR', 'NB_TR', 'NB_TS', 'NB_VC', 'EQP_HEIGHT', 
-        'SERIES_NAME', 'BATCH_PROCESS', 'EQUIP_RELEASE'
+        'SERIES_NAME', 'BATCH_PROCESS', 'EQUIP_RELEASE', 'USERNAM'
     ];
 
     /**

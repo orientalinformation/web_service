@@ -37,6 +37,10 @@ class LayoutResults extends Model
      */
     public $timestamps = false;
 
+    protected $casts = [
+        'LEFT_RIGHT_INTERVAL' => 'double',
+    ];
+
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */

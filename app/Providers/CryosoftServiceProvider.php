@@ -25,6 +25,10 @@ class CryosoftServiceProvider extends ServiceProvider
             return new \App\Cryosoft\EquipmentsService($app);
         });
 
+        $this->app->singleton(\App\Cryosoft\StudyEquipmentService::class, function ($app) {
+            return new \App\Cryosoft\StudyEquipmentService($app);
+        });
+
         $this->app->singleton(\App\Cryosoft\DimaResultsService::class, function ($app) {
             return new \App\Cryosoft\DimaResultsService($app);
         });
@@ -48,8 +52,17 @@ class CryosoftServiceProvider extends ServiceProvider
         $this->app->singleton(\App\Cryosoft\OutputService::class, function ($app) {
             return new \App\Cryosoft\OutputService($app);
         }); 
+
         $this->app->singleton(\App\Cryosoft\LineService::class, function ($app) {
             return new \App\Cryosoft\LineService($app);
+        });
+
+        $this->app->singleton(\App\Cryosoft\MeshService::class, function ($app) {
+            return new \App\Cryosoft\MeshService($app);
+        });
+
+        $this->app->singleton(\App\Cryosoft\PackingService::class, function ($app) {
+            return new \App\Cryosoft\PackingService($app);
         });
     }
 

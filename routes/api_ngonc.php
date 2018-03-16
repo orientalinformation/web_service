@@ -25,12 +25,28 @@ $router->GET('/api/v1/studies/{id}/productElmt', 'Api1\\Studies@getProductElmt')
 $router->GET('/api/v1/studies/{id}/meshPoints', 'Api1\\Studies@getMeshPoints');
 
 /**
+ * GET getlocationAxisSelected
+ * Summary: 
+ * Notes: get axis selected number
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/studies/{id}/locationAxisSelected', 'Api1\\Studies@getlocationAxisSelected');
+
+/**
  * GET getstudyEquipmentProductChart
  * Summary: 
  * Notes: get Study Equipment Product Chart
  * Output-Formats: [application/json]
  */
 $router->GET('/api/v1/studyEquipment/{id}/productChart', 'Api1\\StudyEquipments@getstudyEquipmentProductChart');
+
+/**
+ * GET getstudyEquipmentByStudyId
+ * Summary: 
+ * Notes: get All Study Equipment in Study
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/studyEquipment/{id}/study', 'Api1\\StudyEquipments@getstudyEquipmentByStudyId');
 
 /**
  * GET getRecordPosition
@@ -49,6 +65,22 @@ $router->GET('/api/v1/studyEquipment/{id}/recordPosition', 'Api1\\StudyEquipment
 $router->GET('/api/v1/admin/units', 'Api1\\Admin@units');
 
 /**
+ * PUT createUnit
+ * Summary: 
+ * Notes: create a new unit
+ * Output-Formats: [application/json]
+ */
+$router->PUT('/api/v1/unit', 'Api1\\Units@createUnit');
+
+/**
+ * PATCH saveUnit
+ * Summary:
+ * Notes:
+ * Output-Formats: [application/json]
+ */
+$router->PATCH('/api/v1/unit', 'Api1\\Units@saveUnit');
+
+/**
  * PUT createMonetaryCurrency
  * Summary: 
  * Notes: create a new montery currency
@@ -63,6 +95,7 @@ $router->PUT('/api/v1/monetaryCurrency', 'Api1\\MonetaryCurrencies@createMonetar
  * Output-Formats: [application/json]
  */
 $router->PATCH('/api/v1/monetaryCurrency', 'Api1\\MonetaryCurrencies@saveMonetaryCurrency');
+
 /**
  * GET getMonetaryCurrencyById
  * Summary: 
@@ -77,15 +110,6 @@ $router->GET('/api/v1/monetaryCurrency/{id}', 'Api1\\MonetaryCurrencies@getMonet
  * Output-Formats: [application/json]
  */
 $router->GET('/api/v1/output/sizingresult/estimation', 'Api1\\Output@sizingEstimationResult');
-
-
-/**
- * GET location
- * Summary: 
- * Notes: product chart location
- * Output-Formats: [application/json]
- */
-$router->GET('/api/v1/output/location', 'Api1\\Output@location');
 
 /**
  * GET heatExchange
@@ -114,7 +138,7 @@ $router->GET('/api/v1/output/productSection', 'Api1\\Output@productSection');
 /**
  * POST saveTempRecordPts
  * Summary: 
- * Notes: get product section based chart data
+ * Notes: save temprecordpts
  * Output-Formats: [application/json]
  */
 $router->POST('/api/v1/output/saveTempRecordPts', 'Api1\\Output@saveTempRecordPts');
@@ -126,3 +150,28 @@ $router->POST('/api/v1/output/saveTempRecordPts', 'Api1\\Output@saveTempRecordPt
  * Output-Formats: [application/json]
  */
 $router->GET('/api/v1/output/productchart2D', 'Api1\\Output@productchart2D');
+
+/**
+ * POST productChart2DStatic
+ * Summary: 
+ * Notes: get product chart 2D data record time
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/output/productChart2DStatic', 'Api1\\Output@productChart2DStatic');
+
+/**
+ * POST productchart2DAnim
+ * Summary: 
+ * Notes: get all product chart 2D data record time
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/output/productchart2DAnim', 'Api1\\Output@productchart2DAnim');
+
+/**
+ * GET readDataContour
+ * Summary: 
+ * Notes: get data contour file
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/output/readDataContour/{idStudyEquipment}', 'Api1\\Output@readDataContour');
+

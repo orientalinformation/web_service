@@ -1,6 +1,16 @@
 <?php
-
+define('ENCRYPT_KEY', '3a786565707472');
 define('SC_CLEAN_TMP_DATA',10);  // clean temporary data
+
+define('TEMPERATURE_PROFILE', 0); // reference equipment
+define('CONVECTION_PROFILE', 1);
+define('PROFILE_TOP', 0);
+define('PROFILE_BOTTOM', 1);
+define('PROFILE_LEFT', 2);
+define('PROFILE_RIGHT', 3);
+define('PROFILE_FRONT', 4);
+define('PROFILE_REAR', 5);
+define('REF_CAP_EQP_DEPEND_ON_TS', 65536);
 
 define('SC_CLEAN_MODE_ESTIM_2_OPTIM',20);  // estimation -> optimum
 define('SC_CLEAN_MODE_OPTIM_2_ESTIM',21);  // optimum -> estimation
@@ -145,3 +155,6 @@ define('SPHERE', 6);
 define('CYLINDER_CONCENTRIC_STANDING', 7);
 define('CYLINDER_CONCENTRIC_LAYING', 8);
 define('PARALLELEPIPED_BREADED', 9);
+define('CONSUMPTION_UNIT_LN2', 29);
+define('CONSUMPTION_UNIT_CO2', 30);
+define('CONSUMPTION_UNIT', 28);

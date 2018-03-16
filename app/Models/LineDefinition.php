@@ -43,7 +43,7 @@ class LineDefinition extends Model
      */
     public function lineElmt()
     {
-        return $this->belongsTo('LineElmt', 'ID_PIPELINE_ELMT', 'ID_PIPELINE_ELMT');
+        return $this->belongsTo('App\\Models\\LineElmt', 'ID_PIPELINE_ELMT', 'ID_PIPELINE_ELMT');
     }
 
     /**
@@ -51,6 +51,6 @@ class LineDefinition extends Model
      */
     public function pipeGen()
     {
-        return $this->belongsTo('PipeGen', 'ID_PIPE_GEN', 'ID_PIPE_GEN');
+        return $this->belongsTo('App\\Models\\PipeGen', 'ID_PIPE_GEN', 'ID_PIPE_GEN');
     }
 }

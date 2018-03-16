@@ -96,6 +96,7 @@ $router->DELETE('/api/v1/studies/{id}/equipments/{idEquip}', 'Api1\\Studies@remo
  */
 
 $router->GET('/api/v1/studies/{id}/comment', 'Api1\\Studies@getStudyComment');
+
 /**
  * PATCH postStudyComment
  * Summary: 
@@ -103,3 +104,29 @@ $router->GET('/api/v1/studies/{id}/comment', 'Api1\\Studies@getStudyComment');
  * Output-Formats: [application/json]
  */
 $router->PATCH('/api/v1/studies/{id}/comment', 'Api1\\Studies@postStudyComment');
+
+
+/**
+ * POST postStudyComment
+ * Summary: 
+ * Notes: 
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/studyEquipment/{id}/layout', 'Api1\\Studies@updateStudyEquipmentLayout');
+
+/**
+ * GET getChainingModel
+ * Summary: 
+ * Notes: 
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/studies/{id}/chaining', 'Api1\\Studies@getChainingModel');
+
+/**
+ * GET getChainingModel
+ * Summary: 
+ * Notes: 
+ * Output-Formats: [application/json]
+ */
+$router->PUT('/api/v1/studies/{id}/chaining', 'Api1\\Studies@createChildStudy');
+

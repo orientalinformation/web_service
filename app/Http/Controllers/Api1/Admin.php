@@ -359,6 +359,7 @@ class Admin extends Controller
             $symbolSelect = Unit::where("TYPE_UNIT", $value['value'])->get();
             $arrSymbol = [];
             foreach ($symbolSelect as $row) {
+            	$item['ID_UNIT'] = $row->ID_UNIT;
             	$item['SYMBOL'] = $row->SYMBOL;
             	$item['COEFF_A'] = (strlen(substr(strrchr($row->COEFF_A, "."), 1) > 1)) ? $row->COEFF_A : $this->unit->time($row->COEFF_A);
             	$item['COEFF_B'] = (strlen(substr(strrchr($row->COEFF_B, "."), 1) > 1)) ? $row->COEFF_B : $this->unit->time($row->COEFF_B);

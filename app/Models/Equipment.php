@@ -102,10 +102,10 @@ class Equipment extends Model
     public $timestamps = false;
 
     protected $maps = [
-      'equipseries' => ['SERIES_NAME', 'BATCH_PROCESS', 'CONSTRUCTOR']
+      'equipseries' => ['ID_FAMILY', 'SERIES_NAME', 'CONSTRUCTOR', 'BATCH_PROCESS', 'TYPE_CELL']
     ];
 
-    protected $appends = ['SERIES_NAME', 'BATCH_PROCESS', 'CONSTRUCTOR'];
+    protected $appends = ['ID_FAMILY', 'SERIES_NAME', 'CONSTRUCTOR', 'BATCH_PROCESS', 'TYPE_CELL'];
 
     /**
      * @var array

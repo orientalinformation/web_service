@@ -55,7 +55,17 @@ $app->singleton(
     App\Console\Kernel::class
 );
 
+$app->singleton('filesystem', function ($app) {
+    return $app->loadComponent(
+        'filesystems',
+        Illuminate\Filesystem\FilesystemServiceProvider::class,
+        'filesystem'
+    );
+});
+
 $app->configure('cors');
+
+$app->configure('filesystems');
 
 /*
 |--------------------------------------------------------------------------
@@ -76,7 +86,6 @@ $app->routeMiddleware([
     'auth' => App\Http\Middleware\Authenticate::class,
 ]);
 
-
 /*
 |--------------------------------------------------------------------------
 | Register Service Providers
@@ -87,6 +96,8 @@ $app->routeMiddleware([
 | totally optional, so you are not required to uncomment this line.
 |
 */
+
+class_alias('Illuminate\Support\Facades\Config', 'Config');
 
 $app->register(App\Providers\AppServiceProvider::class);
 $app->register(App\Providers\EventServiceProvider::class);
@@ -99,6 +110,12 @@ $app->register(Tymon\JWTAuth\Providers\LumenServiceProvider::class);
 
 $app->register(\App\Providers\KernelServiceProvider::class);
 $app->register(\App\Providers\CryosoftServiceProvider::class);
+$app->register(Elibyy\TCPDF\ServiceProvider::class);
+
+class_alias('\Elibyy\TCPDF\Facades\TCPDF', 'PDF');
+
+$app->register(Plank\Mediable\MediableServiceProvider::class);
+class_alias(Plank\Mediable\MediaUploaderFacade::class, 'MediaUploader');
 
 if ($app->environment('local')) {
     $app->register(Krlove\EloquentModelGenerator\Provider\GeneratorServiceProvider::class);
@@ -119,9 +136,13 @@ if ($app->environment('local')) {
 
 
 
+
 $app->router->group([
     'namespace' => 'App\Http\Controllers',
 ], function ($router) {
+    $router->GET('/api/v1/reports/{id}/downLoadPDF', 'Api1\\Reports@downLoadPDF');
+    $router->GET('/api/v1/reports/{id}/downLoadHtmlToPDF', 'Api1\\Reports@downLoadHtmlToPDF');
+    $router->GET('/api/v1/reports/{id}/processingReport', 'Api1\\Reports@processingReport');
     require dirname(__DIR__).'/routes/auth.php';
     require dirname(__DIR__).'/routes/translations.php';
 });
