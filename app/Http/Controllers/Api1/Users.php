@@ -32,6 +32,15 @@ class Users extends Controller
         $this->auth = $auth;
     }
 
+    public function getActiveUsers()
+    {
+        $users = User::where('USERPRIO', '<>', 0)->get();
+        foreach ($users as $key => $user) {
+            $users[$key]['USERNAM'] = strtoupper($user['USERNAM']);
+        }
+        return $users;
+    }
+
     public function changePassword($id)
     {
         $input = $this->request->all();
@@ -258,7 +267,7 @@ class Users extends Controller
             $userUnit->save();
         }
 
-        return 1;
+        return $this->getUnits($id);
     }
 
     public function getUser($id)

@@ -41,6 +41,8 @@ class ValueListService
     public $PROD_DIMENSION = 19;
     public $THICKNESS_PACKING = 16;
     public $PRESSURE = 15;
+    public $CONDUCTIVITY = 10;
+    public $DENSITY = 7;
 
     //brand mode
     public $BRAIN_MODE_ESTIMATION = 1;

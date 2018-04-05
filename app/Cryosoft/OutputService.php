@@ -225,52 +225,6 @@ class OutputService
         }
     }
 
-    public function convertPointForDB($ldShape, $bIsParallel, $appDim) {
-        $dbDim = [];
-
-        switch ($ldShape) {
-            case 1:
-                $dbDim = [$appDim['x'], $appDim['y'], $appDim['z']];
-                break;
-
-            case 2:
-            case 9:
-                if ($bIsParallel) {
-                    $dbDim = [$appDim['z'], $appDim['y'], $appDim['x']];
-                } else {
-                    $dbDim = [$appDim['x'], $appDim['y'], $appDim['z']];
-                }
-                break;
-
-            case 3:
-                if ($bIsParallel) {
-                    $dbDim = [$appDim['y'], $appDim['z'], $appDim['x']];
-                } else {
-                    $dbDim = [$appDim['y'], $appDim['x'], $appDim['z']];
-                }
-                break;
-
-            case 4:
-            case 5:
-                $dbDim = [$appDim['x'], $appDim['y'], $appDim['z']];
-                break;
-
-            case 7:
-            case 8:
-                $dbDim = [$appDim['y'], $appDim['x'], $appDim['z']];
-                break;
-
-            case 6:
-                $dbDim = [$appDim['x'], $appDim['y'], $appDim['z']];
-                break;
-
-            default:
-                $dbDim = [$appDim['x'], $appDim['y'], $appDim['z']];
-        }
-
-        return $dbDim;
-    }
-
     public function getSelectedMeshPoint($iType, $iObj)
     {
         

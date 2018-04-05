@@ -9,7 +9,8 @@ use App\Models\PackingElmt;
 use App\Models\PackingLayer;
 use Carbon\Carbon;
 use App\Models\Translation;
-
+use App\Cryosoft\UnitsService;
+use App\Cryosoft\MinMaxService;
 
 
 class PackingElements extends Controller
@@ -25,16 +26,27 @@ class PackingElements extends Controller
      */
     protected $auth;
     
+    /**
+	 * @var App\Cryosoft\UnitsService
+	 */
+    protected $units;
+    
+        /**
+	 * @var App\Cryosoft\MinMaxService
+	 */
+	protected $minmax;
 
     /**
      * Create a new controller instance.
      *
      * @return void
      */
-    public function __construct(Request $request, Auth $auth)
+    public function __construct(Request $request, Auth $auth, UnitsService $units, MinMaxService $minmax)
     {
         $this->request = $request;
         $this->auth = $auth;
+        $this->units = $units;
+        $this->minmax = $minmax;
     }
 
     public function findPackingElements() 
@@ -49,10 +61,19 @@ class PackingElements extends Controller
         ->join('Translation', 'ID_PACKING_ELMT', '=', 'Translation.ID_TRANSLATION')
         ->where('Translation.TRANS_TYPE', 3)->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
         ->orderBy('LABEL', 'ASC')->get();
+
+        foreach ($mine as $key) {
+            $key->PACKINGCOND = $this->units->conductivity($key->PACKINGCOND, 4, 1);
+        }
+
         $others = PackingElmt::where('ID_USER', '!=', $this->auth->user()->ID_USER)
         ->join('Translation', 'ID_PACKING_ELMT', '=', 'Translation.ID_TRANSLATION')
         ->where('Translation.TRANS_TYPE', 3)->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
         ->orderBy('LABEL', 'ASC')->get();
+
+        foreach ($others as $key) {
+            $key->PACKINGCOND = $this->units->conductivity($key->PACKINGCOND, 4, 1);
+        }
 
         return compact('mine', 'others');
     }
@@ -96,7 +117,7 @@ class PackingElements extends Controller
         
         $packingElmt = new PackingElmt();
         $packingElmt->PACKING_VERSION = $version;
-        $packingElmt->PACKINGCOND = $cond;
+        $packingElmt->PACKINGCOND = $this->units->conductivity($cond, 4, 0);
         $packingElmt->PACKING_COMMENT = $comment;
         $packingElmt->PACKING_RELEASE = $release;
         $packingElmt->PACK_IMP_ID_STUDY = 0;
@@ -113,10 +134,14 @@ class PackingElements extends Controller
         $translation->LABEL = $name;
         $translation->save();
 
-        return PackingElmt::where('ID_USER', $this->auth->user()->ID_USER)
+        $pack = PackingElmt::where('ID_USER', $this->auth->user()->ID_USER)
         ->join('Translation', 'ID_PACKING_ELMT', '=', 'Translation.ID_TRANSLATION')
         ->where('Translation.TRANS_TYPE', 3)->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
         ->where('ID_PACKING_ELMT', $idPackingElmt)->first();
+
+        $pack->PACKINGCOND = $this->units->conductivity($pack->PACKINGCOND, 4, 1);
+
+        return $pack;
     }
 
     public function deletePacking($idPacking)
@@ -191,7 +216,7 @@ class PackingElements extends Controller
                 ->update(['LABEL' => $name]);
                 $current = Carbon::now('Asia/Ho_Chi_Minh');
                 $packingElmt->PACKING_VERSION = $version;
-                $packingElmt->PACKINGCOND = $cond;
+                $packingElmt->PACKINGCOND = $this->units->conductivity($cond, 4, 0);
                 $packingElmt->PACKING_COMMENT = $comment;
                 $packingElmt->PACKING_RELEASE = $release;
                 $packingElmt->update();
@@ -199,10 +224,14 @@ class PackingElements extends Controller
                 ->update(['PACKING_DATE' => $current->toDateTimeString()]);
             }
 
-            return PackingElmt::where('ID_USER', $this->auth->user()->ID_USER)
+            $pack = PackingElmt::where('ID_USER', $this->auth->user()->ID_USER)
             ->join('Translation', 'ID_PACKING_ELMT', '=', 'Translation.ID_TRANSLATION')
             ->where('Translation.TRANS_TYPE', 3)->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
             ->where('ID_PACKING_ELMT', $idPacking)->first();
+
+            $pack->PACKINGCOND = $this->units->conductivity($pack->PACKINGCOND, 4, 1);
+
+            return $pack;
         }
     }
 
@@ -258,9 +287,38 @@ class PackingElements extends Controller
         $translation->LABEL = $name;
         $translation->save();
 
-        return PackingElmt::where('ID_USER', $this->auth->user()->ID_USER)
+        $pack = PackingElmt::where('ID_USER', $this->auth->user()->ID_USER)
             ->join('Translation', 'ID_PACKING_ELMT', '=', 'Translation.ID_TRANSLATION')
             ->where('Translation.TRANS_TYPE', 3)->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
             ->where('ID_PACKING_ELMT', $idPackingElmt)->first();
+
+        $pack->PACKINGCOND = $this->units->conductivity($pack->PACKINGCOND, 4, 1);
+
+        return $pack;
     }   
+
+    public function checkPacking()
+    {
+        $input = $this->request->all();
+        
+        if (isset($input['LABEL'])) $name = $input['LABEL'];
+
+        if (isset($input['PACKING_VERSION'])) $version = $input['PACKING_VERSION'];
+
+        if (isset($input['PACKINGCOND'])) $cond = $input['PACKINGCOND'];
+
+        if (isset($input['PACKING_RELEASE'])) $release = $input['PACKING_RELEASE'];
+
+        $cond = $this->units->conductivity($cond, 4, 0);
+        $checkcond = $this->minmax->checkMinMaxValue($cond, 1051);
+        if ( !$checkcond ) {
+            $mm = $this->minmax->getMinMaxConductivity(1051, 4);
+            return  [
+                "Message" => "Value out of range in  FLambda thermal conductivity (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
+            ];
+        }
+
+        return 1;
+
+    }
 }

@@ -139,6 +139,15 @@ $router->GET('/api/v1/shapes', 'Api1\\Shapes@getShapes');
 $router->GET('/api/v1/components', 'Api1\\Components@findComponents');
 
 /**
+ * GET getActiveUsers
+ * Summary: 
+ * Notes: get all user
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/users', 'Api1\\Users@getActiveUsers');
+
+
+/**
  * GET getStudyEquipments
  * Summary: 
  * Notes: 

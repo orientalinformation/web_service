@@ -14,6 +14,7 @@ use App\Models\InitialTemperature;
 use App\Models\Study;
 use App\Cryosoft\MeshService;
 use App\Cryosoft\UnitsConverterService;
+use App\Cryosoft\ProductService;
 
 class Products extends Controller
 {
@@ -39,18 +40,24 @@ class Products extends Controller
     protected $mesh;
 
     /**
+     * @var \App\Cryosoft\ProductService
+     */
+    protected $product;
+
+    /**
      * Products constructor.
      * @param Request $request
      * @param Auth $auth
      * @param KernelService $kernel
      */
-    public function __construct(Request $request, Auth $auth, KernelService $kernel, MeshService $mesh, UnitsConverterService $unit)
+    public function __construct(Request $request, Auth $auth, KernelService $kernel, MeshService $mesh, UnitsConverterService $unit, ProductService $product)
     {
         $this->request = $request;
         $this->auth = $auth;
         $this->mesh = $mesh;
         $this->kernel = $kernel;
         $this->unit = $unit;
+        $this->product = $product;
     }
 
     /**
@@ -179,8 +186,16 @@ class Products extends Controller
         }
 
         $specificDimension = $this->unit->prodDimension($specificDimension);
+        $compFamily = $this->product->getAllCompFamily();
+        $subFamily = $this->product->getAllSubFamily();
+        $waterPercentList = $this->product->getWaterPercentList();
 
-        return compact('product', 'elements', 'specificDimension');
+        return compact('product', 'elements', 'specificDimension', 'compFamily', 'subFamily', 'waterPercentList');
+    }
+
+    public function getSubfamily($compFamily)
+    {
+        return $this->product->getAllSubFamily($compFamily);
     }
 
     public function removeProductElement($id)

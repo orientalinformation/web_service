@@ -61,8 +61,24 @@ class CryosoftServiceProvider extends ServiceProvider
             return new \App\Cryosoft\MeshService($app);
         });
 
+        $this->app->singleton(\App\Cryosoft\ProductService::class, function ($app) {
+            return new \App\Cryosoft\ProductService($app);
+        });
+
         $this->app->singleton(\App\Cryosoft\PackingService::class, function ($app) {
             return new \App\Cryosoft\PackingService($app);
+        });
+
+        $this->app->singleton(\App\Cryosoft\UnitsService::class, function ($app) {
+            return new \App\Cryosoft\UnitsService($app);
+        });
+
+        $this->app->singleton(\App\Cryosoft\MinMaxService::class, function ($app) {
+            return new \App\Cryosoft\MinMaxService($app);
+        });
+
+        $this->app->singleton(\App\Cryosoft\SVGService::class, function ($app) {
+            return new \App\Cryosoft\SVGService($app);
         });
     }
 

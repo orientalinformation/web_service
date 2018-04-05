@@ -19,6 +19,8 @@ use App\Models\ProductElmt;
 use App\Models\Equipment;
 use App\Models\EquipGenZone;
 use App\Models\EquipZone;
+use App\Cryosoft\UnitsService;
+use App\Cryosoft\MinMaxService;
 
 class ReferenceData extends Controller
 {
@@ -48,17 +50,30 @@ class ReferenceData extends Controller
     protected $kernel;
 
     /**
+	 * @var App\Cryosoft\UnitsService
+	 */
+    protected $units;
+    
+        /**
+	 * @var App\Cryosoft\MinMaxService
+	 */
+	protected $minmax;
+
+    /**
      * Create a new controller instance.
      *
      * @return void
      */
-    public function __construct(Request $request, Auth $auth, UnitsConverterService $convert, ValueListService $value, KernelService $kernel)
+    public function __construct(Request $request, Auth $auth, UnitsConverterService $convert, ValueListService $value, 
+    KernelService $kernel, UnitsService $units, MinMaxService $minmax)
     {
         $this->request = $request;
         $this->auth = $auth;
         $this->convert = $convert;
         $this->value = $value;
         $this->kernel = $kernel;
+        $this->units = $units;
+        $this->minmax = $minmax;
     }
 
     public function getFamilyTranslations($transType)
@@ -128,7 +143,7 @@ class ReferenceData extends Controller
             'COMP_NAME' => $COMP_NAME,
             'COMP_COMMENT' => $COMP_COMMENT,
             'COMP_VERSION' => $COMP_VERSION,
-            'FREEZE_TEMP' => $FREEZE_TEMP,
+            'FREEZE_TEMP' => $this->units->temperature($FREEZE_TEMP, 2, 1),
             'WATER' => $WATER,
             'PROTID' => $PROTID,
             'LIPID' => $LIPID,
@@ -167,6 +182,8 @@ class ReferenceData extends Controller
 
         foreach ($mine as $m) {
             $m->AIR = round(($m->AIR / 0.01205));
+            $m->FREEZE_TEMP = $this->units->temperature($m->FREEZE_TEMP, 2, 1);
+            $m->NON_FROZEN_WATER = number_format((float)$m->NON_FROZEN_WATER, 2, '.', '');
         }
 
         $others = Component::join('Ln2user', 'Ln2user.ID_USER', '=', 'Component.ID_USER')
@@ -176,6 +193,8 @@ class ReferenceData extends Controller
             ->orderBy('LABEL', 'ASC')->get();
         foreach ($others as $other) {
             $other->AIR = round(($other->AIR / 0.01205));
+            $other->FREEZE_TEMP = $this->units->temperature($other->FREEZE_TEMP, 2, 1);
+            $other->NON_FROZEN_WATER = number_format((float)$other->NON_FROZEN_WATER, 2, '.', '');
         }
 
         return compact('mine', 'others');
@@ -186,10 +205,16 @@ class ReferenceData extends Controller
         $result = $this->saveComponent($this->request, 0);
 
         if ($result > 0) {
-            return Component::where('ID_USER', $this->auth->user()->ID_USER)
+            $comp = Component::where('ID_USER', $this->auth->user()->ID_USER)
             ->join('Translation', 'ID_COMP', '=', 'Translation.ID_TRANSLATION')
             ->where('Translation.TRANS_TYPE', 1)->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
             ->where('ID_COMP', $result)->first();
+
+            $comp->AIR = round(($comp->AIR / 0.01205));
+            $comp->FREEZE_TEMP = $this->units->temperature($comp->FREEZE_TEMP, 2, 1);
+            $comp->NON_FROZEN_WATER = number_format((float)$comp->NON_FROZEN_WATER, 2, '.', '');
+
+            return $comp;
         }
 
         return $result;
@@ -213,7 +238,7 @@ class ReferenceData extends Controller
             if ($idComp == -3) return -3;
             if ($idComp == -2) return -2;
             if ($idComp == -4) return -4;
-            if ($idComp == -5) return -5;
+            // if ($idComp == -5) return -5;
 
             $result = $this->startFCCalculation($idComp);
 
@@ -221,6 +246,10 @@ class ReferenceData extends Controller
             ->join('Translation', 'ID_COMP', '=', 'Translation.ID_TRANSLATION')
             ->where('Translation.TRANS_TYPE', 1)->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
             ->where('ID_COMP', $idComp)->first();
+
+            $comp->AIR = round(($comp->AIR / 0.01205));
+            $comp->FREEZE_TEMP = $this->units->temperature($comp->FREEZE_TEMP, 2, 1);
+            $comp->NON_FROZEN_WATER = number_format((float)$comp->NON_FROZEN_WATER, 2, '.', '');
         } else {
             $component = Component::find($idComp);
 
@@ -232,7 +261,7 @@ class ReferenceData extends Controller
                 if ($rsIdComp == -3) return -3;
                 if ($rsIdComp == -2) return -2;
                 if ($rsIdComp == -4) return -4;
-                if ($rsIdComp == -5) return -5;    
+                // if ($rsIdComp == -5) return -5;    
             }
             $result = $this->startFCCalculation($idComp); 
                 
@@ -240,6 +269,10 @@ class ReferenceData extends Controller
             ->join('Translation', 'ID_COMP', '=', 'Translation.ID_TRANSLATION')
             ->where('Translation.TRANS_TYPE', 1)->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
             ->where('ID_COMP', $idComp)->first();
+
+            $comp->AIR = round(($comp->AIR / 0.01205));
+            $comp->FREEZE_TEMP = $this->units->temperature($comp->FREEZE_TEMP, 2, 1);
+            $comp->NON_FROZEN_WATER = number_format((float)$comp->NON_FROZEN_WATER, 2, '.', '');
         }
 
         return [
@@ -287,7 +320,7 @@ class ReferenceData extends Controller
         $tempertures = array();
         $current = Carbon::now('Asia/Ho_Chi_Minh');
 
-        if (isset($FREEZE_TEMP)) $FREEZE_TEMP = (float) $this->convert->unitConvert($this->value->TEMPERATURE, floatval($input['FREEZE_TEMP']));
+        if (isset($FREEZE_TEMP)) $FREEZE_TEMP = floatval($input['FREEZE_TEMP']);
         if (isset($input['COMP_COMMENT'])) $COMP_COMMENT = $input['COMP_COMMENT'];
         if (isset($input['COMP_NAME'])) $COMP_NAME = $input['COMP_NAME'];
         if (isset($input['COMP_NAME_NEW'])) $COMP_NAME_NEW = $input['COMP_NAME_NEW'];
@@ -309,12 +342,12 @@ class ReferenceData extends Controller
         if (isset($input['release'])) $release = intval($input['release']);
         if (isset($input['TYPE_COMP'])) $TYPE_COMP = intval($input['TYPE_COMP']);
 
-        if ($freeze == 1) {
-            $compositionTotal = ($AIR *0.01205) + $WATER + $SALT + $PROTID + $GLUCID + $LIPID;
-            if ($compositionTotal < 90 || $compositionTotal > 110) {
-                return -5;
-            }
-        }
+        // if ($freeze == 1) {
+        //     $compositionTotal = ($AIR *0.01205) + $WATER + $SALT + $PROTID + $GLUCID + $LIPID;
+        //     if ($compositionTotal < 90 || $compositionTotal > 110) {
+        //         return -5;
+        //     }
+        // }
 
         if ($COMP_NAME == null) return -3;
         if ($PRODUCT_TYPE == 0) return -2;
@@ -356,7 +389,7 @@ class ReferenceData extends Controller
         $component->LIPID = $LIPID;
         $component->PROTID = $PROTID;
         $component->SALT = $SALT;
-        $component->FREEZE_TEMP = $FREEZE_TEMP;
+        $component->FREEZE_TEMP = $this->units->temperature($FREEZE_TEMP, 2, 0);
         $component->NON_FROZEN_WATER = $NON_FROZEN_WATER;
         $component->DENSITY = $DENSITY;
         $component->SPECIFIC_HEAT = $HEAT;
@@ -373,7 +406,7 @@ class ReferenceData extends Controller
             for ($i = 0; $i < count($temperatures); $i++) { 
                 $compenth = new Compenth();
                 $compenth->ID_COMP = $component->ID_COMP;
-                $compenth->COMPTEMP = floatval($temperatures[$i]['temperature']);
+                $compenth->COMPTEMP = $this->units->temperature(floatval($temperatures[$i]['temperature']), 3, 0);
                 $compenth->COMPENTH = 0;
                 $compenth->COMPCOND = 0;
                 $compenth->COMPDENS = 0;
@@ -412,7 +445,7 @@ class ReferenceData extends Controller
 
         // if (isset($FREEZE_TEMP)) $FREEZE_TEMP = (float) $this->convert->unitConvert($this->value->TEMPERATURE, floatval($input['FREEZE_TEMP']));
                 
-        if (isset($input['FREEZE_TEMP'])) $FREEZE_TEMP = (float) $this->convert->unitConvert($this->value->TEMPERATURE, floatval($input['FREEZE_TEMP']));
+        if (isset($input['FREEZE_TEMP'])) $FREEZE_TEMP =  floatval($input['FREEZE_TEMP']);
         if (isset($input['COMP_COMMENT'])) $COMP_COMMENT = $input['COMP_COMMENT'];
         if (isset($input['COMP_NAME'])) $COMP_NAME = $input['COMP_NAME'];
         if (isset($input['COMP_NAME_NEW'])) $COMP_NAME_NEW = $input['COMP_NAME_NEW'];
@@ -480,7 +513,7 @@ class ReferenceData extends Controller
         $component->LIPID = $LIPID;
         $component->PROTID = $PROTID;
         $component->SALT = $SALT;
-        $component->FREEZE_TEMP = $FREEZE_TEMP;
+        $component->FREEZE_TEMP =  $this->units->temperature($FREEZE_TEMP, 2, 0);
         $component->NON_FROZEN_WATER = $NON_FROZEN_WATER;
         $component->DENSITY = $DENSITY;
         $component->SPECIFIC_HEAT = $HEAT;
@@ -507,7 +540,7 @@ class ReferenceData extends Controller
             for ($i = 0; $i < count($temperatures); $i++) { 
                 $compenth = new Compenth();
                 $compenth->ID_COMP = $component->ID_COMP;
-                $compenth->COMPTEMP = floatval($temperatures[$i]['temperature']);
+                $compenth->COMPTEMP = $this->units->temperature(floatval($temperatures[$i]['temperature']), 3, 0);
                 $compenth->COMPENTH = 0;
                 $compenth->COMPCOND = 0;
                 $compenth->COMPDENS = 0;
@@ -541,7 +574,7 @@ class ReferenceData extends Controller
         $compenths = Compenth::where('ID_COMP', $idComp)->get();
         if (count($compenths) > 0) {
             foreach ($compenths as $compenth) {
-                $item['temperature'] = $compenth->COMPTEMP;
+                $item['temperature'] = $this->units->temperature($compenth->COMPTEMP, 2, 1);
                 array_push($temperatures, $item);
             }
         }
@@ -568,12 +601,26 @@ class ReferenceData extends Controller
     public function getCompenthsByIdComp($idComp)
     {
         $compenths = Compenth::where('ID_COMP', $idComp)->get();
+
+        foreach ($compenths as $key) {
+            // var_dump($key->COMPTEMP);die;
+            $key->COMPTEMP = $this->units->temperature($key->COMPTEMP, 2, 1);
+            $key->COMPENTH = $this->units->enthalpy($key->COMPENTH, 3, 1);
+            $key->COMPCOND = $this->units->conductivity($key->COMPCOND, 4, 1);
+            $key->COMPDENS = $this->units->density($key->COMPDENS, 1, 1);
+        }
+
         return $compenths;
     }
 
     public function getCompenthById($id)
     {
         $compenth = Compenth::find($id);
+        $compenth->COMPTEMP = $this->units->temperature($compenth->COMPTEMP, 2, 1);
+        $compenth->COMPENTH = $this->units->enthalpy($compenth->COMPENTH, 3, 1);
+        $compenth->COMPCOND = $this->units->conductivity($compenth->COMPCOND, 4, 1);
+        $compenth->COMPDENS = $this->units->density($compenth->COMPDENS, 1, 1);
+
         return $compenth;
     }
 
@@ -592,11 +639,11 @@ class ReferenceData extends Controller
 
         $compenth = Compenth::find($ID_COMPENTH);
         if ($compenth) {
-            $compenth->COMPTEMP = $COMPTEMP;
             $compenth->ID_COMP = $ID_COMP;
-            $compenth->COMPCOND = $COMPCOND;
-            $compenth->COMPDENS = $COMPDENS;
-            $compenth->COMPENTH = $COMPENTH;
+            $compenth->COMPTEMP = $this->units->temperature($COMPTEMP, 2, 0);
+            $compenth->COMPENTH = $this->units->enthalpy($COMPENTH, 3, 0);
+            $compenth->COMPCOND = $this->units->conductivity($COMPCOND, 4, 0);
+            $compenth->COMPDENS = $this->units->density($COMPDENS, 1, 0);
             $compenth->save();
         }
         return 1;
@@ -640,4 +687,132 @@ class ReferenceData extends Controller
         }
         return 0;
     }
+
+    public function checkDataComponent()
+    {
+        $input = $this->request->all();
+
+        $LIPID = $GLUCID = $PROTID = $WATER = $FREEZE_TEMP = 0;
+        $SALT = $AIR = $NON_FROZEN_WATER = 0;
+
+        if (isset($input['COMP_NAME'])) $COMP_NAME = $input['COMP_NAME'];
+        if (isset($input['COMP_VERSION'])) $COMP_VERSION = intval($input['COMP_VERSION']);
+
+        if (isset($input['FREEZE_TEMP'])) $FREEZE_TEMP = floatval($input['FREEZE_TEMP']);
+        if (isset($input['WATER'])) $WATER = floatval($input['WATER']);
+        if (isset($input['PROTID'])) $PROTID = floatval($input['PROTID']);
+        if (isset($input['LIPID'])) $LIPID = floatval($input['LIPID']);
+        if (isset($input['GLUCID'])) $GLUCID = floatval($input['GLUCID']);
+        if (isset($input['SALT'])) $SALT = floatval($input['SALT']);
+        if (isset($input['AIR'])) $AIR = floatval($input['AIR']);
+        if (isset($input['NON_FROZEN_WATER'])) $NON_FROZEN_WATER = floatval($input['NON_FROZEN_WATER']);
+        if (isset($input['check'])) $check = intval($input['check']);
+
+        if ($check != 2 && $check != 3) {
+            if ($this->checkNameAndVersion($COMP_NAME, $COMP_VERSION)) {
+                return  [
+                    "Message" => "Name and version already in use"
+                ];
+            }
+        }
+
+        $FREEZE_TEMP = $this->units->temperature($FREEZE_TEMP, 2, 0);
+        $checkFREEZE_TEMP = $this->minmax->checkMinMaxValue($FREEZE_TEMP, 1062);
+        if ( !$checkFREEZE_TEMP ) {
+            $mm = $this->minmax->getMinMaxTemperature(1062);
+            return  [
+                "Message" => "Value out of range in  Freeze temperature (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
+            ];
+        }
+
+        $checkWATER = $this->minmax->checkMinMaxValue($WATER, 1058);
+        if ( !$checkWATER ) {
+            $mm = $this->minmax->getMinMaxUPercentNone(1058);
+            return  [
+                "Message" => "Value out of range in Water (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
+            ];
+        }
+
+        $checkPROTID = $this->minmax->checkMinMaxValue($PROTID, 1055);
+        if ( !$checkPROTID ) {
+            $mm = $this->minmax->getMinMaxUPercentNone(1055);
+            return  [
+                "Message" => "Value out of range in Protein & dry material (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
+            ];
+        }
+
+        $checkLIPID = $this->minmax->checkMinMaxValue($LIPID, 1056);
+        if ( !$checkLIPID ) {
+            $mm = $this->minmax->getMinMaxUPercentNone(1056);
+            return  [
+                "Message" => "Value out of range in Lipid (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
+            ];
+        }
+
+        $checkGLUCID = $this->minmax->checkMinMaxValue($GLUCID, 1057);
+        if ( !$checkGLUCID ) {
+            $mm = $this->minmax->getMinMaxUPercentNone(1057);
+            return  [
+                "Message" => "Value out of range in Glucid (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
+            ];
+        }
+
+        $checkSALT = $this->minmax->checkMinMaxValue($SALT, 1059);
+        if ( !$checkSALT ) {
+            $mm = $this->minmax->getMinMaxUPercentNone(1059);
+            return  [
+                "Message" => "Value out of range in Salt (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
+            ];
+        }
+
+        $checkAIR = $this->minmax->checkMinMaxValue($AIR, 1060);
+        if ( !$checkAIR ) {
+            $mm = $this->minmax->getMinMaxUPercentNone(1060);
+            return  [
+                "Message" => "Value out of range in Air (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
+            ];
+        }
+
+        $checkNON_FROZEN_WATER = $this->minmax->checkMinMaxValue($NON_FROZEN_WATER, 1061);
+        if ( !$checkNON_FROZEN_WATER ) {
+            $mm = $this->minmax->getMinMaxUPercentNone(1061);
+            return  [
+                "Message" => "Value out of range in Unfreezable water (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
+            ];
+        }
+
+        if ($check == 0 || $check == 2) {
+            $compositionTotal = ($AIR *0.01205) + $WATER + $SALT + $PROTID + $GLUCID + $LIPID;
+            $checkCompositionTotal = $this->minmax->checkMinMaxValue($compositionTotal, 1118);
+            if ( !$checkCompositionTotal ) {
+                $mm = $this->minmax->getMinMaxUPercentNone(1118);
+                return  [
+                    "Message" => "Value out of range in Composition total  (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
+                ];
+            }
+        }
+        
+        return 1;
+
+    }
+
+    public function checkTemperature()
+    {
+        $input = $this->request->all();
+        $temperatures = 0;
+
+        if (isset($input['temperatures'])) $temperatures = floatval($input['temperatures']);
+
+        $temperatures = $this->units->temperature($temperatures, 3, 0);
+        $checkTemperatures = $this->minmax->checkMinMaxValue($temperatures, 1086);
+        if ( !$checkTemperatures ) {
+            $mm = $this->minmax->getMinMaxTemperature(1086);
+            return  [
+                "Message" => "Value out of range in Temperature (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
+            ];
+        }
+
+        return 1;
+    }
+
 }

@@ -28,6 +28,8 @@ use App\Models\EquipGenZone;
 use App\Models\EquipZone;
 use App\Models\MinMax;
 use App\Models\StudyEquipment;
+use App\Models\CoolingFamily;
+use App\Cryosoft\SVGService;
 
 class Equipments extends Controller
 {
@@ -67,6 +69,11 @@ class Equipments extends Controller
     protected $studies;
 
     /**
+     * @var App\Cryosoft\SVGService
+     */
+    protected $svg;
+
+    /**
      * @var \App\Cryosoft\StudyEquipmentService
      */
     protected $stdeqp;
@@ -77,7 +84,7 @@ class Equipments extends Controller
      * @return void
      */
     public function __construct(Request $request, Auth $auth, UnitsConverterService $convert, EquipmentsService $equip
-    , KernelService $kernel, StudyService $studies, StudyEquipmentService $stdeqp)
+    , KernelService $kernel, StudyService $studies, StudyEquipmentService $stdeqp, SVGService $svg)
     {
         $this->request = $request;
         $this->auth = $auth;
@@ -86,15 +93,281 @@ class Equipments extends Controller
         $this->kernel = $kernel;
         $this->studies = $studies;
         $this->stdeqp = $stdeqp;
+        $this->svg = $svg;
     }
 
     public function getEquipments()
     {
         $input = $this->request->all();
+        $idStudy = (isset($input['idStudy'])) ? $input['idStudy'] : 0;
+        $energy = (isset($input['energy'])) ? $input['energy'] : -1;
+        $manufacturer = (isset($input['manufacturer'])) ? $input['manufacturer'] : '';
+        $family = (isset($input['family'])) ? $input['family'] : -1;
+        $origine = (isset($input['origine'])) ? $input['origine'] : -1;
+        $process = (isset($input['process'])) ? $input['process'] : -1;
+        $series = (isset($input['series'])) ? $input['series'] : -1;
+        $size = (isset($input['size'])) ? $input['size'] : '';
         
-        $equipments = \App\Models\Equipment::all()->toArray();
+        $querys = Equipment::orderBy('EQUIP_NAME');
+
+        $querys->where('EQP_IMP_ID_STUDY', $idStudy)
+            ->orWhere('EQP_IMP_ID_STUDY', 0);
+
+        $querys->where(function ($query) {
+            $query->where('ID_USER', $this->auth->user()->ID_USER)
+            ->where('EQUIP_RELEASE', 2);
+        });
+
+        $querys->orWhere(function ($query) {
+            $query->where('EQUIP_RELEASE', 4)
+            ->orWhere('EQUIP_RELEASE', 3);
+        });
+
+        if ($energy != 1) {
+            $querys->where('ID_COOLING_FAMILY', $energy);
+        }
+
+        if ($family != -1) {
+            $querys->where('ID_FAMILY', $family);
+        }
+
+        if ($process != -1) {
+            $querys->where('BATCH_PROCESS', $process);
+        }
+
+        if ($series != -1) {
+            $querys->where('ID_EQUIPSERIES', $series);
+        }
+
+        if ($size != null && $size  != '') {
+            $sizeLabel = explode('x', $size);
+            $length = $sizeLabel[0];
+            $width = $sizeLabel[1];
+
+            $querys->where('EQP_LENGTH', $length)->where('EQP_WIDTH', $width);
+        }
+
+        if ($manufacturer != null && $manufacturer != '') {
+            $querys->where('CONSTRUCTOR', $manufacturer);
+        }
+
+        $equipments = $querys->get();
 
         return $equipments;
+    }
+
+    public function loadEnergies()
+    {
+        $energies = CoolingFamily::distinct()->select('cooling_family.ID_COOLING_FAMILY', 'translation.LABEL')
+        ->join('translation', 'cooling_family.ID_COOLING_FAMILY', '=', 'translation.ID_TRANSLATION')
+        ->where('translation.TRANS_TYPE', 2)
+        ->where('translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
+        ->orderBy('translation.LABEL')
+        ->get();
+        
+        return $energies;
+    }
+
+    public function loadConstructors()
+    {
+        $input = $this->request->all();
+        $energy = (isset($input['energy'])) ? $input['energy'] : -1;
+        $query = Equipseries::distinct()->select('Equipseries.CONSTRUCTOR')
+        ->join('equipment', 'Equipseries.ID_EQUIPSERIES', '=', 'equipment.ID_EQUIPSERIES');
+
+        if ($energy != -1) {
+            $query->where('equipment.ID_COOLING_FAMILY', $energy);
+        }
+
+        $query->orderBy('Equipseries.CONSTRUCTOR');
+
+        return $query->get();
+    }
+
+    public function loadFamilies()
+    {
+        $input = $this->request->all();
+        $energy = (isset($input['energy'])) ? $input['energy'] : -1;
+        $manufacturer = (isset($input['manufacturer'])) ? $input['manufacturer'] : '';
+        $query = Equipfamily::distinct()->select('equipfamily.ID_FAMILY', 'translation.LABEL')
+        ->join('translation', 'equipfamily.ID_FAMILY', '=', 'translation.ID_TRANSLATION')
+        ->join('equipseries', 'equipfamily.ID_FAMILY', '=', 'equipseries.ID_FAMILY')
+        ->join('equipment', 'equipseries.ID_EQUIPSERIES', '=', 'equipment.ID_EQUIPSERIES')
+        ->where('translation.TRANS_TYPE', 5)->where('translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE);
+
+        if ($energy != -1) {
+            $query->where('equipment.ID_COOLING_FAMILY', $energy);
+        }
+
+        if ($manufacturer != null && $manufacturer != '') {
+            $query->where('equipseries.CONSTRUCTOR', $manufacturer);
+        }
+
+        $query->orderBy('translation.LABEL');
+
+        $equipFamily = $query->get();
+        return $equipFamily;
+    }
+
+    public function loadOrigines()
+    {
+        $input = $this->request->all();
+        $energy = (isset($input['energy'])) ? $input['energy'] : -1;
+        $manufacturer = (isset($input['manufacturer'])) ? $input['manufacturer'] : '';
+        $family = (isset($input['family'])) ? $input['family'] : -1;
+        $query = Equipment::distinct()->select('equipment.STD', 'translation.LABEL')
+        ->join('translation', 'equipment.STD', '=', 'translation.ID_TRANSLATION')
+        ->join('equipseries', 'equipment.ID_EQUIPSERIES', 'equipseries.ID_EQUIPSERIES')
+        ->join('equipfamily', 'equipseries.ID_FAMILY', '=', 'equipfamily.ID_FAMILY')
+        ->where('translation.TRANS_TYPE', 17)->where('translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE);
+
+        if ($energy != -1) {
+            $query->where('equipment.ID_COOLING_FAMILY', $energy);
+        }
+
+        if ($manufacturer != null && $manufacturer != '') {
+            $query->where('equipseries.CONSTRUCTOR', $manufacturer);
+        }
+
+        if ($family != -1) {
+            $query->where('equipfamily.ID_FAMILY', $family);
+        }
+
+        $query->orderBy('translation.LABEL');
+
+        $equipMents = $query->get();
+        return $equipMents;
+    }
+
+    public function loadProcesses()
+    {
+        $input = $this->request->all();
+        $energy = (isset($input['energy'])) ? $input['energy'] : -1;
+        $manufacturer = (isset($input['manufacturer'])) ? $input['manufacturer'] : '';
+        $family = (isset($input['family'])) ? $input['family'] : -1;
+        $origine = (isset($input['origine'])) ? $input['origine'] : -1;
+
+        $query = Equipfamily::distinct()->select('equipfamily.BATCH_PROCESS', 'translation.LABEL')
+        ->join('translation', 'equipfamily.BATCH_PROCESS', '=', 'translation.ID_TRANSLATION')
+        ->join('equipseries', 'equipfamily.ID_FAMILY', '=', 'equipseries.ID_FAMILY')
+        ->join('equipment', 'equipseries.ID_EQUIPSERIES', '=', 'equipment.ID_EQUIPSERIES')
+        ->where('translation.TRANS_TYPE', 13)->where('translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE);
+
+        if ($energy != -1) {
+            $query->where('equipment.ID_COOLING_FAMILY', $energy);
+        }
+
+        if ($manufacturer != null && $manufacturer != '') {
+            $query->where('equipseries.CONSTRUCTOR', $manufacturer);
+        }
+
+        if ($family != -1) {
+            $query->where('equipfamily.ID_FAMILY', $family);
+        }
+
+        if ($origine != -1) {
+            $query->where('equipment.STD', $origine);
+        }
+
+        $query->orderBy('translation.LABEL');
+
+        $equipFamily = $query->get();
+        return $equipFamily;
+    }
+
+    public function loadSeries()
+    {
+        $input = $this->request->all();
+        $energy = (isset($input['energy'])) ? $input['energy'] : -1;
+        $manufacturer = (isset($input['manufacturer'])) ? $input['manufacturer'] : '';
+        $family = (isset($input['family'])) ? $input['family'] : -1;
+        $origine = (isset($input['origine'])) ? $input['origine'] : -1;
+        $process = (isset($input['process'])) ? $input['process'] : -1;
+
+        $query = Equipseries::distinct()->select('equipseries.ID_EQUIPSERIES', 'translation.LABEL')
+        ->join('translation', 'equipseries.ID_EQUIPSERIES', '=', 'translation.ID_TRANSLATION')
+        ->join('equipfamily', 'equipseries.ID_FAMILY', '=', 'equipfamily.ID_FAMILY')
+        ->join('equipment', 'equipseries.ID_EQUIPSERIES', '=', 'equipment.ID_EQUIPSERIES')
+        ->where('translation.TRANS_TYPE', 7)->where('translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE);
+
+        if ($energy != -1) {
+            $query->where('equipment.ID_COOLING_FAMILY', $energy);
+        }
+
+        if ($manufacturer != null && $manufacturer != '') {
+            $query->where('equipseries.CONSTRUCTOR', $manufacturer);
+        }
+
+        if ($family != -1) {
+            $query->where('equipfamily.ID_FAMILY', $family);
+        }
+
+        if ($origine != -1) {
+            $query->where('equipment.STD', $origine);
+        }
+
+        if ($process != -1) {
+            $query->where('equipfamily.BATCH_PROCESS', $process);
+        }
+
+        $query->orderBy('translation.LABEL');
+
+        $equipSeries = $query->get();
+        return $equipSeries;
+    }
+
+    public function loadDimensions()
+    {
+        $input = $this->request->all();
+        $energy = (isset($input['energy'])) ? $input['energy'] : -1;
+        $manufacturer = (isset($input['manufacturer'])) ? $input['manufacturer'] : '';
+        $family = (isset($input['family'])) ? $input['family'] : -1;
+        $origine = (isset($input['origine'])) ? $input['origine'] : -1;
+        $process = (isset($input['process'])) ? $input['process'] : -1;
+        $series = (isset($input['series'])) ? $input['series'] : -1;
+
+        $query = Equipment::distinct()->select('equipment.EQP_LENGTH', 'equipment.EQP_WIDTH')
+        ->join('equipseries', 'equipment.ID_EQUIPSERIES', '=', 'equipseries.ID_EQUIPSERIES')
+        ->join('equipfamily', 'equipseries.ID_FAMILY', '=', 'equipfamily.ID_FAMILY');
+
+        if ($energy != -1) {
+            $query->where('equipment.ID_COOLING_FAMILY', $energy);
+        }
+
+        if ($manufacturer != null && $manufacturer != '') {
+            $query->where('equipseries.CONSTRUCTOR', $manufacturer);
+        }
+
+        if ($family != -1) {
+            $query->where('equipfamily.ID_FAMILY', $family);
+        }
+
+        if ($origine != -1) {
+            $query->where('equipment.STD', $origine);
+        }
+
+        if ($process != -1) {
+            $query->where('equipfamily.BATCH_PROCESS', $process);
+        }
+
+        if ($series != -1) {
+            $query->where('equipseries.ID_EQUIPSERIES', $series);
+        }
+
+        $query->orderBy('equipment.EQP_LENGTH');
+        $query->orderBy('equipment.EQP_WIDTH');
+
+        $equipMents = $query->get();
+
+        $result = [];
+        if (count($equipMents) > 0) {
+            foreach ($equipMents as $key => $value) {
+                $result[] = $value;
+                $result[$key]['DISPLAY_LENGTH'] = $this->convert->equipDimension($value->EQP_LENGTH);
+                $result[$key]['DISPLAY_WIDTH'] = $this->convert->equipDimension($value->EQP_WIDTH);
+            }
+        }
+        return $result;
     }
 
     public function findRefEquipment()
@@ -685,14 +958,23 @@ class Equipments extends Controller
     {
         $minMax = $minScaleY = $maxScaleY = $minValueY = $maxValueY = $nbFractionDigits = $maxiMum = null;
         $unitIdent = $miniMum = 10;
-        $ID_EQUIP = $profileType = $profileFace = $listOfPoints = null;
-        $YAxis = $XAxis = 0;
-
+        $ID_EQUIP = $profileType = $profileFace = $listOfPoints = $path = $nbpoints = null;
+        $YAxis = $XAxis = $pos = $start = $end = 0;
+        $X = $Y = $resultPoint = $axisline = $valuesTabX =  $valuesTabY = $selectedPoints = $posTabY = array();
+        $textX = 75;
+        $minScale = $maxScale = $typeChart = $listofPointsOld = null;
+        $newProfil = '';
+        $checkTop = $checkButton = $checkLeft = $checkRight = $checkFront = $checkRear = null;
+                    
         $input = $this->request->all();
 
         if (isset($input['profilType'])) $profileType = intval($input['profilType']);
         if (isset($input['profilFace'])) $profileFace = intval($input['profilFace']);
         if (isset($input['ID_EQUIP'])) $ID_EQUIP = intval($input['ID_EQUIP']);
+        if (isset($input['minScaleY'])) $minScale = floatval($input['minScaleY']);
+        if (isset($input['maxScaleY'])) $maxScale = floatval($input['maxScaleY']);
+        if (isset($input['typeChart'])) $typeChart = intval($input['typeChart']);
+        if (isset($input['newProfil'])) $newProfil = $input['newProfil'];
 
         if ($profileType == 1) {
             $minMax = $this->getMinMax(1039);
@@ -704,20 +986,79 @@ class Equipments extends Controller
             $nbFractionDigits = 0;
         }
 
+        if ($profileFace == 0) {
+            $checkTop = 0;
+        } else if ($profileFace == 1) {
+            $checkButton = 1;
+        } else if ($profileFace == 2) {
+            $checkLeft = 2;
+        } else if ($profileFace == 3) {
+            $checkRight = 3;
+        } else if ($profileFace == 4) {
+            $checkFront = 4;
+        } else if ($profileFace == 5) {
+            $checkRear = 5;
+        }
+
         $minScaleY = doubleval($minMax->LIMIT_MIN);
         $maxScaleY = doubleval($minMax->LIMIT_MAX);
         $minValueY = doubleval($minMax->LIMIT_MAX);
         $maxValueY = doubleval($minMax->LIMIT_MIN);
 
-        $listOfPoints = $this->getSelectedProfile($ID_EQUIP, $profileType, $profileFace);
+        $listOfPoints = $this->svg->getSelectedProfile($ID_EQUIP, $profileType, $profileFace);
+        $listofPointsOld = $listOfPoints;
+        $nbpoints = count($listOfPoints);
+
+        // Generate new profile
+        if ($typeChart == 2) {
+            if (count($listOfPoints) > 0) {
+                for($i = 0; $i < count($listOfPoints); $i++) {
+                    $end = strpos($newProfil, '_', $start);
+                    $value = substr($newProfil, $start, $end);
+                    
+                    if ($value != '') {
+                        if ($profileType == 1) {
+                            $listOfPoints[$i]['Y_POINT'] = $this->convert->convectionCoeff($value);
+                        } else {
+                            $listOfPoints[$i]['Y_POINT'] = $this->convert->temperature($value);
+                        }
+                    } else {
+                        $listOfPoints[$i]['Y_POINT'] = DOUBLE_MIN_VALUE;
+                    }
+
+                    $start = $end + 1;
+                }
+
+                $listOfPoints = $this->svg->generateNewProfile($listofPointsOld, $listOfPoints, $minMax->LIMIT_MIN, $minMax->LIMIT_MAX);
+            }
+        }
+        
         if (count($listOfPoints) > 0) {
             for($i = 0; $i < count($listOfPoints); $i++) {
+                array_push($valuesTabX, $listOfPoints[$i]['X_POSITION']);
+                array_push($valuesTabY, round($listOfPoints[$i]['Y_POINT'], 2));
+                array_push($selectedPoints, 1);
+
                 if (doubleval($listOfPoints[$i]['Y_POINT']) < $minValueY) {
                     $minValueY = doubleval($listOfPoints[$i]['Y_POINT']);
                 }
 
                 if (doubleval($listOfPoints[$i]['Y_POINT']) > $maxValueY) {
                     $maxValueY = doubleval($listOfPoints[$i]['Y_POINT']);
+                }
+
+                if ($i == 0) {
+                    $item['position'] = $pos;
+                    $item['textX'] = $textX;
+                    array_push($X, $item);
+                }
+
+                if (($i > 0) && ($i % 10 == 0) && $i <= 100) {
+                    $pos = $pos + 10;
+                    $textX = $textX + 80;
+                    $item['textX'] = $textX;
+                    $item['position'] = $pos;
+                    array_push($X, $item);
                 }
             }
         }
@@ -753,76 +1094,154 @@ class Equipments extends Controller
         $miniMum = $this->convert->convertIdent($minScaleY, $unitIdent);
         $maxiMum = $this->convert->convertIdent($maxScaleY, $unitIdent);
 
+        //refresh
+        if ($typeChart == 1) {
+            $miniMum = $minScale;
+            $maxiMum = $maxScale;
+        }
+
+        // Write axis X
+        $axisX = $this->svg->getAxisX();
+        // End write axis X
+
+        // Write axis Y
+        $axisY = $this->svg->getAxisY($miniMum, $maxiMum, $minValueY, $maxValueY, $nbFractionDigits, $unitIdent);
+        $axisline = $axisY['axisline'];
+        $Y = $axisY['listOfGraduation'];
+        // End write axis Y
+        
+        // write path and circle point
+        $path1 = null;
+
+        for($i = 0; $i < count($listOfPoints); $i++) {
+    
+            $listOfPoints[$i]['X_POSITION'] = $this->svg->getAxisXPos(doubleval($listOfPoints[$i]['X_POSITION']));
+            $listOfPoints[$i]['Y_POINT'] = $this->svg->getAxisYPos(doubleval($listOfPoints[$i]['Y_POINT']), $miniMum, $maxiMum);
+
+            array_push($posTabY, $listOfPoints[$i]['Y_POINT']);
+            if ($i == 0) {
+                $path1 = 'M '. $listOfPoints[0]['X_POSITION']. ' '.$listOfPoints[0]['Y_POINT'] .' L';
+            } else {
+                $path .= ' '.$listOfPoints[$i]['X_POSITION'] .' ' .$listOfPoints[$i]['Y_POINT'];
+            }
+        }
+        $path = $path1 .' '.$path;
+        // end write path and circle point
+        $minPixY = (PROFILE_CHARTS_HEIGHT - PROFILE_CHARTS_MARGIN_HEIGHT) - (PROFILE_CHARTS_HEIGHT - (2 * PROFILE_CHARTS_MARGIN_HEIGHT)) ;
+        $nbpixY = (PROFILE_CHARTS_HEIGHT - PROFILE_CHARTS_MARGIN_HEIGHT) - $minPixY;
+
         $array = [
             'MiniMum' => $miniMum,
             'MaxiMum' => $maxiMum,
-            'YAxis' => $YAxis,
-            'XAxis' => $XAxis,
+            'minValueY' => $minValueY,
+            'maxValueY' => $maxValueY,
+            'imageWidth' => PROFILE_CHARTS_WIDTH,
+            'imageHeight' => PROFILE_CHARTS_HEIGHT, 
+            'imageMargeWidth' => PROFILE_CHARTS_MARGIN_WIDTH,
+            'imageMargeHeight' => PROFILE_CHARTS_MARGIN_HEIGHT,
+            'X' => $X,
+            'Y' =>  $Y,
+            'ListOfPoints' => $listOfPoints,
+            'path' => $path,
+            'axisline' => $axisline,
+            'originY' => (PROFILE_CHARTS_HEIGHT - PROFILE_CHARTS_MARGIN_HEIGHT),
+            'minPixY' => $minPixY,
+            'maxPixY' => (PROFILE_CHARTS_HEIGHT - PROFILE_CHARTS_MARGIN_HEIGHT),
+            'nbpixY' => $nbpixY,
+            'valuesTabX' => $valuesTabX,
+            'valuesTabY' => $valuesTabY,
+            'selectedPoints' => $selectedPoints,
+            'nbpoints' => $nbpoints,
+            'axisYLength' => (PROFILE_CHARTS_WIDTH - (2 * PROFILE_CHARTS_MARGIN_WIDTH)) + 20,
+            'posTabY' => $posTabY,
+            'checkTop' => $checkTop,
+            'checkButton' => $checkButton,
+            'checkLeft' => $checkLeft,
+            'checkRight' => $checkRight,
+            'checkFront' => $checkFront,
+            'checkRear' => $checkRear
         ];
         
         return $array;
     }
 
-    private function getSelectedProfile($ID_EQUIP, $profileType, $profileFace)
-    {   
-        $listOfPoints = $item = array();
-        $equipCharacts = EquipCharact::where('ID_EQUIP', $ID_EQUIP)->get();
-        if ($equipCharacts) {
-            foreach ($equipCharacts as $equipCharact) {
-                if ($profileType == 1) {
-                    $item['X_POSITION'] = $equipCharact->X_POSITION;
-                    switch ($profileFace) {
-                        case 0:
-                            $item['Y_POINT'] = $equipCharact->ALPHA_TOP;
-                            break;
-                        case 1:
-                            $item['Y_POINT'] = $equipCharact->ALPHA_BOTTOM;
-                            break;
-                        case 2:
-                            $item['Y_POINT'] = $equipCharact->ALPHA_LEFT;
-                            break;
-                        case 3:
-                            $item['Y_POINT'] = $equipCharact->ALPHA_RIGHT;
-                            break;
-                        case 4:
-                            $item['Y_POINT'] = $equipCharact->ALPHA_FRONT;
-                            break;
-                        case 5:
-                            $item['Y_POINT'] = $equipCharact->ALPHA_REAR;
-                            break;
-                        default:
-                            # code...
-                            break;
+    public function saveSelectedProfile()
+    {
+        $ID_EQUIP = $profileType = $profileFace = $minScale = $maxScale = $typeChart = null;
+        $newProfil = $sFace = '';
+        $bsaveTop = $bsaveBottom = $bsaveLeft = $bsaveRight = $bsaveFront = $bsaveRear = null;
+        $checkTop = $checkButton = $checkLeft = $checkRight = $checkFront = $checkRear = null;
+        $start = $end = 0;
+
+        $input = $this->request->all();
+
+        if (isset($input['profilType'])) $profileType = intval($input['profilType']);
+        if (isset($input['profilFace'])) $profileFace = intval($input['profilFace']);
+        if (isset($input['ID_EQUIP'])) $ID_EQUIP = intval($input['ID_EQUIP']);
+        if (isset($input['minScaleY'])) $minScale = floatval($input['minScaleY']);
+        if (isset($input['maxScaleY'])) $maxScale = floatval($input['maxScaleY']);
+        if (isset($input['typeChart'])) $typeChart = intval($input['typeChart']);
+        if (isset($input['newProfil'])) $newProfil = $input['newProfil'];
+        if (isset($input['checkTop'])) $checkTop = intval($input['checkTop']);
+        if (isset($input['checkButton'])) $checkButton = intval($input['checkButton']);
+        if (isset($input['checkLeft'])) $checkLeft = intval($input['checkLeft']);
+        if (isset($input['checkRight'])) $checkRight = intval($input['checkRight']);
+        if (isset($input['checkFront'])) $checkFront = intval($input['checkFront']);
+        if (isset($input['checkRear'])) $checkRear = intval($input['checkRear']);
+
+        $listOfPoints = $this->svg->getSelectedProfile($ID_EQUIP, $profileType, $profileFace);
+
+        $bsaveTop = (($checkTop != null) || ($profileFace == PROFILE_TOP)) ? true : false;
+        $bsaveBottom = (($checkButton != null) || ($profileFace == PROFILE_BOTTOM)) ? true : false;
+        $bsaveLeft = (($checkLeft != null) || ($profileFace == PROFILE_LEFT)) ? true : false;
+        $bsaveRight = (($checkRight != null) || ($profileFace == PROFILE_RIGHT)) ? true : false;
+        $bsaveFront = (($checkFront != null) || ($profileFace == PROFILE_FRONT)) ? true : false;
+        $bsaveRear = (($checkRear != null) || ($profileFace == PROFILE_REAR)) ? true : false;
+
+        // get new profile
+        if (count($listOfPoints) > 0) {
+            for($i = 0; $i < count($listOfPoints); $i++) {
+                $end = strpos($newProfil, '_', $start);
+                $value = substr($newProfil, $start, $end);
+                
+                if ($value != '') {
+                    if ($profileType == 1) {
+                        $listOfPoints[$i]['Y_POINT'] = $this->convert->convectionCoeff($value);
+                    } else {
+                        $listOfPoints[$i]['Y_POINT'] = $this->convert->temperature($value);
                     }
                 } else {
-                    switch ($profileFace) {
-                        case 0:
-                            $item['Y_POINT'] = $equipCharact->TEMP_TOP;
-                            break;
-                        case 1:
-                            $item['Y_POINT'] = $equipCharact->TEMP_BOTTOM;
-                            break;
-                        case 2:
-                            $item['Y_POINT'] = $equipCharact->TEMP_LEFT;
-                            break;
-                        case 3:
-                            $item['Y_POINT'] = $equipCharact->TEMP_RIGHT;
-                            break;
-                        case 4:
-                            $item['Y_POINT'] = $equipCharact->TEMP_FRONT;
-                            break;
-                        case 5:
-                            $item['Y_POINT'] = $equipCharact->TEMP_REAR;
-                            break;
-                        default:
-                            # code...
-                            break;
-                    }
+                    $listOfPoints[$i]['Y_POINT'] = DOUBLE_MIN_VALUE;
                 }
-                array_push($listOfPoints, $item);
+
+                $start = $end + 1;
             }
         }
-        return $listOfPoints;
+
+        // get old profile
+        $equipCharacts = EquipCharact::where('ID_EQUIP', $ID_EQUIP)->get();
+        if ($equipCharacts) {
+            for ($i = 0; $i < count($equipCharacts); $i++) {
+                if ($profileType == CONVECTION_PROFILE) {
+                    if($bsaveTop) $equipCharacts[$i]->ALPHA_TOP = $listOfPoints[$i]['Y_POINT'];
+                    if($bsaveBottom) $equipCharacts[$i]->ALPHA_BOTTOM = $listOfPoints[$i]['Y_POINT'];
+                    if($bsaveLeft) $equipCharacts[$i]->ALPHA_LEFT = $listOfPoints[$i]['Y_POINT'];
+                    if($bsaveRight) $equipCharacts[$i]->ALPHA_RIGHT = $listOfPoints[$i]['Y_POINT'];
+                    if($bsaveFront) $equipCharacts[$i]->ALPHA_FRONT = $listOfPoints[$i]['Y_POINT'];
+                    if($bsaveRear) $equipCharacts[$i]->ALPHA_REAR = $listOfPoints[$i]['Y_POINT'];
+                } else {
+                    if($bsaveTop) $equipCharacts[$i]->TEMP_TOP = $listOfPoints[$i]['Y_POINT'];
+                    if($bsaveBottom) $equipCharacts[$i]->TEMP_BOTTOM = $listOfPoints[$i]['Y_POINT'];
+                    if($bsaveLeft) $equipCharacts[$i]->TEMP_LEFT = $listOfPoints[$i]['Y_POINT'];
+                    if($bsaveRight) $equipCharacts[$i]->TEMP_RIGHT = $listOfPoints[$i]['Y_POINT'];
+                    if($bsaveFront) $equipCharacts[$i]->TEMP_FRONT = $listOfPoints[$i]['Y_POINT'];
+                    if($bsaveRear) $equipCharacts[$i]->TEMP_REAR = $listOfPoints[$i]['Y_POINT'];
+                }
+                $equipCharacts[$i]->save();
+            }
+        }
+
+        return 1;
     }
 
     public function getDataCurve($idEquip) 
@@ -1182,6 +1601,29 @@ class Equipments extends Controller
             return 1;
         }
         return 0;
+    }
+
+    public function reCalculate($id)
+    {
+        $study = Study::find($id);
+
+        $studyEquipments = $study->studyEquipments;
+
+        if (count($studyEquipments) > 0) {
+            foreach ($studyEquipments as $sEquip) {
+                $sEquip->BRAIN_SAVETODB = 0;
+                $sEquip->BRAIN_TYPE = 0;
+                $sEquip->EQUIP_STATUS = 0;
+                $sEquip->AVERAGE_PRODUCT_ENTHALPY = 0;
+                $sEquip->AVERAGE_PRODUCT_TEMP = 0;
+                $sEquip->ENTHALPY_VARIATION = 0;
+                $sEquip->PRECIS = 0;
+                $sEquip->RUN_CALCULATE = 1;
+                $sEquip->save();
+            }
+        }
+
+        return 1;
     }
 
     public function getTempSetPoint($idEquip)

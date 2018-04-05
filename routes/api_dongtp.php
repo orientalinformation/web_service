@@ -304,3 +304,11 @@ $router->GET('/api/v1/calculator/calculatestatus/{idStudy}', 'Api1\\CalculStatus
  * Output-Formats: [application/json]
  */
 $router->PUT('/api/v1/input/meshinitial/{idStudy}', 'Api1\\InputInitial@initTempRecordPts');
+
+/**
+ * POST save hight charact
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/referencedata/highchart', 'Api1\\Equipments@saveSelectedProfile');

@@ -374,3 +374,59 @@ $router->POST('/api/v1/upload', 'Api1\\Reports@postFile');
  * Output-Formats: [application/json]
  */
 $router->GET('/api/v1/referencedata/subfamily', 'Api1\\ReferenceData@getDataSubFamily');
+
+/**
+ * GET getMinMax
+ * Summary:
+ * Notes: get data min max 
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/minmax', 'Api1\\CheckMinMax@getMinMax');
+
+/**
+ * POST checkCalculationParameters
+ * Summary:
+ * Notes: check Calculation Parameters
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/calculator/calculationparameters', 'Api1\\Calculator@checkCalculationParameters');
+
+/**
+ * POST checkBrainCalculationParameters
+ * Summary:
+ * Notes: check Brain Calculation Parameters
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/calculator/braincalculationparameters', 'Api1\\Calculator@checkBrainCalculationParameters');
+
+/**
+ * POST checkStartCalculationParameters
+ * Summary:
+ * Notes: check Start Calculation Parameters
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/calculator/startcalculationparameters', 'Api1\\Calculator@checkStartCalculationParameters');
+
+/**
+ * POST checkStartCalculationParameters
+ * Summary:
+ * Notes: check Start Calculation Parameters
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/referencedata/savedatacomponent', 'Api1\\ReferenceData@checkDataComponent');
+
+/**
+ * POST checkTemperature
+ * Summary:
+ * Notes: Check unit min max temperatures
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/referencedata/checktemperature', 'Api1\\ReferenceData@checkTemperature');
+
+/**
+ * POST checkPacking
+ * Summary:
+ * Notes: Check unit min max Packing
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/referencedata/checkpacking', 'Api1\\PackingElements@checkPacking');

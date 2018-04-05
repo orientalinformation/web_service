@@ -23,6 +23,11 @@ use App\Models\StudyEquipment;
 
 class BrainCalculateService
 {
+    /**
+	 * @var App\Cryosoft\ValueListService
+	 */
+    protected $auth;
+    
 	/**
 	 * @var App\Cryosoft\ValueListService
 	 */
@@ -31,12 +36,21 @@ class BrainCalculateService
 	/**
 	 * @var App\Cryosoft\ValueListService
 	 */
-	protected $convert;
+    protected $convert;
+    
+    /**
+	 * @var App\Cryosoft\UnitsService
+	 */
+	protected $units;
 
-	function __construct(ValueListService $value, UnitsConverterService $convert)
-	{
-		$this->value = $value;
-        $this->convert = $convert;
+    public function __construct(\Laravel\Lumen\Application $app) 
+    {
+		$this->app = $app;
+		$this->auth = $app['Illuminate\\Contracts\\Auth\\Factory'];
+		$this->value = $app['App\\Cryosoft\\ValueListService'];
+		$this->convert = $app['App\\Cryosoft\\UnitsConverterService'];
+		$this->units = $app['App\\Cryosoft\\UnitsService'];
+
 	}
 
 	public function getCalcParams($idStudyEquipments)
@@ -90,7 +104,7 @@ class BrainCalculateService
         if (!empty($calcParameter)) {
             $maxItNb = $calcParameter->MAX_IT_NB;
         }
-        return $maxItNb;
+        return intval($maxItNb);
     }
 
     public function getRelaxCoef($idStudyEquipments) 
@@ -101,7 +115,7 @@ class BrainCalculateService
             $relaxCoeff =  $calcParameter->RELAX_COEFF;
         }
 
-        return $relaxCoeff;
+        return number_format((float)$relaxCoeff, 2, '.', '');
     }
 
     public function getPrecision($idStudyEquipments) 
@@ -113,7 +127,7 @@ class BrainCalculateService
             $precision = $calcParameter->PRECISION_REQUEST;
         }
 
-        return $this->convert->unitConvert($this->value->TIME, $precision, 3);
+        return $this->units->convert($precision, 3);
     }
 
     public function getTempPtSurf($idStudyEquipments) 
@@ -125,7 +139,7 @@ class BrainCalculateService
             $topSurf = $calcParameter->STOP_TOP_SURF;
         }
 
-        return $this->convert->unitConvert($this->value->TEMPERATURE, $topSurf, 2);
+        return $this->units->temperature($topSurf, 2, 1);
     }
 
     public function getTempPtIn($idStudyEquipments) 
@@ -137,7 +151,7 @@ class BrainCalculateService
             $topInt = $calcParameter->STOP_INT;
         }
 
-        return $this->convert->unitConvert($this->value->TEMPERATURE, $topInt, 2);
+        return $this->units->temperature($topInt, 2, 1);
     }
 
     public function getTempPtBot($idStudyEquipments) 
@@ -149,7 +163,7 @@ class BrainCalculateService
             $bottomSurf = $calcParameter->STOP_BOTTOM_SURF;
         }
 
-        return $this->convert->unitConvert($this->value->TEMPERATURE, $bottomSurf, 2);
+        return $this->units->temperature($bottomSurf, 2, 1);
     }
 
     public function getTempPtAvg($idStudyEquipments) 
@@ -161,7 +175,7 @@ class BrainCalculateService
             $topAvg = $calcParameter->STOP_AVG;
         }
 
-        return $this->convert->unitConvert($this->value->TEMPERATURE, $topAvg, 2);
+        return $this->units->temperature($topAvg, 2, 1);
     }
 
     public function getPrecisionLogStep($idStudyEquipments) 
@@ -173,7 +187,7 @@ class BrainCalculateService
             $logStep = $calcParameter->PRECISION_LOG_STEP;
         }
 
-        return $logStep;
+        return intval($logStep);
     }
 
     public function getStorageStep($idStudyEquipments) 
@@ -185,7 +199,7 @@ class BrainCalculateService
             $lfStep = $calcParameter->STORAGE_STEP * $calcParameter->TIME_STEP;
         }
 
-        return $this->convert->unitConvert($this->value->TIME, $lfStep, 1);
+        return $this->units->timeStep($lfStep, 1, 1);
     }
 
     public function getTimeStep($idStudyEquipments) 
@@ -197,7 +211,7 @@ class BrainCalculateService
             $lfStep = $calcParameter->TIME_STEP;
         }
 
-        return $this->convert->unitConvert($this->value->TIME, $lfStep, 1);
+        return $this->units->timeStep($lfStep, 3, 1);
     }
 
 	public function getMinMax($limitItem) 
@@ -304,36 +318,36 @@ class BrainCalculateService
             case 10:
             case 14:
                 $minMax = $this->getMinMax(1132);
-                $sOptimErrorT =  $this->convert->unitConvert($this->value->TEMPERATURE, $minMax->DEFAULT_VALUE);
+                $sOptimErrorT =  $this->units->deltaTemperature($minMax->DEFAULT_VALUE, 2, 1);
                 break;
 
             case 11:
             case 15:
                 if ($brandType == 2) {
-                    $sOptimErrorT =  $this->convert->unitConvert($this->value->TEMPERATURE, $calcParameters->ERROR_T);
+                    $sOptimErrorT =  $this->units->deltaTemperature($calcParameters->ERROR_T, 2, 1);
                 } else {
                     $minMax = $this->getMinMax(1134);
-                    $sOptimErrorT =  $this->convert->unitConvert($this->value->TEMPERATURE, $minMax->DEFAULT_VALUE);
+                    $sOptimErrorT =  $this->units->deltaTemperature($minMax->DEFAULT_VALUE, 2, 1);
                 }
                 break;
 
             case 12:
             case 16:
                 if ($brandType == 4 || $brandType == 3) {
-                    $sOptimErrorT =  $this->convert->unitConvert($this->value->TEMPERATURE, $calcParameters->ERROR_T);
+                    $sOptimErrorT =   $this->units->deltaTemperature($calcParameters->ERROR_T, 2, 1);
                 } else {
                     $minMax = $this->getMinMax(1136);
-                    $sOptimErrorT =  $this->convert->unitConvert($this->value->TEMPERATURE, $minMax->DEFAULT_VALUE);
+                    $sOptimErrorT =  $this->units->deltaTemperature($minMax->DEFAULT_VALUE, 2, 1);
                 }
                 break;
 
             case 13:
             case 17:
                 if ($brandType != 0 || $brandType != 1) {
-                    $sOptimErrorT =  $this->convert->unitConvert($this->value->TEMPERATURE, $calcParameters->ERROR_T);
+                    $sOptimErrorT =   $this->units->deltaTemperature($calcParameters->ERROR_T, 2, 1);
                 } else {
                     $minMax = $this->getMinMax(1138);
-                    $sOptimErrorT =  $this->convert->unitConvert($this->value->TEMPERATURE, $minMax->DEFAULT_VALUE);
+                    $sOptimErrorT =  $this->units->deltaTemperature($minMax->DEFAULT_VALUE, 2, 1);
                 }
                 break;
         }
@@ -435,7 +449,7 @@ class BrainCalculateService
                 break;
         }
 
-        return $sNbOptim;
+        return doubleval($sNbOptim);
     }
 
     public function getBrainMode($idStudy)

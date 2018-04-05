@@ -52,6 +52,13 @@ class Study extends Model
 {
      use Eloquence, Mappable;
 
+     /**
+     * The table associated with the model.
+     * 
+     * @var string
+     */
+    protected $table = 'studies';
+
     /**
      * @var array
      */

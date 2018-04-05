@@ -155,7 +155,7 @@ class StudyEquipmentService
         $equip['ts'] = $this->loadEquipmentData($studyEquipment, DWELLING_TIME);
         $equip['vc'] = $this->loadEquipmentData($studyEquipment, CONVECTION_SPEED);
         $equip['dh'] = $this->loadEquipmentData($studyEquipment, ENTHALPY_VAR);
-        $equip['TExt'] = $this->loadEquipmentData($studyEquipment, EXHAUST_TEMP)[0];
+        $equip['TExt'] = (count($this->loadEquipmentData($studyEquipment, EXHAUST_TEMP)) > 0) ? $this->loadEquipmentData($studyEquipment, EXHAUST_TEMP)[0] : '';
 
         $equip['top_or_QperBatch'] = $this->topOrQperBatch($studyEquipment);
         return $equip;

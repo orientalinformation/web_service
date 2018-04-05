@@ -51,6 +51,11 @@ class CalculateService
 	 */
 	protected $calParametersDef;
 
+	/**
+	 * @var App\Cryosoft\UnitsService
+	 */
+	protected $units;
+
 	public function __construct(\Laravel\Lumen\Application $app) 
     {
 		$this->app = $app;
@@ -58,6 +63,8 @@ class CalculateService
 		$this->value = $app['App\\Cryosoft\\ValueListService'];
 		$this->convert = $app['App\\Cryosoft\\UnitsConverterService'];
 		$this->calParametersDef = $this->getCalculationParametersDef();
+		$this->units = $app['App\\Cryosoft\\UnitsService'];
+
 	}
 
 	public function getCalculationMode($idStudy) 
@@ -115,7 +122,7 @@ class CalculateService
     {
 		$mmErrorT = 0.0;
 		$minMax = $this->getMinMax(1132);
-		$mmErrorT = $this->convert->unitConvert($this->value->TEMPERATURE, $minMax->DEFAULT_VALUE);
+		$mmErrorT = $this->units->deltaTemperature($minMax->DEFAULT_VALUE, 2, 1);
 		return $mmErrorT;
 	}
 
@@ -123,8 +130,8 @@ class CalculateService
     {
 		$mmErrorH = 0.0;
 		$minMax = $this->getMinMax(1131);
-		$uPercent = $this->convert->uPercent();
-		$mmErrorH =  $this->convert->convertCalculator($minMax->DEFAULT_VALUE, $uPercent["coeffA"], $uPercent["coeffB"]);
+		$uPercent = $this->units->uPercent();
+		$mmErrorH =  $this->units->convertCalculator($minMax->DEFAULT_VALUE, $uPercent["coeffA"], $uPercent["coeffB"], 2, 1);
 		return $mmErrorH;
 	}
 
@@ -132,8 +139,7 @@ class CalculateService
     {
 		$mmNbOptim = 0.0;
 		$minMax = $this->getMinMax(1130);
-		$mmNbOptim = $this->convert->unitConvert($this->value->TEMPERATURE, $minMax->DEFAULT_VALUE);
-		return $mmNbOptim;
+		return intval($minMax->DEFAULT_VALUE);
 	}
 
 	public function getMinMax($limitItem) 
@@ -162,7 +168,7 @@ class CalculateService
 		}
 
 		if ($bOneTimeStep) {
-			return $this->convert->unitConvert($this->value->TIME, $timeStep, 3);
+			return $this->units->timeStep($timeStep, 3, 1);
 		}
 
 		return "N.A.";
@@ -188,9 +194,9 @@ class CalculateService
 				}
 			}
 		}
-
+		
 		if ($bOnePrecision) {
-			return $this->convert->unitConvert($this->value->TIME, $precision, 3);
+			return $this->units->convert($precision, 3);
 		}
 
 		return "N.A.";
@@ -204,7 +210,7 @@ class CalculateService
 			$lfStep = $this->calParametersDef->STORAGE_STEP_DEF * $this->calParametersDef->TIME_STEP_DEF;
 		}
 
-		return $this->convert->unitConvert($this->value->TIME, $lfStep, 1);
+		return $this->units->timeStep($lfStep, 1, 1);
 	}
 
 	public function getCalculableStudyEquipments($idStudy) 
@@ -261,32 +267,32 @@ class CalculateService
 
 	public function getMaxIter() 
     {
-		return $this->convert->convertCalculator($this->calParametersDef->MAX_IT_NB_DEF, 1.0, 0.0, 0);
+		return intval($this->calParametersDef->MAX_IT_NB_DEF);
 	}
 
 	public function getRelaxCoef() 
     {
-		return $this->convert->convertCalculator($this->calParametersDef->RELAX_COEFF_DEF, 1.0, 0.0);
+		return $this->calParametersDef->RELAX_COEFF_DEF;
 	}
 
 	public function getTempPtSurf() 
     {
-		return $this->convert->unitConvert($this->value->TEMPERATURE, $this->calParametersDef->STOP_TOP_SURF_DEF, 2);
+		return $this->units->temperature($this->calParametersDef->STOP_TOP_SURF_DEF, 2, 1);
 	}
 
 	public function getTempPtIn() 
     {
-		return $this->convert->unitConvert($this->value->TEMPERATURE, $this->calParametersDef->STOP_INT_DEF, 2);
+		return $this->units->temperature($this->calParametersDef->STOP_INT_DEF, 2, 1);
 	}
 
 	public function getTempPtBot() 
     {
-		return $this->convert->unitConvert($this->value->TEMPERATURE, $this->calParametersDef->STOP_BOTTOM_SURF_DEF, 2);
+		return $this->units->temperature($this->calParametersDef->STOP_BOTTOM_SURF_DEF, 2, 1);
 	}
 
 	public function getTempPtAvg() 
     {
-		return $this->convert->unitConvert($this->value->TEMPERATURE, $this->calParametersDef->STOP_AVG_DEF, 2);
+		return $this->units->temperature($this->calParametersDef->STOP_AVG_DEF, 2, 1);
 	}
 
     public function getOption($idStudy, $key, $axe)

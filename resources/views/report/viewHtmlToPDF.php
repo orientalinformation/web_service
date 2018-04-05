@@ -10,36 +10,59 @@
     <!-- Bootstrap -->
     <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet">
     <body>
+    <div class ="container-fluid">
         <div class="logo">
             <div class="row">
                 <div class="col-md-6">
-                    <?php if (!empty($arrayParam['study']['reports'][0]['CUSTOMER_PATH'])) { ?>
+                    <?php if (!empty($arrayParam['params']['CUSTOMER_PATH'])) { ?>
                     <p>
-                        <img src="<?php echo $arrayParam['study']['reports'][0]['CUSTOMER_PATH']?>">
+                        <img src="<?php echo $arrayParam['params']['CUSTOMER_PATH']?>">
                     </p>
                     <?php } ?>
                 </div>
                 <div class="col-md-6">
-                    <div class="pull-right">
-                        <img src="<?php echo  $arrayParam['host'] . "/uploads/logo_cryosoft.png"?>">
+                    <div class="pull-right text-right">
+                        <img src="<?php echo  $arrayParam['host'] . "/images/logo_cryosoft.png"?>">
                     </div>
                 </div>
             </div>
         </div>
         <div class="info-company">
-            <div align="center">
-                <img src="<?php echo  $arrayParam['host'] . "/uploads/banner_cryosoft.png"?>">
+            <div class="text-center">
+                <img src="<?php echo  $arrayParam['host'] . "/images/banner_cryosoft.png"?>">
             </div>
-            <div><b><u>Customer:</u></b></div>
-                <div><b>Company name : <u style="margin-left: 40px"><?php echo $arrayParam['study']['reports'][0]['DEST_SURNAME'] ?></u> </b></div>
-                <div><b>Surname / Name : <u style="margin-left: 40px"> <?php echo $arrayParam['study']['reports'][0]['DEST_NAME'] ?></u> </b></div>
-                <div><b>Function : <u style="margin-left: 40px"> <?php echo $arrayParam['study']['reports'][0]['DEST_FUNCTION'] ?></u> </b></div>
-                <div><b>Contact : <u style="margin-left: 40px"> <?php echo $arrayParam['study']['reports'][0]['DEST_COORD'] ?></u> </b></div>
-                <div><b>Date of the redivort generation : <u style="margin-left: 40px"> <?php echo date("d/m/Y") ?></u>  </b></div>
-            <div align="center">
-                    <p>
-                        <img src="<?php echo !empty($arrayParam['study']['reports'][0]['PHOTO_PATH']) ? $arrayParam['study']['reports'][0]['PHOTO_PATH'] : $arrayParam['host'] . "/uploads/globe_food.gif"?>">
-                    </p>
+            <div class="table-responsive">
+                <table class="table table-bordered" border="1">
+                    <tr>
+                        <th colspan="6">Customer</th>
+                    </tr>
+                    <tr>
+                        <td colspan="4">Company name</td>
+                        <td colspan="2"> <?php echo $arrayParam['params']['DEST_SURNAME'] ?> </td>
+                    </tr>
+                    <tr>
+                        <td colspan="4">Surname / Name</td>
+                        <td colspan="2"><?php echo $arrayParam['params']['DEST_NAME'] ?></td>
+                    </tr>
+                    <tr>
+                        <td colspan="4">Function</td>
+                        <td colspan="2"><?php echo $arrayParam['params']['DEST_FUNCTION'] ?></td>
+                    </tr>
+                    <tr>
+                        <td colspan="4">Contact</td>
+                        <td colspan="2"> <?php echo $arrayParam['params']['DEST_COORD'] ?></td>
+                    </tr>
+                    <tr>
+                        <td colspan="4">Date of the redivort generation</td>
+                        <td colspan="2"><?php echo date("d/m/Y") ?></td>
+                    </tr>
+                </table>
+            </div>
+            
+            <div class="text-center">
+                <p>
+                    <img src="<?php echo !empty($arrayParam['params']['PHOTO_PATH']) ? $arrayParam['params']['PHOTO_PATH'] : $arrayParam['host'] . "/images/globe_food.gif"?>">
+                </p>
             </div>
             <div class="table-responsive" style="color:red">
                 <table class ="table table-bordered" border="1">
@@ -66,8 +89,9 @@
                 </table>
             </div>
         </div>
+        <?php if (!empty($calModeHeadBalance)) { ?>
         <?php if (($arrayParam['study']['CHAINING_CONTROLS'] == 1) && ($arrayParam['study']['PARENT_ID'] != 0)) { ?>
-        <h4>Chaining synthesis</h4>
+        <h3 style ="background-color:#268EE2">Chaining synthesis</h3>
         <div class="table-responsive">
             <table class ="table table-bordered" border="1">
                 <table border="0.5">
@@ -81,21 +105,28 @@
                         <th>Final Average Product temperature (C)</th>
                         <th>Product Heat Load (kj/kg)</th>
                     </tr>
-                    <tr>
-                        <td colspan="2"></td>
-                        <td colspan="2"></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                        <td></td>
-                    </tr>
+                    <?php foreach($calModeHeadBalance as $key => $resoptHeads) { ?>
+                        <tr>
+                            <td colspan="2" align="center"><?php echo $resoptHeads['stuName'] ?></td>
+                            <td colspan="2" align="center"><?php echo $resoptHeads['equipName'] ?></td>
+                            <td align="center"><?php echo $resoptHeads['tr'] ?></td>
+                            <td align="center"><?php echo $resoptHeads['ts'] ?></td>
+                            <td align="center"><?php echo $equipData[$key]['tr'][0] ?></td>
+                            <td align="center"><?php echo $arrayParam['proInfoStudy']['avgTInitial'] ?></td>
+                            <td align="center"><?php echo $resoptHeads['tfp'] ?></td>
+                            <td align="center"><?php echo $resoptHeads['vep'] ?></td>
+                        </tr>
+                    <?php }?>
                     </table>
                 </div>
             </div>
         <?php } ?>
+        <?php } ?>
+
+        
+        <?php if ($arrayParam['params']['REP_CUSTOMER'] == 1) { ?>                 
         <div class="production">
+        <h3 style ="background-color:#268EE2">Production Data</h3>
             <div class="table table-responsive">
                 <table class ="table table-bordered" border="1">
                 <tr>
@@ -141,7 +172,10 @@
                 </table>
             </div>
         </div>
-        <h3>Composition of the product and its components</h3>
+        <?php } ?>
+
+        <?php if ($arrayParam['params']['PROD_LIST'] == 1) { ?>
+        <h3 style ="background-color:#268EE2">Composition of the product and its components</h3>
         <div class="pro-data">
             <div class="table-responsive">
                 <table class ="table table-bordered" border="1">
@@ -194,29 +228,87 @@
                 </table>
             </div>
         </div>
-        <h3>Product 3D</h3>
+        <?php } ?>
+
+        <?php if ($arrayParam['params']['PROD_3D'] == 1) { ?>               
+        <h3 style ="background-color:#268EE2">Product 3D</h3>
+        <?php if ($arrayParam['params']['PACKING'] == 1) { ?>
+        <h3 style ="background-color:#268EE2">&& Packing Data</h3>
+        <?php } ?>
         <div class="product3d">
             <div class="table-responsive">
             <table class ="table table-bordered" border="1">
                 <tr>
-                    <th colspan="6" align="center">Packing</th>
-                    <th colspan="2" align="center">3D view of the product</th>
+                    <th colspan="5" align="center">Packing</th>
+                    <th align="center">3D view of the product</th>
                 </tr>
                 <tr>
                     <td rowspan="2">Side</td>
                     <td rowspan="2">Number of layers</td>
-                    <td colspan="3">Packing data</td>
+                    <td colspan="2">Packing data</td>
                     <td rowspan="2">Thickness ()</td>
-                    <td colspan="2" rowspan="2"></td>
+                    <?php if ($arrayParam['params']['PACKING'] == 1) { ?>
+                        <td rowspan="<?php echo count($packings['count'] + 2) ?>"></td>
+                    <?php } else { ?>
+                        <td rowspan="2"></td>
+                    <?php } ?>
                 </tr>
                 <tr>
                     <td>Order</td>
-                    <td colspan="2">Name</td>
+                    <td>Name</td>
                 </tr>
+                <?php if ($arrayParam['params']['PACKING'] == 1) { ?>
+                    <?php if (!empty($packings['packingLayerData']['1'])) { ?>
+                        <?php foreach ($packings['packingLayerData']['1'] as $key => $top) { ?>
+                            <tr>
+                                <?php if ($key == 0) { ?>
+                                    <td rowspan="<?php echo count($packings['packingLayerData']['1'])?>">Top</td>
+                                    <td rowspan="<?php echo count($packings['packingLayerData']['1'])?>"><?php echo count($packings['packingLayerData']['1'])?></td>
+                                <?php } ?>
+                                    <td><?php echo $top['PACKING_LAYER_ORDER'] + 1 ?></td>
+                                    <td><?php echo $top['LABEL'] ?></td>
+                                    <td><?php echo $top['THICKNESS'] ?></td>
+                            </tr>
+                        <?php } ?>
+                    <?php } ?>
+                    <?php if (!empty($packings['packingLayerData']['2'])) { ?>
+                        <?php foreach ($packings['packingLayerData']['2'] as $key => $bottom) { ?>
+                            <tr>
+                                <?php if ($key == 0) { ?>
+                                    <td rowspan="<?php echo count($packings['packingLayerData']['2'])?>">Bottom</td>
+                                    <td rowspan="<?php echo count($packings['packingLayerData']['2'])?>"><?php echo count($packings['packingLayerData']['2'])?></td>
+                                <?php } ?>
+                                    <td><?php echo $bottom['PACKING_LAYER_ORDER'] + 1 ?></td>
+                                    <td><?php echo $bottom['LABEL'] ?></td>
+                                    <td><?php echo $bottom['THICKNESS'] ?></td>
+                            </tr>
+                        <?php } ?>
+                    <?php } ?>
+                    <?php if (!empty($packings['packingLayerData']['3'])) { ?>
+                        <?php foreach ($packings['packingLayerData']['3'] as $key => $sides) { ?>
+                            <tr>
+                                <?php if ($key == 0) { ?>
+                                    <td rowspan="<?php echo count($packings['packingLayerData']['3'])?>">4 Sides</td>
+                                    <td rowspan="<?php echo count($packings['packingLayerData']['3'])?>"><?php echo count($packings['packingLayerData']['3'])?></td>
+                                <?php } ?>
+                                    <td><?php echo $sides['PACKING_LAYER_ORDER'] + 1 ?></td>
+                                    <td><?php echo $sides['LABEL'] ?></td>
+                                    <td><?php echo $sides['THICKNESS'] ?></td>
+                            </tr>
+                        <?php } ?>
+                    <?php } ?>
+                    </table>
+                </div>
+            </div>
+                <?php } else { ?>
             </table>
             </div>
         </div>
-        <h3>Equipment data</h3>
+        <?php } ?>
+        <?php } ?>
+
+        <?php if ($arrayParam['params']['EQUIP_LIST'] == 1) { ?>
+        <h3 style ="background-color:#268EE2">Equipment data</h3>
         <div class="equipment-data">
             <div class="table-responsive">
             <table class ="table table-bordered" border="1">
@@ -243,7 +335,10 @@
             </table>
             </div>
         </div>
-        <h3>Belt or shelves layout</h3>
+        <?php } ?>
+
+        <?php if ($arrayParam['params']['ASSES_ECO'] == 1) { ?>
+        <h3 style ="background-color:#268EE2">Belt or shelves layout</h3>
         <?php foreach($equipData as $key => $resequipDatas) { ?>
         <h4><?php echo $resequipDatas['displayName'] ?></h4>
         <div class="layout">
@@ -271,15 +366,15 @@
                         </tr>
                         <tr>
                             <td>Space in width <?php echo "(" . $arrayParam['symbol']['prodDimensionSymbol'] . " )" ?></td>
-                            <td align="center"></td>
+                            <td align="center"><?php echo $resequipDatas['layoutResults']['LEFT_RIGHT_INTERVAL'] ?></td>
                         </tr>
                         <tr>
                             <td>Number per meter</td>
-                            <td align="center"></td>
+                            <td align="center"><?php echo $resequipDatas['layoutResults']['NUMBER_PER_M'] ?></td>
                         </tr>
                         <tr>
                             <td>Number in width</td>
-                            <td align="center"> </td>
+                            <td align="center"><?php echo $resequipDatas['layoutResults']['NUMBER_IN_WIDTH'] ?></td>
                         </tr>
                         <tr>
                             <td>Conveyor coverage or quantity of product per batch</td>
@@ -296,8 +391,11 @@
             </div>
         </div>
         <?php } ?>
+        <?php } ?>
+
         <?php if (!empty($cryogenPipeline)) { ?> 
-        <h3>Cryogenic Pipeline</h3>
+        <?php if ($arrayParam['params']['PIPELINE'] == 1) { ?>
+        <h3 style ="background-color:#268EE2">Cryogenic Pipeline</h3>
         <div class="consum-esti">
             <div class="table-responsive">
             <table class ="table table-bordered" border="1">
@@ -347,70 +445,217 @@
             </div>
         </div>
         <?php } ?>
-        <h3>Consumptions / Economics assessments</h3>
+        <?php } ?>
+
+        <?php if ($arrayParam['params']['PACKING'] == 1 && $arrayParam['params']['PROD_3D'] != 1) { ?>
+        <div class= "Packing">
+        <div class="table-responsive">
+        <table class ="table table-bordered" border="1">
+                <tr>
+                    <th colspan="5" align="center">Packing</th>
+                    <th align="center">3D view of the product</th>
+                </tr>
+                <tr>
+                    <td rowspan="2">Side</td>
+                    <td rowspan="2">Number of layers</td>
+                    <td colspan="2">Packing data</td>
+                    <td rowspan="2">Thickness ()</td>
+                    <td rowspan="<?php echo count($packings['count'] + 2) ?>"></td>
+                    
+                </tr>
+                <tr>
+                    <td>Order</td>
+                    <td>Name</td>
+                </tr>
+                    <?php if (!empty($packings['packingLayerData']['1'])) { ?>
+                        <?php foreach ($packings['packingLayerData']['1'] as $key => $top) { ?>
+                            <tr>
+                                <?php if ($key == 0) { ?>
+                                    <td rowspan="<?php echo count($packings['packingLayerData']['1'])?>">Top</td>
+                                    <td rowspan="<?php echo count($packings['packingLayerData']['1'])?>"><?php echo count($packings['packingLayerData']['1'])?></td>
+                                <?php } ?>
+                                    <td><?php echo $top['PACKING_LAYER_ORDER'] + 1 ?></td>
+                                    <td><?php echo $top['LABEL'] ?></td>
+                                    <td><?php echo $top['THICKNESS'] ?></td>
+                            </tr>
+                        <?php } ?>
+                    <?php } ?>
+                    <?php if (!empty($packings['packingLayerData']['2'])) { ?>
+                        <?php foreach ($packings['packingLayerData']['2'] as $key => $bottom) { ?>
+                            <tr>
+                                <?php if ($key == 0) { ?>
+                                    <td rowspan="<?php echo count($packings['packingLayerData']['2'])?>">Bottom</td>
+                                    <td rowspan="<?php echo count($packings['packingLayerData']['2'])?>"><?php echo count($packings['packingLayerData']['2'])?></td>
+                                <?php } ?>
+                                    <td><?php echo $bottom['PACKING_LAYER_ORDER'] + 1 ?></td>
+                                    <td><?php echo $bottom['LABEL'] ?></td>
+                                    <td><?php echo $bottom['THICKNESS'] ?></td>
+                            </tr>
+                        <?php } ?>
+                    <?php } ?>
+                    <?php if (!empty($packings['packingLayerData']['3'])) { ?>
+                        <?php foreach ($packings['packingLayerData']['3'] as $key => $sides) { ?>
+                            <tr>
+                                <?php if ($key == 0) { ?>
+                                    <td rowspan="<?php echo count($packings['packingLayerData']['3'])?>">4 Sides</td>
+                                    <td rowspan="<?php echo count($packings['packingLayerData']['3'])?>"><?php echo count($packings['packingLayerData']['3'])?></td>
+                                <?php } ?>
+                                    <td><?php echo $sides['PACKING_LAYER_ORDER'] + 1 ?></td>
+                                    <td><?php echo $sides['LABEL'] ?></td>
+                                    <td><?php echo $sides['THICKNESS'] ?></td>
+                            </tr>
+                        <?php } ?>
+                    <?php } ?>
+                    </table>
+                </div>
+            </div>
+        <?php } ?>
+
+        <?php if (!empty($consumptions)) { ?>
+        <?php if ($arrayParam['params']['CONS_OVERALL'] == 1 || $arrayParam['params']['CONS_TOTAL'] ==1 || $arrayParam['params']['CONS_SPECIFIC']  == 1 || $arrayParam['params']['CONS_HOUR'] ==1 || $arrayParam['params']['CONS_DAY'] == 1||
+        $arrayParam['params']['CONS_WEEK'] == 1 || $arrayParam['params']['CONS_MONTH'] == 1 || $arrayParam['params']['CONS_YEAR'] ==1 || $arrayParam['params']['CONS_EQUIP'] ==1 || $arrayParam['params']['CONS_PIPE'] == 1 || $arrayParam['params']['CONS_TANK'] ==1)  { ?>
+        <h3 style ="background-color:#268EE2">Consumptions / Economics assessments</h3>
         <h4>Values</h4>
         <div class="consum-esti">
             <div class="table-responsive">
             <table class ="table table-bordered" border="1">
                 <tr>
-                    <th colspan="3" align="center" rowspan="2">Equipment</th>
-                    <th rowspan="2" align="center">Overall Cryogen Consumption Ratio (product + equipment and pipeline losses) Unit of Cryogen, per piece of product.  <?php echo "(" . $arrayParam['symbol']['consumSymbol'] . " )" ?></th>
-                    <th rowspan="2" align="center">Total Cryogen Consumption (product + equipment and pipeline losses). <?php echo "(" . $arrayParam['symbol']['consumMaintienSymbol'] . " )" . "/" . $arrayParam['symbol']['perUnitOfMassSymbol']  ?></th>
-                    <th rowspan="2" align="center">Specific Cryogen Consumption Ratio (product only) Unit of Cryogen, per unit weight of product. <?php echo "(" . $arrayParam['symbol']['consumMaintienSymbol'] . " )" . "/" . $arrayParam['symbol']['perUnitOfMassSymbol']  ?></th>
-                    <th rowspan="2" align="center">Total Cryogen Consumption per hour <?php echo "(" . $arrayParam['symbol']['consumSymbol'] . " )" ?></th>
-                    <th rowspan="2" align="center">Total Cryogen Consumption per day <?php echo "(" . $arrayParam['symbol']['consumSymbol'] . " )" ?></th>
-                    <th rowspan="2" align="center">Total Cryogen Consumption per week <?php echo "(" . $arrayParam['symbol']['consumSymbol'] . " )" ?></th>
-                    <th rowspan="2" align="center">Total Cryogen Consumption per month <?php echo "(" . $arrayParam['symbol']['consumSymbol'] . " )" ?></th>
-                    <th rowspan="2" align="center">Total Cryogen Consumption per year <?php echo "(" . $arrayParam['symbol']['consumSymbol'] . " )" ?></th>
-                    <th colspan="2" align="center">Equipment Cryogen Consumption</th>
-                    <th colspan="2" align="center">Pipeline consumption</th>
-                    <th rowspan="2">Tank losses <?php echo "(" . $arrayParam['symbol']['consumSymbol'] . " )" ?></th>
+                <th colspan="2" align="center" rowspan="2">Equipment</th>
+                <?php if ($arrayParam['params']['CONS_OVERALL'] == 1) { ?>
+                <th rowspan="2" align="center">Overall Cryogen Consumption Ratio (product + equipment and pipeline losses) Unit of Cryogen, per piece of product.  <?php echo "(" . $arrayParam['symbol']['consumSymbol'] . " )" ?></th>
+                <?php } ?>
+                <?php if ($arrayParam['params']['CONS_TOTAL'] == 1) { ?>
+                <th rowspan="2" align="center">Total Cryogen Consumption (product + equipment and pipeline losses). <?php echo "(" . $arrayParam['symbol']['consumMaintienSymbol'] . " )" . "/" . $arrayParam['symbol']['perUnitOfMassSymbol']  ?></th>
+                <?php } ?>
+                <?php if ($arrayParam['params']['CONS_SPECIFIC'] == 1) { ?>
+                <th rowspan="2" align="center">Specific Cryogen Consumption Ratio (product only) Unit of Cryogen, per unit weight of product. <?php echo "(" . $arrayParam['symbol']['consumMaintienSymbol'] . " )" . "/" . $arrayParam['symbol']['perUnitOfMassSymbol']  ?></th>
+                <?php } ?>
+                <?php if ($arrayParam['params']['CONS_HOUR'] == 1) { ?>
+                <th rowspan="2" align="center">Total Cryogen Consumption per hour <?php echo "(" . $arrayParam['symbol']['consumSymbol'] . " )" ?></th>
+                <?php } ?>
+                <?php if ($arrayParam['params']['CONS_DAY'] == 1) { ?>
+                <th rowspan="2" align="center">Total Cryogen Consumption per day <?php echo "(" . $arrayParam['symbol']['consumSymbol'] . " )" ?></th>
+                <?php } ?>
+                <?php if ($arrayParam['params']['CONS_WEEK'] == 1) { ?>
+                <th rowspan="2" align="center">Total Cryogen Consumption per week <?php echo "(" . $arrayParam['symbol']['consumSymbol'] . " )" ?></th>
+                <?php } ?>
+                <?php if ($arrayParam['params']['CONS_MONTH'] == 1) { ?>
+                <th rowspan="2" align="center">Total Cryogen Consumption per month <?php echo "(" . $arrayParam['symbol']['consumSymbol'] . " )" ?></th>
+                <?php } ?>
+                <?php if ($arrayParam['params']['CONS_YEAR'] == 1) { ?>
+                <th rowspan="2" align="center">Total Cryogen Consumption per year <?php echo "(" . $arrayParam['symbol']['consumSymbol'] . " )" ?></th>
+                <?php } ?>
+                <?php if ($arrayParam['params']['CONS_EQUIP'] == 1) { ?>
+                <th colspan="2" align="center">Equipment Cryogen Consumption</th>
+                <?php } ?>
+                <?php if ($arrayParam['params']['CONS_PIPE'] == 1) { ?>
+                <th colspan="2" align="center">Pipeline consumption</th>
+                <?php } ?>
+                <?php if ($arrayParam['params']['CONS_TANK'] == 1) { ?>
+                <th rowspan="2">Tank losses <?php echo "(" . $arrayParam['symbol']['consumSymbol'] . " )" ?></th>
+                <?php } ?>
                 </tr>
-                <tr>
-                    <td align="center">Heat losses per hour <?php echo "(" . $arrayParam['symbol']['consumMaintienSymbol'] . " )" ?></td>
-                    <td align="center">Cooldown <?php echo "(" . $arrayParam['symbol']['consumSymbol'] . " )" ?></td>
-                    <td align="center">Heat losses per hour <?php echo "(" . $arrayParam['symbol']['consumMaintienSymbol'] . " )" ?></td>
-                    <td align="center">Cooldown <?php echo "(" . $arrayParam['symbol']['consumSymbol'] . " )" ?></td>
-                </tr>
+                <?php if (($arrayParam['params']['CONS_PIPE'] == 1) || ($arrayParam['params']['CONS_EQUIP'] == 1) ){ ?>
+                    <tr>
+                        <?php if ($arrayParam['params']['CONS_EQUIP'] == 1) { ?>
+                        <td align="center">Heat losses per hour <?php echo "(" . $arrayParam['symbol']['consumMaintienSymbol'] . " )" ?></td>
+                        <td align="center">Cooldown <?php echo "(" . $arrayParam['symbol']['consumSymbol'] . " )" ?></td>
+                        <?php } ?>
+                        <?php if ($arrayParam['params']['CONS_PIPE'] == 1) { ?>
+                        <td align="center">Heat losses per hour <?php echo "(" . $arrayParam['symbol']['consumMaintienSymbol'] . " )" ?></td>
+                        <td align="center">Cooldown <?php echo "(" . $arrayParam['symbol']['consumSymbol'] . " )" ?></td>
+                        <?php } ?>
+                    </tr>
+                <?php } ?>
                 <?php foreach($consumptions as $resconsumptions) { ?>
-                <tr>
-                    <td colspan="2" rowspan="2"><?php echo $resconsumptions['equipName'] ?></td>
-                    <td align="center">(l)</td>
-                    <td align="center"><?php echo $resconsumptions['tc'] ?></td>
-                    <td align="center"><?php echo $resconsumptions['kgProduct'] ?></td>
-                    <td align="center"><?php echo $resconsumptions['product'] ?></td>
-                    <td align="center"><?php echo $resconsumptions['hour'] ?></td>
-                    <td align="center"><?php echo $resconsumptions['day'] ?></td>
-                    <td align="center"><?php echo $resconsumptions['week'] ?></td>
-                    <td align="center"><?php echo $resconsumptions['month'] ?></td>
-                    <td align="center"><?php echo $resconsumptions['year'] ?></td>
-                    <td align="center"><?php echo $resconsumptions['eqptPerm'] ?></td>
-                    <td align="center"><?php echo $resconsumptions['eqptCold'] ?></td>
-                    <td align="center"><?php echo $resconsumptions['linePerm'] ?></td>
-                    <td align="center"><?php echo $resconsumptions['lineCold'] ?></td>
-                    <td align="center"><?php echo $resconsumptions['tank'] ?></td>
-                </tr>
-                <tr>
-                    <td align="center">(€)</td>
-                    <td align="center"><?php echo "--" ?></td>
-                    <td align="center"><?php echo "--" ?></td>
-                    <td align="center"><?php echo "--" ?></td>
-                    <td align="center"><?php echo "--" ?></td>
-                    <td align="center"><?php echo "--" ?></td>
-                    <td align="center"><?php echo "--" ?></td>
-                    <td align="center"><?php echo "--" ?></td>
-                    <td align="center"><?php echo "--" ?></td>
-                    <td align="center"><?php echo "--" ?></td>
-                    <td align="center"><?php echo "--" ?></td>
-                    <td align="center"><?php echo "--" ?></td>
-                    <td align="center"><?php echo "--" ?></td>
-                    <td align="center"><?php echo "--" ?></td>
-                </tr>
+                    <tr>
+                        <td align="center" rowspan="2"><?php echo $resconsumptions['equipName'] ?></td>
+                        <td align="center" ><?php echo "(" . $arrayParam['symbol']['consumSymbol'] . " )" ?></td>
+                        <?php if ($arrayParam['params']['CONS_OVERALL'] == 1) { ?>
+                        <td align="center"><?php echo $resconsumptions['tc'] ?></td>
+                        <?php } ?>
+                        <?php if ($arrayParam['params']['CONS_TOTAL'] == 1) { ?>
+                        <td align="center"><?php echo $resconsumptions['kgProduct'] ?></td>
+                        <?php } ?>
+                        <?php if ($arrayParam['params']['CONS_SPECIFIC'] == 1) { ?>
+                        <td align="center"><?php echo $resconsumptions['product'] ?></td>
+                        <?php } ?>
+                        <?php if ($arrayParam['params']['CONS_HOUR'] == 1) { ?>
+                        <td align="center"><?php echo $resconsumptions['hour'] ?></td>
+                        <?php } ?>
+                        <?php if ($arrayParam['params']['CONS_DAY'] == 1) { ?>
+                        <td align="center"><?php echo $resconsumptions['day'] ?></td>
+                        <?php } ?>
+                        <?php if ($arrayParam['params']['CONS_WEEK'] == 1) { ?>
+                        <td align="center"><?php echo $resconsumptions['week'] ?></td>
+                        <?php } ?>
+                        <?php if ($arrayParam['params']['CONS_MONTH'] == 1) { ?>
+                        <td align="center"><?php echo $resconsumptions['month'] ?></td>
+                        <?php } ?>
+                        <?php if ($arrayParam['params']['CONS_YEAR'] == 1) { ?>
+                        <td align="center"><?php echo $resconsumptions['year'] ?></td>
+                        <?php } ?>
+                        <?php if ($arrayParam['params']['CONS_EQUIP'] == 1) { ?>
+                        <td align="center"><?php echo $resconsumptions['eqptPerm'] ?></td>
+                        <td align="center"><?php echo $resconsumptions['eqptCold'] ?></td>
+                        <?php } ?>
+                        <?php if ($arrayParam['params']['CONS_PIPE'] == 1) { ?>
+                        <td align="center"><?php echo $resconsumptions['linePerm'] ?></td>
+                        <td align="center"><?php echo $resconsumptions['lineCold'] ?></td>
+                        <?php } ?>
+                        <?php if ($arrayParam['params']['CONS_TANK'] == 1) { ?>
+                        <td align="center"><?php echo $resconsumptions['tank'] ?></td>
+                        <?php } ?>
+                    </tr>
+                    <tr>
+                        <td align="center"><?php echo "(" . $arrayParam['symbol']['monetarySymbol'] . " )" ?></td>
+                        <?php if ($arrayParam['params']['CONS_OVERALL'] == 1) { ?>
+                        <td align="center"><?php echo "--" ?></td>
+                        <?php } ?>
+                        <?php if ($arrayParam['params']['CONS_TOTAL'] == 1) { ?>
+                        <td align="center"><?php echo "--" ?></td>
+                        <?php } ?>
+                        <?php if ($arrayParam['params']['CONS_SPECIFIC'] == 1) { ?>
+                        <td align="center"><?php echo "--" ?></td>
+                        <?php } ?>
+                        <?php if ($arrayParam['params']['CONS_HOUR'] == 1) { ?>
+                        <td align="center"><?php echo "--" ?></td>
+                        <?php } ?>
+                        <?php if ($arrayParam['params']['CONS_DAY'] == 1) { ?>
+                        <td align="center"><?php echo "--" ?></td>
+                        <?php } ?>
+                        <?php if ($arrayParam['params']['CONS_WEEK'] == 1) { ?>
+                        <td align="center"><?php echo "--" ?></td>
+                        <?php } ?>
+                        <?php if ($arrayParam['params']['CONS_MONTH'] == 1) { ?>
+                        <td align="center"><?php echo "--" ?></td>
+                        <?php } ?>
+                        <?php if ($arrayParam['params']['CONS_YEAR'] == 1) { ?>
+                        <td align="center"><?php echo "--" ?></td>
+                        <?php } ?>
+                        <?php if ($arrayParam['params']['CONS_EQUIP'] == 1) { ?>
+                        <td align="center"><?php echo "--" ?></td>
+                        <td align="center"><?php echo "--" ?></td>
+                        <?php } ?>
+                        <?php if ($arrayParam['params']['CONS_PIPE'] == 1) { ?>
+                        <td align="center"><?php echo "--" ?></td>
+                        <td align="center"><?php echo "--" ?></td>
+                        <?php } ?>
+                        <?php if ($arrayParam['params']['CONS_TANK'] == 1) { ?>
+                        <td align="center"><?php echo "--" ?></td>
+                        <?php } ?>
+                    </tr>
                 <?php } ?>
             </table>
             </div>
         </div>
-        <h3>Heat balance / sizing results</h3>
+        <?php } ?>
+        <?php } ?>
+
+        <?php if (($arrayParam['params']['isSizingValuesChosen'] == 1) || ($arrayParam['params']['isSizingValuesMax'] == 1) || ($arrayParam['params']['SIZING_GRAPHE'] == 1))  { ?>
+        <h3 style ="background-color:#268EE2">Heat balance / sizing results</h3>
+        <?php } ?>
+        <?php if ($arrayParam['params']['isSizingValuesChosen'] == 1) { ?>
         <h4>Chosen product flowrate</h4>
         <div class="heat-balance-sizing">
             <div class="table-responsive">
@@ -447,6 +692,9 @@
             </table>
             </div>
         </div>
+        <?php } ?>
+
+        <?php if ($arrayParam['params']['isSizingValuesMax'] == 16) { ?> 
         <?php if (!empty($calModeHbMax)) { ?>
         <h4>Maximum product flowrate</h4>
         <div class="Max-prod-flowrate">
@@ -484,16 +732,24 @@
             </table>
             </div>
         </div>
+        <?php }?>
+
+        <?php if ($arrayParam['params']['SIZING_GRAPHE'] == 1) { ?> 
         <h4>Graphic</h4>
-        <div class ="graphic">
-            <img src="<?php echo $arrayParam['host'] . "/sizing/" . $arrayParam['study']['USERNAM'] . "/" .  $arrayParam['study']['ID_STUDY'] . ".png" ?>">
+        <div class ="graphic" align="center">
+            <img src="<?php echo $arrayParam['host'] . "/sizing/" . $arrayParam['study']['USERNAM'] . "/" .  $arrayParam['study']['ID_STUDY'] . ".png" ?>" style="max-width: 640px">
         </div>
         <?php } ?>
+        <?php } ?>
+
 
         <?php if (!empty($heatexchange)) { ?>
-            <h3>Heat Exchange</h3>
+        <?php if (($arrayParam['params']['ENTHALPY_V'] == 1) || ($arrayParam['params']['ENTHALPY_G'] == 1)) { ?>
+        <h3 style ="background-color:#268EE2">Heat Exchange</h3>
+        <?php } ?>
             <!-- <h4>get first Equipment </h4> -->
             <?php foreach($heatexchange as $key=> $resheatexchanges) { ?>
+            <?php if ($arrayParam['params']['ENTHALPY_V'] == 1) { ?>
             <div class="heat-exchange">
                 <div class="table-responsive">
                 <table class ="table table-bordered" border="1">
@@ -525,18 +781,25 @@
                     </tr>
                 </table>
                 </div>
-    
-                <div id="hexchGraphic">
-                    <img src="<?php echo $arrayParam['host'] . "/heatExchange/" . $arrayParam['study']['USERNAM'] . "/" .  $resheatexchanges['idStudyEquipment'] . ".png" ?>">
+                <?php } ?> 
+                
+                <?php if ($arrayParam['params']['ENTHALPY_G'] == 1) { ?>
+                <div id="hexchGraphic" align="center">
+                    <img src="<?php echo $arrayParam['host'] . "/heatExchange/" . $arrayParam['study']['USERNAM'] . "/" .  $resheatexchanges['idStudyEquipment'] . ".png" ?>" style="max-width :640px">
                 </div>
                 <?php } ?>
+                <?php } ?>
             </div>
-        <?php } ?> 
+            <?php } ?> 
 
+         
         <?php if (!empty($proSections)) { ?>
-        <h3>Product Section</h3>
+        <?php if (($arrayParam['params']['ISOCHRONE_V'] == 1) || ($arrayParam['params']['ISOCHRONE_G'] == 1)) { ?> 
+        <h3 style ="background-color:#268EE2">Product Section</h3>
+        <?php } ?> 
         <!-- <h4>get first Equipment </h4> -->
             <?php foreach ($proSections as $resproSections) {?>
+            <?php if ($arrayParam['params']['ISOCHRONE_V'] == 1) { ?>  
             <h4><?php echo $resproSections['equipName'] ?></h4>
                 <?php if ($resproSections['selectedAxe'] == 1) {?> 
                 Values - Dimension <?php echo $resproSections['selectedAxe'] . "(" . "*," . $resproSections['axeTemp'][0] . "," . $resproSections['axeTemp'][0] . ")" . "(" . $resproSections['prodchartDimensionSymbol'] . ")" ?>  
@@ -567,24 +830,38 @@
                     </table>
                     </div>
                 </div>
-                <div class="graphic-dim2"> 
+                <?php }?>
+
+
+                <div class="graphic-dim2" align="center"> 
+                <?php if ($arrayParam['params']['ISOCHRONE_G'] == 1) { ?> 
                 <?php if ($resproSections['selectedAxe'] == 1) {?> 
-                Graphic - Dimension <?php echo $resproSections['selectedAxe'] . "(" . "*," . $resproSections['axeTemp'][0] . "," . $resproSections['axeTemp'][0] . ")" . "(" . $resproSections['prodchartDimensionSymbol'] . ")" ?>  
-                <img src="<?php echo $arrayParam['host'] . "/productSection/" . $arrayParam['study']['USERNAM'] . "/" .  $resproSections['idStudyEquipment'] . "-" . $resproSections['selectedAxe'] . ".png" ?>">
-                <?php } else if ($resproSections['selectedAxe'] == 2) { ?>
+                Graphic - Dimension <?php echo $resproSections['selectedAxe'] . "(" . "*," . $resproSections['axeTemp'][0] . "," . $resproSections['axeTemp'][0] . ")" . "(" . $resproSections['prodchartDimensionSymbol'] . ")" ?> 
+                <p> 
+                    <img src="<?php echo $arrayParam['host'] . "/productSection/" . $arrayParam['study']['USERNAM'] . "/" .  $resproSections['idStudyEquipment'] . "-" . $resproSections['selectedAxe'] . ".png" ?>" style="max-width: 640px">
+                    <?php } else if ($resproSections['selectedAxe'] == 2) { ?>
+                </p>
                 Graphic - Dimension <?php echo $resproSections['selectedAxe'] . "(" . $resproSections['axeTemp'][0] . ",*," . $resproSections['axeTemp'][0] . ")" . "(" . $resproSections['prodchartDimensionSymbol'] . ")" ?>  
-                <img src="<?php echo $arrayParam['host'] . "/productSection/" . $arrayParam['study']['USERNAM'] . "/" .  $resproSections['idStudyEquipment'] . "-" . $resproSections['selectedAxe'] . ".png" ?>">
-                <?php } else if ($resproSections['selectedAxe'] == 3) {?>
+                <p>
+                    <img src="<?php echo $arrayParam['host'] . "/productSection/" . $arrayParam['study']['USERNAM'] . "/" .  $resproSections['idStudyEquipment'] . "-" . $resproSections['selectedAxe'] . ".png" ?>" style="max-width: 640px">
+                    <?php } else if ($resproSections['selectedAxe'] == 3) {?>
+                </p>
                 Graphic - Dimension <?php echo $resproSections['selectedAxe'] . "(" . $resproSections['axeTemp'][0] . "," . $resproSections['axeTemp'][0] . ",*" . ")" . "(" . $resproSections['prodchartDimensionSymbol'] . ")" ?>  
-                <img src="<?php echo $arrayParam['host'] . "/productSection/" . $arrayParam['study']['USERNAM'] . "/" .  $resproSections['idStudyEquipment'] . "-" . $resproSections['selectedAxe'] . ".png" ?>">
-                <?php } ?>
+                <p>
+                    <img src="<?php echo $arrayParam['host'] . "/productSection/" . $arrayParam['study']['USERNAM'] . "/" .  $resproSections['idStudyEquipment'] . "-" . $resproSections['selectedAxe'] . ".png" ?>" style="max-width: 640px">
+                    <?php } ?>
+                </p>
                 </div>
+                <?php } ?>
             <?php } ?>
         <?php } ?>   
         
         <?php if (!empty($timeBase)) { ?>
-            <h3>Product Graph - Time Based</h3>
-            <?php foreach ($timeBase as $key => $timeBases) { ?>
+        <?php if (($arrayParam['params']['ISOVALUE_V'] == 1) || ($arrayParam['params']['ISOVALUE_G'] == 1)) { ?> 
+        <h3 style ="background-color:#268EE2">Product Graph - Time Based</h3>
+        <?php } ?>   
+            <?php if ($arrayParam['params']['ISOVALUE_V'] == 1) { ?> 
+            <?php foreach ($timeBase as $timeBases) { ?>
             <h4><?php echo $timeBases['equipName'] ?></h4>
             <div class="values-graphic"> 
                 <div class="table-responsive">
@@ -592,77 +869,100 @@
                     <tr>
                         <th align="center">Points</th>
                         <th align="center"><?php echo "(" . $timeBases['timeSymbol'] . " )" ?></th>
-                        <?php foreach ($timeBases['result'] as $key => $points) { ?>
-                        <th align="center"><?php echo $timeBases['result'][$key]['points']?></th>
+                        <?php foreach ($timeBases['result'] as $points) { ?>
+                        <th align="center"><?php echo $points['points']?></th>
                         <?php } ?>
                     </tr>
                     <tr>
                         <td align="center"><?php echo "Top" . "(" . $timeBases['label']['top'] . ")" ?> </td>
                         <td align="center"><?php echo "(" . $timeBases['temperatureSymbol'] . " )" ?></td>
-                        <?php foreach ($timeBases['result'] as $key => $tops) { ?>
-                        <td align="center"><?php echo $timeBases['result'][$key]['top']?></td>
+                        <?php foreach ($timeBases['result'] as $tops) { ?>
+                        <td align="center"><?php echo $tops['top']?></td>
                         <?php } ?>
                     </tr>
                     <tr>
                         <td align="center"><?php echo "Internal" . "(" . $timeBases['label']['int'] . ")" ?></td>
                         <td align="center"><?php echo "(" . $timeBases['temperatureSymbol'] . " )" ?></td>
-                        <?php foreach ($timeBases['result'] as $key => $internals) { ?>
-                        <td align="center"><?php echo $timeBases['result'][$key]['int']?></td>
+                        <?php foreach ($timeBases['result'] as $internals) { ?>
+                        <td align="center"><?php echo $internals['int']?></td>
                         <?php } ?>
                     </tr>
                     <tr>
                         <td align="center"><?php echo "Bottom" . "(" . $timeBases['label']['bot'] . ")" ?></td>
                         <td align="center"><?php echo "(" . $timeBases['temperatureSymbol'] . " )" ?></td>
-                        <?php foreach ($timeBases['result'] as $key => $bottoms) { ?>
-                        <td align="center"><?php echo $timeBases['result'][$key]['bot']?></td>
+                        <?php foreach ($timeBases['result'] as $bottoms) { ?>
+                        <td align="center"><?php echo $bottoms['bot']?></td>
                         <?php } ?>
                     </tr>
                     <tr>
                         <td align="center">Avg. Temp.</td>
                         <td align="center"><?php echo "(" . $timeBases['temperatureSymbol'] . " )" ?></td>
-                        <?php foreach ($timeBases['result'] as $key => $avgs) { ?>
-                        <td align="center"><?php echo $timeBases['result'][$key]['average']?></td>
+                        <?php foreach ($timeBases['result'] as $avgs) { ?>
+                        <td align="center"><?php echo $avgs['average']?></td>
                         <?php } ?>
                     </tr>
                 </table>
                 </div>
             </div>
-            <div class="pro-graphic">
-            <img src="<?php echo $arrayParam['host'] . "/timeBased/" . $arrayParam['study']['USERNAM'] . "/" .  $timeBases['idStudyEquipment'] . ".png" ?>">
+            <?php } ?>
+            <?php if ($arrayParam['params']['ISOVALUE_G'] == 1) { ?>                
+            <div class="pro-graphic" align="center">
+            <img src="<?php echo $arrayParam['host'] . "/timeBased/" . $arrayParam['study']['USERNAM'] . "/" .  $timeBases['idStudyEquipment'] . ".png" ?>" style="max-width: 640px">
             </div>
             <?php } ?>
         <?php } ?>
+        <?php } ?>
 
         <?php if (!empty($pro2Dchart)) { ?>
-            <h3>2D Outlines</h3>
+            <?php if ($arrayParam['params']['CONTOUR2D_G'] == 1) { ?> 
+            <h3 style ="background-color:#268EE2">2D Outlines</h3>
                 <?php foreach ($pro2Dchart as $pro2Dcharts) {?>
                 <h3><?php echo $pro2Dcharts['equipName'] ?></h3>
-                    <div class="outlines"> 
+                    <div class="outlines" align="center"> 
                     <img src="<?php echo $arrayParam['host'] . "/heatmap/" . $arrayParam['study']['USERNAM'] . "/" .  $pro2Dcharts['idStudyEquipment'] . "/" . $pro2Dcharts['lfDwellingTime'] . "-" 
-                    . $pro2Dcharts['chartTempInterval'][0] . "-" . $pro2Dcharts['chartTempInterval'][1] . "-" . $pro2Dcharts['chartTempInterval'][2] . ".png" ?>">
+                    . $pro2Dcharts['chartTempInterval'][0] . "-" . $pro2Dcharts['chartTempInterval'][1] . "-" . $pro2Dcharts['chartTempInterval'][2] . ".png" ?>" style="max-width: 640px">
                     </div>
                 <?php } ?>
         <?php } ?>
+        <?php } ?>
 
-        <h3>Comments</h3>
+        <h3 style ="background-color:#268EE2">Comments</h3>
         
         <div class="comment">
             <p>
-                <textarea disabled class="form-control" rows="5"><?php echo $arrayParam['study']['reports'][0]['REPORT_COMMENT'] ?></textarea>
+                <textarea disabled class="form-control" rows="5"><?php echo $arrayParam['params']['REPORT_COMMENT'] ?></textarea>
             </p>
         </div>
 
         <div class="info-company">
-            <div align="center">
-                    <p>
-                        <img src="<?php echo !empty($arrayParam['study']['reports'][0]['PHOTO_PATH']) ? $arrayParam['study']['reports'][0]['PHOTO_PATH'] : $arrayParam['host'] . "/uploads/globe_food.gif"?>">
-                    </p>
+            <div class="text-center">
+                <p>
+                    <img src="<?php echo (!empty($arrayParam['study']['reports'][0]['PHOTO_PATH'])) ? $arrayParam['study']['reports'][0]['PHOTO_PATH'] : $arrayParam['host'] . "/images/globe_food.gif"?>">
+                </p>
             </div>
-            <div><b><u>Study realized by :</u></b></div>
-                <div><b>Company name : <u style="margin-left: 40px"><?php echo $arrayParam['study']['reports'][0]['WRITER_SURNAME'] ?></u> </b></div>
-                <div><b>Surname / Name : <u style="margin-left: 40px"><?php echo $arrayParam['study']['reports'][0]['WRITER_NAME'] ?></u></b></div>
-                <div><b>Function : <u style="margin-left: 40px"><?php echo $arrayParam['study']['reports'][0]['WRITER_FUNCTION'] ?></u></b></div>
-                <div><b>Contact : <u style="margin-left: 40px"><?php echo $arrayParam['study']['reports'][0]['WRITER_COORD'] ?></u></b></div>
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <tr>
+                        <th colspan="6">Study realized by</th>
+                    </tr>
+                    <tr>
+                        <td colspan="4">Company name</td>
+                        <td colspan="2"><?php echo $arrayParam['params']['WRITER_SURNAME'] ?></td>
+                    </tr>
+                    <tr>
+                        <td colspan="4">Surname / Name</td>
+                        <td colspan="2"><?php echo $arrayParam['params']['WRITER_NAME'] ?></td>
+                    </tr>
+                    <tr>
+                        <td colspan="4">Function</td>
+                        <td colspan="2"><?php echo $arrayParam['params']['WRITER_FUNCTION'] ?></td>
+                    </tr>
+                    <tr>
+                        <td colspan="4">Contact</td>
+                        <td colspan="2"><?php echo $arrayParam['params']['WRITER_COORD'] ?></td>
+                    </tr>
+                </table>
+            </div>
         </div>
     </body>
 </html>

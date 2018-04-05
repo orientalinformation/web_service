@@ -30,6 +30,7 @@ use App\Models\StudEqpPrm;
 use App\Models\CalculationParametersDef;
 use App\Models\CalculationParameter;
 use App\Cryosoft\CalculateService;
+use App\Cryosoft\StudyService;
 use App\Models\TempRecordPts;
 use App\Models\TempRecordPtsDef;
 use App\Models\MeshPosition;
@@ -82,12 +83,17 @@ class Studies extends Controller
     protected $packing;
 
     /**
+     * @var \App\Cryosoft\StudyService
+     */
+    protected $study;
+
+    /**
      * Create a new controller instance.
      *
      * @return void
      */
     public function __construct(Request $request, Auth $auth, KernelService $kernel, UnitsConverterService $convert,
-        ValueListService $value, LineService $lineE, StudyEquipmentService $stdeqp, PackingService $packing)
+        ValueListService $value, LineService $lineE, StudyEquipmentService $stdeqp, PackingService $packing, StudyService $study)
     {
         $this->request = $request;
         $this->auth = $auth;
@@ -97,12 +103,23 @@ class Studies extends Controller
         $this->lineE = $lineE;
         $this->stdeqp = $stdeqp;
         $this->packing = $packing;
+        $this->study = $study;
     }
 
     public function findStudies()
     {
-        $mine = $this->auth->user()->studies;
-        $others = Study::where('ID_USER', '!=', $this->auth->user()->ID_USER)->get();
+        $input = $this->request->all();
+        $idUser = (isset($input['idUser'])) ? $input['idUser'] : 0;
+        $compfamily = (isset($input['compfamily'])) ? $input['compfamily'] : 0;
+        $subfamily = (isset($input['subfamily'])) ? $input['subfamily'] : 0;
+        $component = (isset($input['component'])) ? $input['component'] : 0;
+
+        $mine = '';
+        if ($idUser == 0 || $idUser == $this->auth->user()->ID_USER) {
+            $mine = Study::distinct()->where('ID_USER', $this->auth->user()->ID_USER)->orderBy('STUDY_NAME')->get();
+        }
+        
+        $others = $this->study->getFilteredStudiesList($idUser, $compfamily, $subfamily, $component);
 
         return compact('mine', 'others');
     }
@@ -555,6 +572,18 @@ class Studies extends Controller
         $study->TO_RECALCULATE = $update->TO_RECALCULATE;
         $study->HAS_CHILD = $update->HAS_CHILD;
         $study->OPEN_BY_OWNER = $update->OPEN_BY_OWNER;
+        if ($study->OPTION_CRYOPIPELINE = $update->OPTION_CRYOPIPELINE) {
+            if (!empty($study->studyEquipments)) {
+                foreach ($study->studyEquipments as $studyEquip) {
+                    $pipeGen = $studyEquip->pipeGens->first();
+                    $pipeDefition = $pipeGen->lineDefinitions;
+                    foreach ($pipeDefition as $pipeDefitions) {
+                        $pipeDefitions->delete();
+                    }
+                    $pipeGen->delete();
+                }
+            }
+        }
 
         return (int) $study->save();
     }
@@ -710,6 +739,8 @@ class Studies extends Controller
 
         return compact('packing', 'packingLayers');
     }
+
+    
     
     /**
      * 
@@ -1373,9 +1404,95 @@ class Studies extends Controller
 
         $axisTemp["bot"] = [$this->convert->meshesUnit($tempRecordPts->AXIS1_PT_BOT_SURF), $this->convert->meshesUnit($tempRecordPts->AXIS2_PT_BOT_SURF), $this->convert->meshesUnit($tempRecordPts->AXIS3_PT_BOT_SURF)];
 
+        $axisTemp["axe1"] = [0.0, $this->convert->meshesUnit($tempRecordPts->AXIS2_AX_1), $this->convert->meshesUnit($tempRecordPts->AXIS3_AX_1)];
+
+        $axisTemp["axe2"] = [$this->convert->meshesUnit($tempRecordPts->AXIS1_AX_2), 0.0, $this->convert->meshesUnit($tempRecordPts->AXIS3_AX_2)];
+
+        $axisTemp["axe3"] = [$this->convert->meshesUnit($tempRecordPts->AXIS1_AX_3), $this->convert->meshesUnit($tempRecordPts->AXIS2_AX_3), 0.0];
+
+        $axisTemp["plan"] = [$this->convert->meshesUnit($tempRecordPts->AXIS1_PL_2_3), $this->convert->meshesUnit($tempRecordPts->AXIS2_PL_1_3), $this->convert->meshesUnit($tempRecordPts->AXIS3_PL_1_2)];
+
 
         return $axisTemp;
     }
+
+    public function saveLocationAxis($id)
+    {
+        $input = $this->request->all();
+        $nbSteps = $input['NB_STEPS'];
+        
+        if ($this->study->isMyStudy($id)) {
+            $idStudyEquipment = $input['ID_STUDY_EQUIPMENTS'];
+            $productElmt = ProductElmt::where('ID_STUDY', $id)->first();
+            $shape = $productElmt->SHAPECODE;
+            $layoutGen = LayoutGeneration::where('ID_STUDY_EQUIPMENTS', $idStudyEquipment)->first();
+            $orientation = $layoutGen->PROD_POSITION;
+            $tempRecordPts =  TempRecordPts::where('ID_STUDY', $id)->first();
+            
+
+            $pointTop = ['x' => $input['POINT_TOP_X'], 'y' => $input['POINT_TOP_Y'], 'z' => $input['POINT_TOP_Z']];
+            $pointInt = ['x' => $input['POINT_INT_X'], 'y' => $input['POINT_INT_Y'], 'z' => $input['POINT_INT_Z']];
+            $pointBot = ['x' => $input['POINT_BOT_X'], 'y' => $input['POINT_BOT_Y'], 'z' => $input['POINT_BOT_Z']];
+
+            $axis = [
+                [$input['AXIS_AXE1_X'], $input['AXIS_AXE1_Y'], $input['AXIS_AXE1_Z']],
+                [$input['AXIS_AXE2_X'], $input['AXIS_AXE2_Y'], $input['AXIS_AXE2_Z']],
+                [$input['AXIS_AXE3_X'], $input['AXIS_AXE3_Y'], $input['AXIS_AXE3_Z']]
+            ];
+
+            $plan = ['x' => $input['PLAN_X'], 'y' => $input['PLAN_Y'], 'z' => $input['PLAN_Z']];
+
+            $pointTopResult = $this->study->convertPointForDB($shape, $orientation, $pointTop);
+            $pointIntResult = $this->study->convertPointForDB($shape, $orientation, $pointInt);
+            $pointBotResult = $this->study->convertPointForDB($shape, $orientation, $pointBot);
+
+            $axisResult = $this->study->convertAxisForDB($shape, $orientation, $axis);
+
+            $planResult = $this->study->convertPointForDB($shape, $orientation, $plan);
+
+            $tempRecordPts->NB_STEPS = $nbSteps;
+            $tempRecordPts->AXIS1_PT_TOP_SURF = $pointTopResult[0];
+            $tempRecordPts->AXIS2_PT_TOP_SURF = $pointTopResult[1];
+            $tempRecordPts->AXIS3_PT_TOP_SURF = $pointTopResult[2];
+
+            $tempRecordPts->AXIS1_PT_INT_PT = $pointIntResult[0];
+            $tempRecordPts->AXIS2_PT_INT_PT = $pointIntResult[1];
+            $tempRecordPts->AXIS3_PT_INT_PT = $pointIntResult[2];
+
+            $tempRecordPts->AXIS1_PT_BOT_SURF = $pointBotResult[0];
+            $tempRecordPts->AXIS2_PT_BOT_SURF = $pointBotResult[1];
+            $tempRecordPts->AXIS3_PT_BOT_SURF = $pointBotResult[2];
+
+            if (isset($axisResult[0]['y'])) {
+                $tempRecordPts->AXIS2_AX_1 = $axisResult[0]['y'];
+            }
+            if (isset($axisResult[0]['z'])) {
+                $tempRecordPts->AXIS3_AX_1 = $axisResult[0]['z'];
+            }
+            if (isset($axisResult[1]['x'])) {
+                $tempRecordPts->AXIS1_AX_2 = $axisResult[1]['x'];
+            }
+            if (isset($axisResult[1]['z'])) {
+                $tempRecordPts->AXIS3_AX_2 = $axisResult[1]['z'];
+            }
+            if (isset($axisResult[2]['x'])) {
+                $tempRecordPts->AXIS1_AX_3 = $axisResult[2]['x'];
+            }
+            if (isset($axisResult[2]['y'])) {
+                $tempRecordPts->AXIS2_AX_3 = $axisResult[2]['y'];
+            }
+
+            $tempRecordPts->AXIS1_PL_2_3 = $planResult[0];
+            $tempRecordPts->AXIS2_PL_1_3 = $planResult[1];
+            $tempRecordPts->AXIS3_PL_1_2 = $planResult[2];
+
+
+            // $tempRecordPts->save();
+        }
+
+        return 1;
+    }
+
 
     public function createChildStudy($id) {
         $input = $this->request->all();

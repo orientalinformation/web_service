@@ -33,6 +33,94 @@ $router->GET('/api/v1/studies/{id}/meshPoints', 'Api1\\Studies@getMeshPoints');
 $router->GET('/api/v1/studies/{id}/locationAxisSelected', 'Api1\\Studies@getlocationAxisSelected');
 
 /**
+ * POST saveLocationAxis
+ * Summary: 
+ * Notes: save mesh axis product chart
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/studies/{id}/saveLocationAxis', 'Api1\\Studies@saveLocationAxis');
+
+/**
+ * GET reCalculate
+ * Summary: 
+ * Notes: re calculate all study equipment in a study
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/equipments/{id}/reCalculate', 'Api1\\Equipments@reCalculate');
+
+/**
+ * GET loadEnergies
+ * Summary: 
+ * Notes: load Energy
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/equipments/selection/loadEnergies', 'Api1\\Equipments@loadEnergies');
+
+/**
+ * GET loadConstructors
+ * Summary: 
+ * Notes: load Manufacturer
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/equipments/selection/loadConstructors', 'Api1\\Equipments@loadConstructors');
+
+/**
+ * GET loadFamilies
+ * Summary: 
+ * Notes: load Family
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/equipments/selection/loadFamilies', 'Api1\\Equipments@loadFamilies');
+
+/**
+ * GET loadOrigines
+ * Summary: 
+ * Notes: load Origines
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/equipments/selection/loadOrigines', 'Api1\\Equipments@loadOrigines');
+
+/**
+ * GET loadProcesses
+ * Summary: 
+ * Notes: load Processes
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/equipments/selection/loadProcesses', 'Api1\\Equipments@loadProcesses');
+
+/**
+ * GET loadSeries
+ * Summary: 
+ * Notes: load Series
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/equipments/selection/loadSeries', 'Api1\\Equipments@loadSeries');
+
+/**
+ * GET loadDimensions
+ * Summary: 
+ * Notes: load Dimensions
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/equipments/selection/loadDimensions', 'Api1\\Equipments@loadDimensions');
+
+/**
+ * GET getAllCompFamily
+ * Summary: 
+ * Notes: get all CompFamily
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/components/allCompFamily', 'Api1\\Components@getAllCompFamily');
+
+/**
+ * GET getSubfamily
+ * Summary: 
+ * Notes: get subfamily filter
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/products/subfamily/{compfamily}', 'Api1\\Products@getSubfamily');
+
+/**
  * GET getstudyEquipmentProductChart
  * Summary: 
  * Notes: get Study Equipment Product Chart
