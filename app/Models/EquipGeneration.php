@@ -50,8 +50,8 @@ class EquipGeneration extends Model
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function eQUIPMENT()
+    public function equipment()
     {
-        return $this->belongsTo('EQUIPMENT', 'ID_EQUIP', 'ID_EQUIP');
+        return $this->belongsTo('App\\Models\\Equipment', 'ID_EQUIP', 'ID_EQUIP');
     }
 }

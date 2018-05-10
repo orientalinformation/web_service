@@ -4,6 +4,7 @@ namespace App\Cryosoft;
 
 use App\Models\MeshGeneration;
 use App\Models\InitialTemperature;
+use App\Models\Study;
 
 class MeshService
 {
@@ -39,6 +40,21 @@ class MeshService
         }
 
         return $meshGeneration;
+    }
+
+    public function rebuildMesh(Study &$study)
+    {
+        $product = $study->products->first();
+        // $meshGen = $study->products->first()->meshGenerations->first();
+        
+        // run study cleaner, mode 51
+        $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $product->ID_STUDY, -1);
+        $this->kernel->getKernelObject('StudyCleaner')->SCStudyClean($conf, SC_CLEAN_OUTPUT_SIZINGCONSO);
+
+        $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $product->ID_STUDY);
+        $this->kernel->getKernelObject('MeshBuilder')->MBMeshBuild($conf);
+
+        InitialTemperature::where('ID_PRODUCTION', $product->study->ID_PRODUCTION)->delete();
     }
 
     public function generate(&$meshGen, $type, $mode, $size1 = -1, $size2 = -1, $size3 = -1)

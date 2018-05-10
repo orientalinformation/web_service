@@ -12,9 +12,14 @@ use App\Kernel\KernelService;
 use App\Models\Production;
 use App\Models\InitialTemperature;
 use App\Models\Study;
+use App\Models\StudyEquipment;
 use App\Cryosoft\MeshService;
 use App\Cryosoft\UnitsConverterService;
 use App\Cryosoft\ProductService;
+use App\Cryosoft\ProductElementsService;
+use App\Cryosoft\ValueListService;
+
+use Illuminate\Support\Facades\DB;
 
 class Products extends Controller
 {
@@ -45,48 +50,62 @@ class Products extends Controller
     protected $product;
 
     /**
+     * @var \App\Cryosoft\ProductElementsService
+     */
+    protected $productElmts;
+
+    protected $bApplyStudyCleaner = false;
+    protected $bCleanerError = false;
+
+    /**
      * Products constructor.
      * @param Request $request
      * @param Auth $auth
      * @param KernelService $kernel
      */
-    public function __construct(Request $request, Auth $auth, KernelService $kernel, MeshService $mesh, UnitsConverterService $unit, ProductService $product)
+    public function __construct(Request $request, Auth $auth, KernelService $kernel,
+        MeshService $mesh, UnitsConverterService $unit, ProductService $product,
+        ProductElementsService $productElmts, ValueListService $values)
     {
         $this->request = $request;
         $this->auth = $auth;
         $this->mesh = $mesh;
         $this->kernel = $kernel;
         $this->unit = $unit;
+        $this->values = $values;
         $this->product = $product;
+        $this->productElmts = $productElmts;
+        $this->studies = app('App\\Cryosoft\\StudyService');
     }
 
     /**
      * @param $id
      * @return mixed
      */
-    public function getProductById($id) {
+    public function getProductById($id) 
+    {
         $product = Product::find($id);
         return $product;
     }
 
-    public function getElementsByProductId($id) {
-    	$elements = \App\Models\ProductElmt::where('ID_PROD', $id)->orderBy('SHAPE_POS2','DESC')->get();
-    	return $elements;
+    public function getElementsByProductId($id) 
+    {
+        $elements = \App\Models\ProductElmt::where('ID_PROD', $id)->orderBy('SHAPE_POS2','DESC')->get();
+        return $elements;
     }
 
     public function appendElementsToProduct($id)
     {
-        // $id is product id
-    	$input = $this->request->all();
+        $input = $this->request->all();
 
         $componentId = $input['componentId'];
         $product = Product::find($id);
 
-    	$elmt = new ProductElmt();
-    	$elmt->ID_PROD = $id;
-    	$elmt->ID_SHAPE = $input['shapeId'];
-    	$elmt->ID_COMP = $componentId;
-    	$elmt->PROD_ELMT_ISO = $product->PROD_ISO;
+        $elmt = new ProductElmt();
+        $elmt->ID_PROD = $id;
+        $elmt->ID_SHAPE = $input['shapeId'];
+        $elmt->ID_COMP = $componentId;
+        $elmt->PROD_ELMT_ISO = $product->PROD_ISO;
         $elmt->SHAPE_PARAM2 = 0.01; //default 1cm
 
         if (isset($input['dim1']))
@@ -97,10 +116,10 @@ class Products extends Controller
 
         $elmt->PROD_ELMT_NAME = "";
 
-    	$elmt->ORIGINAL_THICK = 0.0;
-    	$elmt->PROD_ELMT_WEIGHT = 0.0;
-    	$elmt->PROD_ELMT_REALWEIGHT = -1;
-    	$elmt->NODE_DECIM = 0; // @TODO: research more on nodeDecim
+        $elmt->ORIGINAL_THICK = 0.0;
+        $elmt->PROD_ELMT_WEIGHT = 0.0;
+        $elmt->PROD_ELMT_REALWEIGHT = -1;
+        $elmt->NODE_DECIM = 0; // @TODO: research more on nodeDecim
         $elmt->INSERT_LINE_ORDER = $product->ID_STUDY;
 
         $nElements = \App\Models\ProductElmt::where('ID_PROD', $id)->count();
@@ -111,7 +130,7 @@ class Products extends Controller
         $elmt->PROD_DEHYD = 0;
         $elmt->PROD_DEHYD_COST = 0;
 
-    	$elmt->push();
+        $elmt->push();
 
         $elmtId = $elmt->ID_PRODUCT_ELMT;
 
@@ -120,6 +139,8 @@ class Products extends Controller
 
         $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $id);
         $ok2 = $this->kernel->getKernelObject('WeightCalculator')->WCWeightCalculation($product->ID_STUDY,  $conf, 3);
+        
+        $this->mesh->rebuildMesh($product->study);
 
         return compact('ok1', 'ok2', 'elmtId');
     }
@@ -143,12 +164,6 @@ class Products extends Controller
         $oldRealMass = $nElements->PROD_ELMT_REALWEIGHT;
         $oldDim2 = round(doubleval($nElements->SHAPE_PARAM2), 4);
 
-        $nElements->PROD_ELMT_NAME = $description;
-        $nElements->SHAPE_PARAM2 = $this->unit->prodDimensionSave($dim2);
-        $nElements->PROD_ELMT_WEIGHT = $this->unit->massSave($computedmass);
-        $nElements->PROD_ELMT_REALWEIGHT = $this->unit->massSave($realmass);
-        $nElements->save();
-
         $ok1 = $ok2 = 0;
 
         if ($oldDim2 != $dim2) {
@@ -157,15 +172,24 @@ class Products extends Controller
 
             $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $id);
             $ok2 = $this->kernel->getKernelObject('WeightCalculator')->WCWeightCalculation($product->ID_STUDY, $conf, 3);
+
+            $this->mesh->rebuildMesh($product->study);
         } elseif ($oldRealMass != $realmass) {
             $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $id, $idElement);
             $ok2 = $this->kernel->getKernelObject('WeightCalculator')->WCWeightCalculation($product->ID_STUDY, $conf, 3);
         }
 
+        $nElements->PROD_ELMT_NAME = $description;
+        $nElements->SHAPE_PARAM2 = $this->unit->prodDimensionSave($dim2);
+        $nElements->PROD_ELMT_WEIGHT = $this->unit->massSave($computedmass);
+        $nElements->PROD_ELMT_REALWEIGHT = $this->unit->massSave($realmass);
+        $nElements->save();
+
         return compact('oldDim2', 'dim2', 'ok1', 'ok2', 'idElement');
     }
 
-    public function getProductViewModel($id) {
+    public function getProductViewModel($id) 
+    {
         $product = Product::findOrFail($id);
         $product->PROD_WEIGHT = $this->unit->mass($product->PROD_WEIGHT);
         $product->PROD_REALWEIGHT = $this->unit->mass($product->PROD_REALWEIGHT);
@@ -173,16 +197,28 @@ class Products extends Controller
 
         $products = \App\Models\ProductElmt::where('ID_PROD', $id)->orderBy('SHAPE_POS2', 'DESC')->get();
         $specificDimension = 0.0;
+        $count = count($products);
 
         $elements = [];
         foreach ($products as $key => $pr) {
-            $elements[$key] = $pr;
-            $specificDimension += $pr->SHAPE_PARAM2;
+            $elements[] = $pr;
+
+            if ($pr->ID_SHAPE == $this->values->SPHERE || $pr->ID_SHAPE == $this->values->CYLINDER_CONCENTRIC_STANDING || $pr->ID_SHAPE == $this->values->CYLINDER_CONCENTRIC_LAYING || $pr->ID_SHAPE == $this->values->PARALLELEPIPED_BREADED) {
+                if ($key < $count - 1) {
+                    $specificDimension += $pr->SHAPE_PARAM2 * 2;
+                } else {
+                    $specificDimension += $pr->SHAPE_PARAM2;
+                }
+            } else {
+                $specificDimension += $pr->SHAPE_PARAM2;
+            }
+
             $elements[$key]['SHAPE_PARAM1'] = $this->unit->prodDimension($pr->SHAPE_PARAM1);
             $elements[$key]['SHAPE_PARAM2'] = $this->unit->prodDimension($pr->SHAPE_PARAM2);
             $elements[$key]['SHAPE_PARAM3'] = $this->unit->prodDimension($pr->SHAPE_PARAM3);
             $elements[$key]['PROD_ELMT_WEIGHT'] = $this->unit->mass($pr->PROD_ELMT_WEIGHT);
             $elements[$key]['PROD_ELMT_REALWEIGHT'] = $this->unit->mass($pr->PROD_ELMT_REALWEIGHT);
+            $elements[$key]['componentName'] = $this->product->getComponentDisplayName($pr->ID_COMP);
         }
 
         $specificDimension = $this->unit->prodDimension($specificDimension);
@@ -190,7 +226,7 @@ class Products extends Controller
         $subFamily = $this->product->getAllSubFamily();
         $waterPercentList = $this->product->getWaterPercentList();
 
-        return compact('product', 'elements', 'specificDimension', 'compFamily', 'subFamily', 'waterPercentList');
+        return compact('product', 'products', 'elements', 'specificDimension', 'compFamily', 'subFamily', 'waterPercentList');
     }
 
     public function getSubfamily($compFamily)
@@ -225,6 +261,8 @@ class Products extends Controller
         $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, intval($id));
         $ok = $this->kernel->getKernelObject('WeightCalculator')->WCWeightCalculation($studyId, $conf, 4);
 
+        $this->mesh->rebuildMesh($element->product->study);
+        
         return compact('ok');
     }
 
@@ -241,21 +279,51 @@ class Products extends Controller
         if (!$product)
             throw new \Exception("Error Processing Request. Product ID not found", 1);
 
+        $elements = ProductElmt::where('ID_PROD', $product->ID_PROD)->orderBy('SHAPE_POS2', 'DESC')->get();
         $meshGeneration = $product->meshGenerations->first();
         if ($meshGeneration) {
-            $meshGeneration->MESH_1_SIZE = $this->unit->meshesUnit($meshGeneration->MESH_1_SIZE);
-            $meshGeneration->MESH_2_SIZE = $this->unit->meshesUnit($meshGeneration->MESH_2_SIZE);
-            $meshGeneration->MESH_3_SIZE = $this->unit->meshesUnit($meshGeneration->MESH_3_SIZE);
-            $meshGeneration->MESH_1_INT = $this->unit->meshesUnit($meshGeneration->MESH_1_INT);
-            $meshGeneration->MESH_2_INT = $this->unit->meshesUnit($meshGeneration->MESH_2_INT);
-            $meshGeneration->MESH_3_INT = $this->unit->meshesUnit($meshGeneration->MESH_3_INT);
+            if ($elements[0]->ID_SHAPE == 1 || $elements[0]->ID_SHAPE == 6 ) {
+                $meshGeneration->MESH_1_SIZE = doubleval(0);
+                $meshGeneration->MESH_1_INT = doubleval(0);
+            } else {
+                $meshGeneration->MESH_1_SIZE = $this->unit->meshesUnit($meshGeneration->MESH_1_SIZE);
+                $meshGeneration->MESH_1_INT = $this->unit->meshesUnit($meshGeneration->MESH_1_INT);
+            }
+            if ($meshGeneration->MESH_3_INT != 0 || $meshGeneration->MESH_3_SIZE !=  0) {
+                $meshGeneration->MESH_3_INT = $this->unit->meshesUnit($meshGeneration->MESH_3_INT);
+                $meshGeneration->MESH_3_SIZE = $this->unit->meshesUnit($meshGeneration->MESH_3_SIZE);
+            } else {
+                $meshGeneration->MESH_3_SIZE = doubleval(0);
+                $meshGeneration->MESH_3_INT = doubleval(0);
+            }
+            if ($meshGeneration->MESH_2_INT != 0 || $meshGeneration->MESH_2_SIZE != 0) {
+                $meshGeneration->MESH_2_INT = $this->unit->meshesUnit($meshGeneration->MESH_2_INT);
+                $meshGeneration->MESH_2_SIZE = $this->unit->meshesUnit($meshGeneration->MESH_2_SIZE);
+            } else {
+                $meshGeneration->MESH_2_INT = doubleval(0);
+                $meshGeneration->MESH_2_SIZE = doubleval(0);
+            }
         }
-        $elements = $product->productElmts;
+
         $elmtMeshPositions = [];
+        $productElmtInitTemp = [];
+        $initTempPositions = [];
+        $nbMeshPointElmt = [];
+        $heights = [];
 
         foreach ($elements as $elmt) {
-            $meshPositions = \App\Models\MeshPosition::where('ID_PRODUCT_ELMT', $elmt->ID_PRODUCT_ELMT)->get();
+            $meshPositions = \App\Models\MeshPosition::where('ID_PRODUCT_ELMT', $elmt->ID_PRODUCT_ELMT)->orderBy('MESH_ORDER')->get();
             array_push($elmtMeshPositions, $meshPositions);
+
+            $pointMeshOrder2 = $this->product->searchNbPtforElmt($elmt, 2);
+            array_push($initTempPositions, $pointMeshOrder2['positions']);
+            array_push($nbMeshPointElmt, count($pointMeshOrder2['points']));
+
+            $elmtInitTemp = $this->productElmts->searchTempMeshPoint($elmt, $pointMeshOrder2['points']);
+            array_push($productElmtInitTemp, $elmtInitTemp);
+
+            $shapeParam2 = $this->productElmts->getProdElmtthickness($elmt->ID_PRODUCT_ELMT);
+            array_push($heights, $shapeParam2);
         }
 
         $productIsoTemp = null;
@@ -264,15 +332,17 @@ class Products extends Controller
             if (InitialTemperature::where('ID_PRODUCTION', $product->study->ID_PRODUCTION)->count() > 0) {
                 $productIsoTemp = InitialTemperature::where('ID_PRODUCTION', $product->study->ID_PRODUCTION)->first();
                 if ($productIsoTemp) {
-                    $productIsoTemp = $productIsoTemp->INITIAL_T;
+                    $productIsoTemp = $this->unit->temperature($productIsoTemp->INITIAL_T);
                 }
             }
         }
-        
-        return compact('meshGeneration', 'elements', 'elmtMeshPositions', 'productIsoTemp');
+
+        // $productElmtInitTemp = array_reverse($productElmtInitTemp);
+        return compact('meshGeneration', 'elements', 'elmtMeshPositions', 'productIsoTemp', 'nbMeshPointElmt', 'productElmtInitTemp', 'initTempPositions', 'heights');
     }
 
-    public function generateMesh($idProd) {
+    public function generateMesh($idProd) 
+    {
         /** @var Product $product */
         $product = Product::findOrFail($idProd);
 
@@ -304,7 +374,8 @@ class Products extends Controller
      * @return array
      * @throws \Exception
      */
-    public function generateDefaultMesh($idProd) {
+    public function generateDefaultMesh($idProd) 
+    {
         /** @var Product $product */
         $product = Product::findOrFail($idProd);
 
@@ -322,7 +393,7 @@ class Products extends Controller
         //     password,
         //     sLogsDir,
         //     getUserID(),
-        //     studyBean . getSelectedStudy(),
+        //     $this->studies->getSelectedStudy(),
         //     0,
         //     0
         // );
@@ -332,8 +403,8 @@ class Products extends Controller
      * @param $idProd
      * @throws \Exception
      */
-    public function initTemperature($idProd) {
-
+    public function initIsoTemperature($idProd) 
+    {
         $input = $this->request->all();
         
         /** @var Product $product */
@@ -370,6 +441,8 @@ class Products extends Controller
             $elmt->save();
         }
 
+        $listTemp = [];
+
         for ($x=0; $x < $nbNode1; $x++) {
             for ($y = 0; $y < $nbNode2; $y++) {
                 for ($z = 0; $z < $nbNode3; $z++) {
@@ -379,15 +452,157 @@ class Products extends Controller
                     $t->MESH_2_ORDER = $y;
                     $t->MESH_3_ORDER = $z;
                     $t->ID_PRODUCTION = $production->ID_PRODUCTION;
-                    $t->INITIAL_T = floatval( $input['initTemp'] );
-                    $t->save();
+                    $t->INITIAL_T = floatval( $this->unit->temperature($input['initTemp'], ['save' => true]) );
+                    array_push($listTemp, $t->toArray());
                 }
             }
         }
+
+        $slices = array_chunk($listTemp, 100);
+        foreach ($slices as $slice) {
+            InitialTemperature::insert($slice);
+        }
+        
 
         $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $study->ID_STUDY);
         $ktOk = $this->kernel->getKernelObject('KernelToolCalculator')->KTCalculator($conf, 4);
         
         return 0;
+    }
+
+    public function initNonIsoTemperature($idProd)
+    {
+        DB::connection()->disableQueryLog();
+        set_time_limit(300);
+        ini_set('max_execution_time', 300);
+        $bSave = $saveTemp = false;
+        $ETATTEMPERATURE = 1;
+        $product = Product::findOrFail($idProd);
+        $study = $product->study;
+        $input = $this->request->json()->all();
+
+        $ldNodeNb1 = $ldNodeNb2 = $ldNodeNb3 = 0;
+        
+        $this->studies->RunStudyCleaner($study->ID_STUDY, SC_CLEAN_OUTPUT_PRODUCTION);
+
+        // Test if the user has given initial temperature
+        if ($this->product->CheckInitialTemperature($product)) {
+            //	clean the Initialtemperature Table
+            $this->product->DeleteOldInitTemp($product);
+            
+            // save matrix temperature issue from parent study
+            $this->product->saveMatrixTempComeFromParent($product);
+
+            $prodMeshgene = $product->meshGenerations->first();
+
+            $product->PROD_ISO = $this->values->PROD_NOT_ISOTHERM;
+            $product->save();
+            $idx = -1;
+
+            foreach ($input['elements'] as $pe) {
+                $idx++;
+                $pe['initTemp'] = $input['productElmtInitTemp'][$idx];
+                
+                $pb = \App\Models\ProductElmt::findOrFail($pe['ID_PRODUCT_ELMT']);
+
+                if (!$this->studies->isStudyHasParent($study)
+                    || ($pb->INSERT_LINE_ORDER == $study->ID_STUDY)) {
+                        
+                    if ( $pe['PROD_ELMT_ISO'] == $this->values->PRODELT_ISOTHERM) {
+                        if ($this->studies->isStudyHasParent($study)) {
+                            if ($pb->ID_SHAPE != $this->values->PARALLELEPIPED_BREADED) {
+                                // propagation on axis 1 and 3
+                                $this->productElmts->PropagationTempProdElmtIso($pe, true);
+                            } else {
+                                // propagation special for breaded
+                                $this->productElmts->PropagationTempProdElmtIsoForBreaded($pe);
+                            }
+                        } else {
+                            $this->productElmts->PropagationTempProdElmtIso($pe, false);
+                        }
+
+                        $pb->PROD_ELMT_ISO = $this->values->PRODELT_ISOTHERM;
+                        $pb->save();
+                            
+                    } else {
+                        if ($pb->ID_SHAPE == $this->values->PARALLELEPIPED_BREADED) {
+                            throw new \Exception("BREADED PARALLELEPIPED: product element must be isotherm");
+                        }
+           
+                        $pointMeshOrder2 = $this->product->searchNbPtforElmt($pb, 2)['points'];
+
+                        $t = $pe['initTemp'];
+                        $t2 = [];
+                        
+                        if ((count($t) != count($pointMeshOrder2)) || ($t == null)) {
+                            // in case of new mesh generation without T°ini, intiliaze T° in to zero
+                            for ($i = 0; $i < count($pointMeshOrder2); $i++) {
+                                if ($i < count($t)) {
+                                    $t2[] = $t[$i];
+                                } else {
+                                    $t2[] = 0;
+                                }
+                            }
+                            $t = $t2;
+                        }
+
+                        if ($this->studies->isStudyHasParent($study)) {
+                            //  3D: dispatch this temp
+                            $ldNodeNb1 = $prodMeshgene->MESH_1_NB;
+                            $ldNodeNb3 = $prodMeshgene->MESH_3_NB;
+                            switch ($pb->ID_SHAPE) {
+                                case $this->values->SLAB:
+                                case $this->values->SPHERE:
+                                    $ldNodeNb1 = $ldNodeNb3 = 1;
+                                    break;
+                                case $this->values->CYLINDER_STANDING:
+                                case $this->values->CYLINDER_CONCENTRIC_LAYING:
+                                case $this->values->CYLINDER_LAYING:
+                                case $this->values->CYLINDER_CONCENTRIC_STANDING:
+                                    $ldNodeNb3 = 1;
+                                    break;
+                                case $this->values->PARALLELEPIPED_STANDING:
+                                case $this->values->PARALLELEPIPED_BREADED:
+                                case $this->values->PARALLELEPIPED_LAYING:
+                                    break;
+                            }
+                        } else {
+                            $ldNodeNb1 = $ldNodeNb3 = 1;
+                        }
+
+                        for ($i = 0; $i < count($t); $i ++) {
+                            if (isset($pointMeshOrder2[$i])) {
+                                $ldNodeNb2 = $pointMeshOrder2[$i];
+                                // ============get the temp
+                                $Dt = $t[$i];
+                                $this->product->PropagationTempElmt($product, $ldNodeNb1, $ldNodeNb2, $ldNodeNb3, $Dt);
+                            }
+                        }
+                                
+                        // save Flag ProdElmt NON ISO to 2
+                        $pb->PROD_ELMT_ISO = $this->values->PRODELT_NOT_ISOTHERM;
+                        $pb->save();
+                    }
+                }
+            } // end of foreach
+            $saveTemp = true;
+
+
+            if ($saveTemp) {
+                $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $study->ID_STUDY);
+                $this->kernel->getKernelObject('KernelToolCalculator')->KTCalculator($conf, 4);
+            }
+            
+            // indicates that temperature are defined
+            $tempIsdefine = true;
+
+            $bSave = true;
+        } else {
+            // no valid temperature
+            // log . debug("No initial temperature valid");
+            throw new \Exception("ERROR_NOVALID_TEMP");
+        }
+            
+        return 1;
     }
 }

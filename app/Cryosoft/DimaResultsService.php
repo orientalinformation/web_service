@@ -32,7 +32,8 @@ class DimaResultsService
         return (($this->getCalculationStatus($dimaStatus) & 0x100) == 0) ? true : false;
     }
 
-    public function consumptionCell($lfcoef, $calculationStatus, $valueStr) {
+    public function consumptionCell($lfcoef, $calculationStatus, $valueStr) 
+    {
         $sConso = [];
 
         if ($calculationStatus != 0) {
@@ -61,6 +62,4 @@ class DimaResultsService
 
         return $sConso;
     }
-    
-    
 }

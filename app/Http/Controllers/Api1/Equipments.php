@@ -30,6 +30,9 @@ use App\Models\MinMax;
 use App\Models\StudyEquipment;
 use App\Models\CoolingFamily;
 use App\Cryosoft\SVGService;
+use App\Cryosoft\UnitsService;
+use App\Cryosoft\MinMaxService;
+
 
 class Equipments extends Controller
 {
@@ -79,12 +82,22 @@ class Equipments extends Controller
     protected $stdeqp;
 
     /**
+     * @var App\Cryosoft\UnitsService
+     */
+    protected $units;
+    
+    /**
+     * @var App\Cryosoft\MinMaxService
+     */
+    protected $minmax;
+
+    /**
      * Create a new controller instance.
      *
      * @return void
      */
     public function __construct(Request $request, Auth $auth, UnitsConverterService $convert, EquipmentsService $equip
-    , KernelService $kernel, StudyService $studies, StudyEquipmentService $stdeqp, SVGService $svg)
+    , KernelService $kernel, StudyService $studies, StudyEquipmentService $stdeqp, SVGService $svg, UnitsService $units, MinMaxService $minmax)
     {
         $this->request = $request;
         $this->auth = $auth;
@@ -94,6 +107,8 @@ class Equipments extends Controller
         $this->studies = $studies;
         $this->stdeqp = $stdeqp;
         $this->svg = $svg;
+        $this->units = $units;
+        $this->minmax = $minmax;
     }
 
     public function getEquipments()
@@ -102,44 +117,40 @@ class Equipments extends Controller
         $idStudy = (isset($input['idStudy'])) ? $input['idStudy'] : 0;
         $energy = (isset($input['energy'])) ? $input['energy'] : -1;
         $manufacturer = (isset($input['manufacturer'])) ? $input['manufacturer'] : '';
-        $family = (isset($input['family'])) ? $input['family'] : -1;
+        $sery = (isset($input['sery'])) ? $input['sery'] : -1;
         $origine = (isset($input['origine'])) ? $input['origine'] : -1;
         $process = (isset($input['process'])) ? $input['process'] : -1;
-        $series = (isset($input['series'])) ? $input['series'] : -1;
+        $model = (isset($input['model'])) ? $input['model'] : -1;
         $size = (isset($input['size'])) ? $input['size'] : '';
         
-        $querys = Equipment::orderBy('EQUIP_NAME');
+        $querys = Equipment::query();
 
-        $querys->where('EQP_IMP_ID_STUDY', $idStudy)
-            ->orWhere('EQP_IMP_ID_STUDY', 0);
 
-        $querys->where(function ($query) {
-            $query->where('ID_USER', $this->auth->user()->ID_USER)
-            ->where('EQUIP_RELEASE', 2);
-        });
-
-        $querys->orWhere(function ($query) {
-            $query->where('EQUIP_RELEASE', 4)
-            ->orWhere('EQUIP_RELEASE', 3);
-        });
-
-        if ($energy != 1) {
+        if ($energy != -1) {
             $querys->where('ID_COOLING_FAMILY', $energy);
         }
 
-        if ($family != -1) {
-            $querys->where('ID_FAMILY', $family);
-        }
+        $querys->where(function($query) use ($idStudy) {
+             $query->where('EQP_IMP_ID_STUDY', $idStudy)
+            ->orWhere('EQP_IMP_ID_STUDY', 0);
+        });
 
-        if ($process != -1) {
-            $querys->where('BATCH_PROCESS', $process);
-        }
+        $querys->where(function ($query) use ($idStudy) {
+            $query->where('EQP_IMP_ID_STUDY', $idStudy)
+               ->orWhere('EQP_IMP_ID_STUDY', 0);
 
-        if ($series != -1) {
-            $querys->where('ID_EQUIPSERIES', $series);
-        }
+            $query->where(function ($q) {
+                $q->where('ID_USER', $this->auth->user()->ID_USER)
+                      ->where('EQUIP_RELEASE', 2);
+            });
+            $query->orWhere(function ($q) {
+                $q->where('EQUIP_RELEASE', 3)
+                      ->orWhere('EQUIP_RELEASE', 4);
+            });
+        });
 
-        if ($size != null && $size  != '') {
+
+        if ($size != '') {
             $sizeLabel = explode('x', $size);
             $length = $sizeLabel[0];
             $width = $sizeLabel[1];
@@ -147,31 +158,61 @@ class Equipments extends Controller
             $querys->where('EQP_LENGTH', $length)->where('EQP_WIDTH', $width);
         }
 
-        if ($manufacturer != null && $manufacturer != '') {
+        if ($sery != -1) {
+            $querys->where('ID_FAMILY', $sery);
+        }
+
+        if ($process != -1) {
+            $querys->where('BATCH_PROCESS', $process);
+        }
+
+        if ($model != -1) {
+            $querys->where('ID_EQUIPSERIES', $model);
+        }
+
+        if ($manufacturer != '') {
             $querys->where('CONSTRUCTOR', $manufacturer);
         }
 
+        $querys->orderBy('EQUIP_NAME');
+
+
         $equipments = $querys->get();
 
+        // return $querys->toSql();
         return $equipments;
     }
 
-    public function loadEnergies()
+    public function getSelectionCriteriaFilter()
     {
+        $input = $this->request->all();
+        $energyId = (isset($input['energy'])) ? $input['energy'] : -1;
+        $manufacturerValue = (isset($input['manufacturer'])) ? $input['manufacturer'] : '';
+        $seryId = (isset($input['sery'])) ? $input['sery'] : -1;
+        $originId = (isset($input['origin'])) ? $input['origin'] : -1;
+        $processId = (isset($input['process'])) ? $input['process'] : -1;
+        $modelId = (isset($input['model'])) ? $input['model'] : -1;
+
         $energies = CoolingFamily::distinct()->select('cooling_family.ID_COOLING_FAMILY', 'translation.LABEL')
         ->join('translation', 'cooling_family.ID_COOLING_FAMILY', '=', 'translation.ID_TRANSLATION')
         ->where('translation.TRANS_TYPE', 2)
         ->where('translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
         ->orderBy('translation.LABEL')
         ->get();
+
+        $manufacturer = $this->getConstructors($energyId);
+        $series = $this->getFamilies($energyId, $manufacturerValue);
+        $origines = $this->getOrigines($energyId, $manufacturerValue, $seryId);
+        $processes = $this->getProcesses($energyId, $manufacturerValue, $seryId, $originId);
+        $model = $this->getModel($energyId, $manufacturerValue, $seryId, $originId, $processId);
+        $size = $this->getSize($energyId, $manufacturerValue, $seryId, $originId, $processId, $modelId);
+
         
-        return $energies;
+        return compact('energies', 'manufacturer', 'series', 'origines', 'processes', 'model', 'size');
     }
 
-    public function loadConstructors()
+    public function getConstructors($energy = -1)
     {
-        $input = $this->request->all();
-        $energy = (isset($input['energy'])) ? $input['energy'] : -1;
         $query = Equipseries::distinct()->select('Equipseries.CONSTRUCTOR')
         ->join('equipment', 'Equipseries.ID_EQUIPSERIES', '=', 'equipment.ID_EQUIPSERIES');
 
@@ -184,11 +225,8 @@ class Equipments extends Controller
         return $query->get();
     }
 
-    public function loadFamilies()
+    public function getFamilies($energy = -1, $manufacturer = '')
     {
-        $input = $this->request->all();
-        $energy = (isset($input['energy'])) ? $input['energy'] : -1;
-        $manufacturer = (isset($input['manufacturer'])) ? $input['manufacturer'] : '';
         $query = Equipfamily::distinct()->select('equipfamily.ID_FAMILY', 'translation.LABEL')
         ->join('translation', 'equipfamily.ID_FAMILY', '=', 'translation.ID_TRANSLATION')
         ->join('equipseries', 'equipfamily.ID_FAMILY', '=', 'equipseries.ID_FAMILY')
@@ -199,7 +237,7 @@ class Equipments extends Controller
             $query->where('equipment.ID_COOLING_FAMILY', $energy);
         }
 
-        if ($manufacturer != null && $manufacturer != '') {
+        if ($manufacturer != '') {
             $query->where('equipseries.CONSTRUCTOR', $manufacturer);
         }
 
@@ -209,12 +247,8 @@ class Equipments extends Controller
         return $equipFamily;
     }
 
-    public function loadOrigines()
+    public function getOrigines($energy = -1, $manufacturer = '', $family = -1)
     {
-        $input = $this->request->all();
-        $energy = (isset($input['energy'])) ? $input['energy'] : -1;
-        $manufacturer = (isset($input['manufacturer'])) ? $input['manufacturer'] : '';
-        $family = (isset($input['family'])) ? $input['family'] : -1;
         $query = Equipment::distinct()->select('equipment.STD', 'translation.LABEL')
         ->join('translation', 'equipment.STD', '=', 'translation.ID_TRANSLATION')
         ->join('equipseries', 'equipment.ID_EQUIPSERIES', 'equipseries.ID_EQUIPSERIES')
@@ -236,17 +270,12 @@ class Equipments extends Controller
         $query->orderBy('translation.LABEL');
 
         $equipMents = $query->get();
+
         return $equipMents;
     }
 
-    public function loadProcesses()
+    public function getProcesses($energy = -1, $manufacturer = '', $family = -1, $origine = -1)
     {
-        $input = $this->request->all();
-        $energy = (isset($input['energy'])) ? $input['energy'] : -1;
-        $manufacturer = (isset($input['manufacturer'])) ? $input['manufacturer'] : '';
-        $family = (isset($input['family'])) ? $input['family'] : -1;
-        $origine = (isset($input['origine'])) ? $input['origine'] : -1;
-
         $query = Equipfamily::distinct()->select('equipfamily.BATCH_PROCESS', 'translation.LABEL')
         ->join('translation', 'equipfamily.BATCH_PROCESS', '=', 'translation.ID_TRANSLATION')
         ->join('equipseries', 'equipfamily.ID_FAMILY', '=', 'equipseries.ID_FAMILY')
@@ -271,19 +300,13 @@ class Equipments extends Controller
 
         $query->orderBy('translation.LABEL');
 
-        $equipFamily = $query->get();
-        return $equipFamily;
+        $processes = $query->get();
+
+        return $processes;
     }
 
-    public function loadSeries()
+    public function getModel($energy = -1, $manufacturer = '', $family = -1, $origine = -1, $process = -1)
     {
-        $input = $this->request->all();
-        $energy = (isset($input['energy'])) ? $input['energy'] : -1;
-        $manufacturer = (isset($input['manufacturer'])) ? $input['manufacturer'] : '';
-        $family = (isset($input['family'])) ? $input['family'] : -1;
-        $origine = (isset($input['origine'])) ? $input['origine'] : -1;
-        $process = (isset($input['process'])) ? $input['process'] : -1;
-
         $query = Equipseries::distinct()->select('equipseries.ID_EQUIPSERIES', 'translation.LABEL')
         ->join('translation', 'equipseries.ID_EQUIPSERIES', '=', 'translation.ID_TRANSLATION')
         ->join('equipfamily', 'equipseries.ID_FAMILY', '=', 'equipfamily.ID_FAMILY')
@@ -313,19 +336,12 @@ class Equipments extends Controller
         $query->orderBy('translation.LABEL');
 
         $equipSeries = $query->get();
+
         return $equipSeries;
     }
 
-    public function loadDimensions()
+    public function getSize($energy = -1, $manufacturer = '', $family = -1, $origine = -1, $process = -1, $series = -1)
     {
-        $input = $this->request->all();
-        $energy = (isset($input['energy'])) ? $input['energy'] : -1;
-        $manufacturer = (isset($input['manufacturer'])) ? $input['manufacturer'] : '';
-        $family = (isset($input['family'])) ? $input['family'] : -1;
-        $origine = (isset($input['origine'])) ? $input['origine'] : -1;
-        $process = (isset($input['process'])) ? $input['process'] : -1;
-        $series = (isset($input['series'])) ? $input['series'] : -1;
-
         $query = Equipment::distinct()->select('equipment.EQP_LENGTH', 'equipment.EQP_WIDTH')
         ->join('equipseries', 'equipment.ID_EQUIPSERIES', '=', 'equipseries.ID_EQUIPSERIES')
         ->join('equipfamily', 'equipseries.ID_FAMILY', '=', 'equipfamily.ID_FAMILY');
@@ -387,19 +403,18 @@ class Equipments extends Controller
             $key->consumptionSymbol3 = $this->convert->consumptionSymbolUser($key->ID_COOLING_FAMILY, 3);
             $key->shelvesWidthSymbol = $this->convert->shelvesWidthSymbol();
             $key->rampsPositionSymbol = $this->convert->rampsPositionSymbol();
-
-            $key->EQP_LENGTH = $this->convert->equipDimensionUser($key->EQP_LENGTH);
-            $key->EQP_WIDTH = $this->convert->equipDimensionUser($key->EQP_WIDTH);
-            $key->EQP_HEIGHT = $this->convert->equipDimensionUser($key->EQP_HEIGHT);
-            $key->MAX_FLOW_RATE = $this->convert->consumptionUser($key->MAX_FLOW_RATE, $key->ID_COOLING_FAMILY, 1);
-            $key->TMP_REGUL_MIN = $this->convert->controlTemperatureUser($key->TMP_REGUL_MIN);
+            $key->EQP_LENGTH = $this->units->equipDimension($key->EQP_LENGTH, 2, 1);            
+            $key->EQP_WIDTH = $this->units->equipDimension($key->EQP_WIDTH, 2, 1);
+            $key->EQP_HEIGHT = $this->units->equipDimension($key->EQP_HEIGHT, 2, 1);
+            $key->MAX_FLOW_RATE = doubleval($this->units->consumption($key->MAX_FLOW_RATE, $key->ID_COOLING_FAMILY, 1, 2, 1));
+            $key->TMP_REGUL_MIN = $this->units->controlTemperature($key->TMP_REGUL_MIN, 0, 1);
 
             $equipGener = EquipGeneration::find($key->ID_EQUIPGENERATION);
         
             if ($equipGener) { 
-                $equipGener->TEMP_SETPOINT = doubleval($this->convert->controlTemperatureUser($equipGener->TEMP_SETPOINT));
-                $equipGener->DWELLING_TIME = doubleval($this->convert->timeUser($equipGener->DWELLING_TIME));
-                $equipGener->NEW_POS = doubleval($this->convert->timeUser($equipGener->NEW_POS));
+                $equipGener->TEMP_SETPOINT = doubleval($this->units->controlTemperature($equipGener->TEMP_SETPOINT, 2, 1));
+                $equipGener->DWELLING_TIME = $this->units->time($equipGener->DWELLING_TIME, 2, 1);
+                $equipGener->NEW_POS = $this->units->time($equipGener->NEW_POS, 2, 1);
             }
             $key->equipGeneration = $equipGener;
         }
@@ -416,18 +431,18 @@ class Equipments extends Controller
             $key->shelvesWidthSymbol = $this->convert->shelvesWidthSymbol();
             $key->rampsPositionSymbol = $this->convert->rampsPositionSymbol();
 
-            $key->EQP_LENGTH = $this->convert->equipDimensionUser($key->EQP_LENGTH);
-            $key->EQP_WIDTH = $this->convert->equipDimensionUser($key->EQP_WIDTH);
-            $key->EQP_HEIGHT = $this->convert->equipDimensionUser($key->EQP_HEIGHT);
-            $key->MAX_FLOW_RATE = $this->convert->consumptionUser($key->MAX_FLOW_RATE, $key->ID_COOLING_FAMILY, 1);
-            $key->TMP_REGUL_MIN = $this->convert->controlTemperatureUser($key->TMP_REGUL_MIN);
+            $key->EQP_LENGTH = $this->units->equipDimension($key->EQP_LENGTH, 2, 1);
+            $key->EQP_WIDTH = $this->units->equipDimension($key->EQP_WIDTH, 2, 1);
+            $key->EQP_HEIGHT = $this->units->equipDimension($key->EQP_HEIGHT, 2, 1);
+            $key->MAX_FLOW_RATE = $this->units->consumption($key->MAX_FLOW_RATE, $key->ID_COOLING_FAMILY, 1, 2, 1);
+            $key->TMP_REGUL_MIN = $this->units->controlTemperature($key->TMP_REGUL_MIN, 0, 1);
 
             $equipGener = EquipGeneration::find($key->ID_EQUIPGENERATION);
-
+        
             if ($equipGener) { 
-                $equipGener->TEMP_SETPOINT = doubleval($this->convert->controlTemperature($equipGener->TEMP_SETPOINT));
-                $equipGener->DWELLING_TIME = doubleval($this->convert->time($equipGener->DWELLING_TIME));
-                $equipGener->NEW_POS = doubleval($this->convert->time($equipGener->NEW_POS));
+                $equipGener->TEMP_SETPOINT = doubleval($this->units->controlTemperature($equipGener->TEMP_SETPOINT, 2, 1));
+                $equipGener->DWELLING_TIME = $this->units->time($equipGener->DWELLING_TIME, 2, 1);
+                $equipGener->NEW_POS = $this->units->time($equipGener->NEW_POS, 2, 1);
             }
             $key->equipGeneration = $equipGener;
         }
@@ -456,24 +471,22 @@ class Equipments extends Controller
         
         if ($typeEquipment == 0) {
             if (isset($input['equipmentId1'])) $equipId1 = intval($input['equipmentId1']);
-            if (isset($input['tempSetPoint'])) $tempSetPoint = floatval($input['tempSetPoint']);
-            if (isset($input['dwellingTime'])) $dwellingTime = floatval($input['dwellingTime']);
+            if (isset($input['tempSetPoint'])) $tempSetPoint = $this->units->controlTemperature(floatval($input['tempSetPoint']), 2, 0);
+            if (isset($input['dwellingTime'])) $dwellingTime = $this->units->time(floatval($input['dwellingTime']), 2, 0);
         } else if ($typeEquipment == 1) {
             if (isset($input['equipmentId1'])) $equipId1 = intval($input['equipmentId1']);
-            if (isset($input['dwellingTime'])) $dwellingTime = floatval($input['dwellingTime']);
-            if (isset($input['newPos'])) $newPos = $input['newPos'];
+            if (isset($input['dwellingTime'])) $dwellingTime = $this->units->time(floatval($input['dwellingTime']), 2, 0);
+            if (isset($input['newPos'])) $newPos = $this->units->time(floatval($input['newPos']), 2, 0);
         } else if ($typeEquipment == 2) {
             if (isset($input['equipmentId1'])) $equipId1 = intval($input['equipmentId1']);
         } else {
             if (isset($input['equipmentId1'])) $equipId1 = intval($input['equipmentId1']);
             if (isset($input['equipmentId2'])) $equipId2 = intval($input['equipmentId2']);
-            if (isset($input['tempSetPoint'])) $tempSetPoint = floatval($input['tempSetPoint']);
+            if (isset($input['dwellingTime'])) $dwellingTime = $this->units->time(floatval($input['dwellingTime']), 2, 0);
+            if (isset($input['tempSetPoint'])) $tempSetPoint = $this->units->controlTemperature(floatval($input['tempSetPoint']), 2, 0);
         }
         $equipGenZone = $input['equipGenZone'];
 
-        if ($nameE == null) return -1;
-        if (($equipId1 == null) || ($equipId1 == 0)) return -2;
-        if ($versionE == null) return -3;
         if (!$this->checkNameAndVersion($nameE, $versionE)) return -4;
         
         $equipment1 = Equipment::find($equipId1);
@@ -541,8 +554,33 @@ class Equipments extends Controller
                 $this->getDecryptBinary($equipment1->ID_EQUIP, $newEquip->ID_EQUIP);
             }
 
+            // add paramester equip generation
             $minMaxAvg = $this->getMinMax(1066);
             $minMaxDwell = $this->getMinMax($equipment1->ITEM_TS);
+            $minMaxTemp = $this->getMinMax(1093);
+            $equipGen = EquipGeneration::find($equipment1->ID_EQUIPGENERATION);
+            $eqpGenLoadRate = $avgProdintemp = $rotate = $posChange = null;
+
+            if ($typeEquipment == 0) {
+                $minMaxTemp = $this->getMinMax($equipment1->ITEM_TR);
+                $tempSetPoint = $this->units->controlTemperature(floatval($minMaxTemp->DEFAULT_VALUE), 2, 0);
+            } else if ($typeEquipment == 1) {
+                if ($equipGen) {
+                    $tempSetPoint = $equipGen->TEMP_SETPOINT;
+                    $dwellingTime = $equipGen->DWELLING_TIME;
+                    $eqpGenLoadRate = $equipGen->EQP_GEN_LOADRATE;
+                    $avgProdintemp = $equipGen->AVG_PRODINTEMP;
+                    $posChange = 1;
+                }
+            } else if ($typeEquipment == 2) {
+                if ($equipGen) {
+                    $tempSetPoint = $equipGen->TEMP_SETPOINT;
+                    $dwellingTime = $equipGen->DWELLING_TIME;
+                    $eqpGenLoadRate = $equipGen->EQP_GEN_LOADRATE;
+                    $avgProdintemp = $equipGen->AVG_PRODINTEMP;
+                    $rotate  = 1;
+                }
+            }
 
             $equipGeneration = new EquipGeneration();
             $equipGeneration->ID_EQUIP = $newEquip->ID_EQUIP;
@@ -553,11 +591,11 @@ class Equipments extends Controller
             $equipGeneration->DWELLING_TIME = ($dwellingTime > 0) ? $dwellingTime : $minMaxDwell->DEFAULT_VALUE;
             $equipGeneration->MOVING_CHANGE = 0;
             $equipGeneration->MOVING_POS = 0;
-            $equipGeneration->ROTATE = 0;
-            $equipGeneration->POS_CHANGE = 0;
+            $equipGeneration->ROTATE = ($rotate > 0) ? $rotate : 0;;
+            $equipGeneration->POS_CHANGE = ($posChange > 0) ? $posChange : 0;
             $equipGeneration->NEW_POS = ($newPos != null) ? $newPos : 0;
             $equipGeneration->EQP_GEN_STATUS = 0;
-            $equipGeneration->EQP_GEN_LOADRATE = 0;
+            $equipGeneration->EQP_GEN_LOADRATE = ($eqpGenLoadRate > 0) ? $eqpGenLoadRate : 0;
             $equipGeneration->save();
             Equipment::where('ID_EQUIP', $newEquip->ID_EQUIP)->update(['ID_EQUIPGENERATION' => $equipGeneration->ID_EQUIPGENERATION]);
 
@@ -775,7 +813,7 @@ class Equipments extends Controller
             $list = Ramps::where('ID_EQUIP', $idEquip)->orderBy('POSITION', 'ASC')->get();
 
             foreach ( $list as $ramps) {
-                $ramps->POSITION = $this->convert->rampsPositionUser($ramps->POSITION);
+                $ramps->POSITION = $this->units->rampsPosition($ramps->POSITION, 2, 1);
             }
         }
 
@@ -793,7 +831,7 @@ class Equipments extends Controller
             $list = Shelves::where('ID_EQUIP', $idEquip)->orderBy('SPACE', 'ASC')->get();
 
             foreach ( $list as $shelves) {
-                $shelves->SPACE = $this->convert->shelvesWidthUser($shelves->SPACE);
+                $shelves->SPACE = $this->units->shelvesWidth($shelves->SPACE, 2, 1);
             }
         }
 
@@ -817,11 +855,13 @@ class Equipments extends Controller
         foreach ($list as $key) {
             if ($equip) {
                 if ($this->equip->getCapability($equip->CAPABILITIES, 65536)) {
-                    $key->TEMPERATURE = $this->convert->timeUser($key->TEMPERATURE);
+                    $key->TEMPERATURE = $this->units->time($key->TEMPERATURE, 2, 1);
                 } else {
-                    $key->TEMPERATURE = $this->convert->controlTemperatureUser($key->TEMPERATURE);
+                    $key->TEMPERATURE = $this->units->controlTemperature($key->TEMPERATURE, 2, 1);
                 }
-                $key->CONSUMPTION_GETCOLD = $this->convert->consumptionUser($key->CONSUMPTION_GETCOLD, $equip->ID_COOLING_FAMILY, 2);
+                $key->CONSUMPTION_PERM = $this->units->consumption($key->CONSUMPTION_PERM, $equip->ID_COOLING_FAMILY, 2, 2, 1);
+
+                $key->CONSUMPTION_GETCOLD = $this->units->consumption($key->CONSUMPTION_GETCOLD, $equip->ID_COOLING_FAMILY, 3, 2, 1);
             }
         }
 
@@ -831,23 +871,26 @@ class Equipments extends Controller
     public function getEquipmentCharacts($idEquip)
     {
         $equipCharacts = EquipCharact::where('ID_EQUIP', $idEquip)->orderBy('X_POSITION', 'ASC')->get();
-        if (count($equipCharacts) > 0) {
+        $equipment = Equipment::find($idEquip);
+        if (count($equipCharacts) > 0 && $equipment && ($equipment->STD == 0)) {
             foreach ($equipCharacts as $equipCharact) {
-                $equipCharact->X_POSITION = floatval($equipCharact->X_POSITION);
-                $equipCharact->ALPHA_TOP = $this->convert->convectionCoeff($equipCharact->ALPHA_TOP);
-                $equipCharact->ALPHA_BOTTOM = $this->convert->convectionCoeff($equipCharact->ALPHA_BOTTOM);
-                $equipCharact->ALPHA_LEFT = $this->convert->convectionCoeff($equipCharact->ALPHA_LEFT);
-                $equipCharact->ALPHA_RIGHT = $this->convert->convectionCoeff($equipCharact->ALPHA_RIGHT);
-                $equipCharact->ALPHA_FRONT = $this->convert->convectionCoeff($equipCharact->ALPHA_FRONT);
-                $equipCharact->ALPHA_REAR = $this->convert->convectionCoeff($equipCharact->ALPHA_REAR);
+                $equipCharact->X_POSITION = $this->units->time(floatval($equipCharact->X_POSITION), 1, 1);
+                $equipCharact->ALPHA_TOP = $this->units->convectionCoeff($equipCharact->ALPHA_TOP, 2, 1);
+                $equipCharact->ALPHA_BOTTOM = $this->units->convectionCoeff($equipCharact->ALPHA_BOTTOM, 2, 1);
+                $equipCharact->ALPHA_LEFT = $this->units->convectionCoeff($equipCharact->ALPHA_LEFT, 2, 1);
+                $equipCharact->ALPHA_RIGHT = $this->units->convectionCoeff($equipCharact->ALPHA_RIGHT, 2, 1);
+                $equipCharact->ALPHA_FRONT = $this->units->convectionCoeff($equipCharact->ALPHA_FRONT, 2, 1);
+                $equipCharact->ALPHA_REAR = $this->units->convectionCoeff($equipCharact->ALPHA_REAR, 2, 1);
 
-                $equipCharact->TEMP_TOP = $this->convert->temperature($equipCharact->TEMP_TOP);
-                $equipCharact->TEMP_BOTTOM = $this->convert->temperature($equipCharact->TEMP_BOTTOM);
-                $equipCharact->TEMP_LEFT = $this->convert->temperature($equipCharact->TEMP_LEFT);
-                $equipCharact->TEMP_RIGHT = $this->convert->temperature($equipCharact->TEMP_RIGHT);
-                $equipCharact->TEMP_FRONT = $this->convert->temperature($equipCharact->TEMP_FRONT);
-                $equipCharact->TEMP_REAR = $this->convert->temperature($equipCharact->TEMP_REAR);
+                $equipCharact->TEMP_TOP = $this->units->temperature($equipCharact->TEMP_TOP, 2, 1);
+                $equipCharact->TEMP_BOTTOM = $this->units->temperature($equipCharact->TEMP_BOTTOM, 2, 1);
+                $equipCharact->TEMP_LEFT = $this->units->temperature($equipCharact->TEMP_LEFT, 2, 1);
+                $equipCharact->TEMP_RIGHT = $this->units->temperature($equipCharact->TEMP_RIGHT, 2, 1);
+                $equipCharact->TEMP_FRONT = $this->units->temperature($equipCharact->TEMP_FRONT, 2, 1);
+                $equipCharact->TEMP_REAR = $this->units->temperature($equipCharact->TEMP_REAR, 2, 1);
             }
+        } else if ((count($equipCharacts) < 0) && $equipment && ($equipment->STD != 0)) {
+            // some code here
         }
         return $equipCharacts;
     }
@@ -1064,6 +1107,7 @@ class Equipments extends Controller
         }
 
         $lfOffset = abs($maxValueY - $minValueY) * 0.15;
+
         if ($lfOffset > 0.0) {
             $minScaleY = $minValueY - $lfOffset;
             $maxScaleY = $maxValueY + $lfOffset;
@@ -1080,19 +1124,22 @@ class Equipments extends Controller
             $maxScaleY = $maxValueY + $lfOffset;
         }
 
-        $minScaleYtmp = round($this->convert->convertIdent($minScaleY, $unitIdent));
-        $maxScaleYtmp = round($this->convert->convertIdent($maxScaleY, $unitIdent));
-
+        $minScaleYtmp = $minScaleY;
+        $maxScaleYtmp = $maxScaleY;
+   
         if ($minScaleYtmp != $maxScaleYtmp) {
             $minScaleY = $minScaleYtmp;
             $maxScaleY = $maxScaleYtmp;
         }
 
-        if ($minScaleY < $minMax->LIMIT_MIN) $minScaleY = $minMax->LIMIT_MIN;
-        if ($maxScaleY > $minMax->LIMIT_MAX) $maxScaleY = $minMax->LIMIT_MAX;
+        $tempMin = $minMax->LIMIT_MIN;
+        $tempMax = $minMax->LIMIT_MAX;
 
-        $miniMum = $this->convert->convertIdent($minScaleY, $unitIdent);
-        $maxiMum = $this->convert->convertIdent($maxScaleY, $unitIdent);
+        if ($minScaleY < $tempMin) $minScaleY = $minMax->LIMIT_MIN;
+        if ($maxScaleY > $tempMax) $maxScaleY = $minMax->LIMIT_MAX;
+
+        $miniMum = round($this->convert->convertIdent($minScaleY, $unitIdent));
+        $maxiMum = round($this->convert->convertIdent($maxScaleY, $unitIdent));
 
         //refresh
         if ($typeChart == 1) {
@@ -1116,7 +1163,11 @@ class Equipments extends Controller
         for($i = 0; $i < count($listOfPoints); $i++) {
     
             $listOfPoints[$i]['X_POSITION'] = $this->svg->getAxisXPos(doubleval($listOfPoints[$i]['X_POSITION']));
-            $listOfPoints[$i]['Y_POINT'] = $this->svg->getAxisYPos(doubleval($listOfPoints[$i]['Y_POINT']), $miniMum, $maxiMum);
+            // $listOfPoints[$i]['Y_POINT'] = $this->svg->getAxisYPos(doubleval($listOfPoints[$i]['Y_POINT']), $miniMum, $maxiMum);
+            $listOfPoints[$i]['Y_POINT'] = $this->svg->getAxisYPos(
+                $this->convert->convertIdent(doubleval($listOfPoints[$i]['Y_POINT']), $unitIdent), 
+                $miniMum, 
+                $maxiMum);
 
             array_push($posTabY, $listOfPoints[$i]['Y_POINT']);
             if ($i == 0) {
@@ -1261,10 +1312,10 @@ class Equipments extends Controller
         if ($equipGeneration) {
             $array = [
                 'isCapabilities' => $isCapabilities,
-                'REGUL_TEMP' => $equipGeneration->TEMP_SETPOINT,
-                'DWELLING_TIME' => $equipGeneration->DWELLING_TIME,
-                'PRODTEMP' => $equipGeneration->AVG_PRODINTEMP,
-                'LOADINGRATE' => $equipGeneration->EQP_GEN_LOADRATE
+                'REGUL_TEMP' => $this->units->controlTemperature($equipGeneration->TEMP_SETPOINT, 0, 1),
+                'DWELLING_TIME' => $this->units->time($equipGeneration->DWELLING_TIME, 0, 1),
+                'PRODTEMP' => $this->units->prodTemperature($equipGeneration->AVG_PRODINTEMP, 1, 1),
+                'LOADINGRATE' => $this->units->toc($equipGeneration->EQP_GEN_LOADRATE, 1, 1)
             ];
         }
         return $array;
@@ -1277,9 +1328,9 @@ class Equipments extends Controller
         $ID_EQUIP = $REGUL_TEMP = $DWELLING_TIME = $PRODTEMP = $LOADINGRATE = $result = null;
 
         if (isset($input['ID_EQUIP'])) $ID_EQUIP = intval($input['ID_EQUIP']);
-        if (isset($input['REGUL_TEMP'])) $REGUL_TEMP = floatval($input['REGUL_TEMP']);
-        if (isset($input['DWELLING_TIME'])) $DWELLING_TIME = floatval($input['DWELLING_TIME']);
-        if (isset($input['PRODTEMP'])) $PRODTEMP = floatval($input['PRODTEMP']);
+        if (isset($input['REGUL_TEMP'])) $REGUL_TEMP = $this->units->controlTemperature(floatval($input['REGUL_TEMP']), 0, 0);
+        if (isset($input['DWELLING_TIME'])) $DWELLING_TIME = $this->units->time(floatval($input['DWELLING_TIME']), 0, 0);
+        if (isset($input['PRODTEMP'])) $PRODTEMP = $this->units->prodTemperature(floatval($input['PRODTEMP']), 1, 0);
         if (isset($input['LOADINGRATE'])) $LOADINGRATE = floatval($input['LOADINGRATE']);
 
         $equipment = Equipment::find($ID_EQUIP);
@@ -1327,10 +1378,6 @@ class Equipments extends Controller
         if ($priceEnergy != 0) $priceEnergy =  $priceEnergy;
 
         $energy = $this->equip->initEnergyDef($id);
-
-        if ($intervalW != 0) $intervalW = $intervalW;
-
-        if ($intervalL != 0) $intervalL =$intervalL;
 
         $res = [
             'Price' => $this->equip->cryogenPrice($priceEnergy, $energy),
@@ -1419,8 +1466,7 @@ class Equipments extends Controller
     public function saveEquipment()
     {
         $input = $this->request->all();
-
-
+        
         $ID_EQUIP = $EQUIP_NAME = $EQUIP_VERSION = $EQUIP_RELEASE = $EQUIP_COMMENT = $EQP_LENGTH = $EQP_WIDTH = $EQP_HEIGHT = $NB_TR = $NB_TS = $NB_VC = $MAX_FLOW_RATE = $TMP_REGUL_MIN = $MAX_NOZZLES_BY_RAMP = $MAX_RAMPS = $Ramps = $Shelves = $Consumptions = null;
 
         if (isset($input['ID_EQUIP'])) $ID_EQUIP = intval($input['ID_EQUIP']);
@@ -1576,19 +1622,19 @@ class Equipments extends Controller
     {
         $equipCharact = EquipCharact::find($id);
         if ($equipCharact) {
-            $equipCharact->ALPHA_TOP = $this->convert->convectionCoeff($equipCharact->ALPHA_TOP);
-            $equipCharact->ALPHA_BOTTOM = $this->convert->convectionCoeff($equipCharact->ALPHA_BOTTOM);
-            $equipCharact->ALPHA_LEFT = $this->convert->convectionCoeff($equipCharact->ALPHA_LEFT);
-            $equipCharact->ALPHA_RIGHT = $this->convert->convectionCoeff($equipCharact->ALPHA_RIGHT);
-            $equipCharact->ALPHA_FRONT = $this->convert->convectionCoeff($equipCharact->ALPHA_FRONT);
-            $equipCharact->ALPHA_REAR = $this->convert->convectionCoeff($equipCharact->ALPHA_REAR);
+            $equipCharact->ALPHA_TOP = $this->units->convectionCoeff($equipCharact->ALPHA_TOP, 2, 1);
+            $equipCharact->ALPHA_BOTTOM = $this->units->convectionCoeff($equipCharact->ALPHA_BOTTOM, 2, 1);
+            $equipCharact->ALPHA_LEFT = $this->units->convectionCoeff($equipCharact->ALPHA_LEFT, 2, 1);
+            $equipCharact->ALPHA_RIGHT = $this->units->convectionCoeff($equipCharact->ALPHA_RIGHT, 2, 1);
+            $equipCharact->ALPHA_FRONT = $this->units->convectionCoeff($equipCharact->ALPHA_FRONT, 2, 1);
+            $equipCharact->ALPHA_REAR = $this->units->convectionCoeff($equipCharact->ALPHA_REAR, 2, 1);
 
-            $equipCharact->TEMP_TOP = $this->convert->temperature($equipCharact->TEMP_TOP);
-            $equipCharact->TEMP_BOTTOM = $this->convert->temperature($equipCharact->TEMP_BOTTOM);
-            $equipCharact->TEMP_LEFT = $this->convert->temperature($equipCharact->TEMP_LEFT);
-            $equipCharact->TEMP_RIGHT = $this->convert->temperature($equipCharact->TEMP_RIGHT);
-            $equipCharact->TEMP_FRONT = $this->convert->temperature($equipCharact->TEMP_FRONT);
-            $equipCharact->TEMP_REAR = $this->convert->temperature($equipCharact->TEMP_REAR);
+            $equipCharact->TEMP_TOP = $this->units->temperature($equipCharact->TEMP_TOP, 2, 1);
+            $equipCharact->TEMP_BOTTOM = $this->units->temperature($equipCharact->TEMP_BOTTOM, 2, 1);
+            $equipCharact->TEMP_LEFT = $this->units->temperature($equipCharact->TEMP_LEFT, 2, 1);
+            $equipCharact->TEMP_RIGHT = $this->units->temperature($equipCharact->TEMP_RIGHT, 2, 1);
+            $equipCharact->TEMP_FRONT = $this->units->temperature($equipCharact->TEMP_FRONT, 2, 1);
+            $equipCharact->TEMP_REAR = $this->units->temperature($equipCharact->TEMP_REAR, 2, 1);
         }
         return $equipCharact;
     }
@@ -1606,11 +1652,11 @@ class Equipments extends Controller
     public function reCalculate($id)
     {
         $study = Study::find($id);
-
         $studyEquipments = $study->studyEquipments;
-
+        $this->stdeqp->runStudyCleaner($id, -1, 48);
         if (count($studyEquipments) > 0) {
             foreach ($studyEquipments as $sEquip) {
+                
                 $sEquip->BRAIN_SAVETODB = 0;
                 $sEquip->BRAIN_TYPE = 0;
                 $sEquip->EQUIP_STATUS = 0;
@@ -1622,6 +1668,7 @@ class Equipments extends Controller
                 $sEquip->save();
             }
         }
+        $this->stdeqp->afterStudyCleaner($id, -1, 48, false, false, false, false);
 
         return 1;
     }
@@ -1633,8 +1680,8 @@ class Equipments extends Controller
         if ($equipment) {
             $equipGeneration = EquipGeneration::where('ID_EQUIP', $equipment->ID_EQUIP)->first();
             if ($equipGeneration) {
-                $tr_current = $equipGeneration->TEMP_SETPOINT;
-                $tr_new = $equipGeneration->TEMP_SETPOINT;
+                $tr_current = $this->units->controlTemperature($equipGeneration->TEMP_SETPOINT, 0, 1);
+                $tr_new = $this->units->controlTemperature($equipGeneration->TEMP_SETPOINT, 0, 1);
             }
         }
 
@@ -1654,18 +1701,20 @@ class Equipments extends Controller
         $TEMP_TOP = $TEMP_BOTTOM = $TEMP_LEFT = $TEMP_RIGHT = $TEMP_FRONT = $TEMP_REAR = null;
 
         if (isset($input['ID_EQUIPCHARAC'])) $ID_EQUIPCHARAC = intval($input['ID_EQUIPCHARAC']);
-        if (isset($input['ALPHA_TOP'])) $ALPHA_TOP = floatval($input['ALPHA_TOP']);
-        if (isset($input['ALPHA_BOTTOM'])) $ALPHA_BOTTOM = floatval($input['ALPHA_BOTTOM']);
-        if (isset($input['ALPHA_LEFT'])) $ALPHA_LEFT = floatval($input['ALPHA_LEFT']);
-        if (isset($input['ALPHA_RIGHT'])) $ALPHA_RIGHT = floatval($input['ALPHA_RIGHT']);
-        if (isset($input['ALPHA_FRONT'])) $ALPHA_FRONT = floatval($input['ALPHA_FRONT']);
-        if (isset($input['ALPHA_REAR'])) $ALPHA_REAR = floatval($input['ALPHA_REAR']);
-        if (isset($input['TEMP_TOP'])) $TEMP_TOP = floatval($input['TEMP_TOP']);
-        if (isset($input['TEMP_BOTTOM'])) $TEMP_BOTTOM = floatval($input['TEMP_BOTTOM']);
-        if (isset($input['TEMP_LEFT'])) $TEMP_LEFT = floatval($input['TEMP_LEFT']);
-        if (isset($input['TEMP_RIGHT'])) $TEMP_RIGHT = floatval($input['TEMP_RIGHT']);
-        if (isset($input['TEMP_FRONT'])) $TEMP_FRONT = floatval($input['TEMP_FRONT']);
-        if (isset($input['TEMP_REAR'])) $TEMP_REAR = floatval($input['TEMP_REAR']);
+
+        if (isset($input['ALPHA_TOP'])) $ALPHA_TOP = $this->units->convectionCoeff(floatval($input['ALPHA_TOP']), 2, 0);
+        if (isset($input['ALPHA_BOTTOM'])) $ALPHA_BOTTOM = $this->units->convectionCoeff(floatval($input['ALPHA_BOTTOM']), 2, 0);
+        if (isset($input['ALPHA_LEFT'])) $ALPHA_LEFT = $this->units->convectionCoeff(floatval($input['ALPHA_LEFT']), 2, 0);
+        if (isset($input['ALPHA_RIGHT'])) $ALPHA_RIGHT = $this->units->convectionCoeff(floatval($input['ALPHA_RIGHT']), 2, 0);
+        if (isset($input['ALPHA_FRONT'])) $ALPHA_FRONT = $this->units->convectionCoeff(floatval($input['ALPHA_FRONT']), 2, 0);
+        if (isset($input['ALPHA_REAR'])) $ALPHA_REAR = $this->units->convectionCoeff(floatval($input['ALPHA_REAR']), 2, 0);
+
+        if (isset($input['TEMP_TOP'])) $TEMP_TOP = $this->units->temperature(floatval($input['TEMP_TOP']), 2, 0);
+        if (isset($input['TEMP_BOTTOM'])) $TEMP_BOTTOM = $this->units->temperature(floatval($input['TEMP_BOTTOM']), 2, 0);
+        if (isset($input['TEMP_LEFT'])) $TEMP_LEFT = $this->units->temperature(floatval($input['TEMP_LEFT']), 2, 0);
+        if (isset($input['TEMP_RIGHT'])) $TEMP_RIGHT = $this->units->temperature(floatval($input['TEMP_RIGHT']), 2, 0);
+        if (isset($input['TEMP_FRONT'])) $TEMP_FRONT = $this->units->temperature(floatval($input['TEMP_FRONT']), 2, 0);
+        if (isset($input['TEMP_REAR'])) $TEMP_REAR = $this->units->temperature(floatval($input['TEMP_REAR']), 2, 0);
 
         $equipCharact = EquipCharact::find($ID_EQUIPCHARAC);
         if ($equipCharact) {
@@ -1742,8 +1791,8 @@ class Equipments extends Controller
                 // code have study;
 
                 if ($equipGeneration) {
-                    $equipGeneration->MOVING_POS = $lfOldTR;
-                    $equipGeneration->TEMP_SETPOINT = $lfNewTR;
+                    $equipGeneration->MOVING_POS = $this->units->controlTemperature($lfOldTR, 0, 0);
+                    $equipGeneration->TEMP_SETPOINT = $this->units->controlTemperature($lfNewTR, 0, 0);
                     $equipGeneration->MOVING_CHANGE = 2;
                     $equipGeneration->save();
 
@@ -1764,18 +1813,19 @@ class Equipments extends Controller
         $equipRs->shelvesWidthSymbol = $this->convert->shelvesWidthSymbol();
         $equipRs->rampsPositionSymbol = $this->convert->rampsPositionSymbol();
 
-        $equipRs->EQP_LENGTH = $this->convert->equipDimensionUser($equipRs->EQP_LENGTH);
-        $equipRs->EQP_WIDTH = $this->convert->equipDimensionUser($equipRs->EQP_WIDTH);
-        $equipRs->EQP_HEIGHT = $this->convert->equipDimensionUser($equipRs->EQP_HEIGHT);
-        $equipRs->MAX_FLOW_RATE = $this->convert->consumptionUser($equipRs->MAX_FLOW_RATE, $equipRs->ID_COOLING_FAMILY, 1);
-        $equipRs->TMP_REGUL_MIN = $this->convert->controlTemperatureUser($equipRs->TMP_REGUL_MIN);
+        $equipRs->EQP_LENGTH = $this->units->equipDimension($equipRs->EQP_LENGTH, 2, 1);            
+        $equipRs->EQP_WIDTH = $this->units->equipDimension($equipRs->EQP_WIDTH, 2, 1);
+        $equipRs->EQP_HEIGHT = $this->units->equipDimension($equipRs->EQP_HEIGHT, 2, 1);
+        $equipRs->MAX_FLOW_RATE = doubleval($this->units->consumption($equipRs->MAX_FLOW_RATE, $equipRs->ID_COOLING_FAMILY, 1, 2, 1));
+        $equipRs->TMP_REGUL_MIN = $this->units->controlTemperature($equipRs->TMP_REGUL_MIN, 0, 1);
 
         $equipGenerRs = EquipGeneration::find($equipRs->ID_EQUIPGENERATION);
     
         if ($equipGenerRs) { 
-            $equipGenerRs->TEMP_SETPOINT = doubleval($this->convert->controlTemperatureUser($equipGenerRs->TEMP_SETPOINT));
-            $equipGenerRs->DWELLING_TIME = doubleval($this->convert->timeUser($equipGenerRs->DWELLING_TIME));
-            $equipGenerRs->NEW_POS = doubleval($this->convert->timeUser($equipGenerRs->NEW_POS));
+
+            $equipGenerRs->TEMP_SETPOINT = doubleval($this->units->controlTemperature($equipGenerRs->TEMP_SETPOINT, 2, 1));
+            $equipGenerRs->DWELLING_TIME = $this->units->time($equipGenerRs->DWELLING_TIME, 2, 1);
+            $equipGenerRs->NEW_POS = $this->units->time($equipGenerRs->NEW_POS, 2, 1);
         }
         $equipRs->equipGeneration = $equipGenerRs;
         
@@ -1842,7 +1892,7 @@ class Equipments extends Controller
 
     private function runEquipmentCalculation($IdEquipgeneration)
     {
-        $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $IdEquipgeneration);
+        $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $IdEquipgeneration, 0, 1, 1, 'c:\\temp\\equipment_builder_log.txt');
         return $this->kernel->getKernelObject('EquipmentBuilder')->EBEquipmentCalculation($conf);
     }
 
@@ -1981,12 +2031,70 @@ class Equipments extends Controller
                 $equipGenZone->REAR_PRM1 = $listEquipGenZone[$i]['REAR_PRM1'];
                 $equipGenZone->REAR_PRM2 = $listEquipGenZone[$i]['REAR_PRM2'];
                 $equipGenZone->REAR_PRM3 = $listEquipGenZone[$i]['REAR_PRM3'];
+
+                 // *_CHANGE = 2
+                if ($equipGenZone->TOP_ADIABAT == 0 && $equipGenZone->TOP_CHANGE == 2) {
+                    $equipGenZone->TOP_PRM1 = $this->units->convectionCoeff($equipGenZone->TOP_PRM1, 2, 0);
+                    $equipGenZone->TOP_PRM2 = $this->units->convectionCoeff($equipGenZone->TOP_PRM2, 2, 0);
+                    $equipGenZone->TOP_PRM3 = $this->units->convectionCoeff($equipGenZone->TOP_PRM3, 2, 0);
+                }
+                if ($equipGenZone->BOTTOM_ADIABAT == 0 && $equipGenZone->BOTTOM_CHANGE == 2) {
+                    $equipGenZone->BOTTOM_PRM1 = $this->units->convectionCoeff($equipGenZone->BOTTOM_PRM1, 2, 0);
+                    $equipGenZone->BOTTOM_PRM2 = $this->units->convectionCoeff($equipGenZone->BOTTOM_PRM2, 2, 0);
+                    $equipGenZone->BOTTOM_PRM3 = $this->units->convectionCoeff($equipGenZone->BOTTOM_PRM3, 2, 0);
+                }
+                if ($equipGenZone->LEFT_ADIABAT == 0 && $equipGenZone->LEFT_CHANGE == 2) {
+                    $equipGenZone->LEFT_PRM1 = $this->units->convectionCoeff($equipGenZone->LEFT_PRM1, 2, 0);
+                    $equipGenZone->LEFT_PRM2 = $this->units->convectionCoeff($equipGenZone->LEFT_PRM2, 2, 0);
+                    $equipGenZone->LEFT_PRM3 = $this->units->convectionCoeff($equipGenZone->LEFT_PRM3, 2, 0);
+                }
+                if ($equipGenZone->RIGHT_ADIABAT == 0 && $equipGenZone->RIGHT_CHANGE == 2) {
+                    $equipGenZone->RIGHT_PRM1 = $this->units->convectionCoeff($equipGenZone->RIGHT_PRM1, 2, 0);
+                    $equipGenZone->RIGHT_PRM2 = $this->units->convectionCoeff($equipGenZone->RIGHT_PRM2, 2, 0);
+                    $equipGenZone->RIGHT_PRM3 = $this->units->convectionCoeff($equipGenZone->RIGHT_PRM3, 2, 0);
+                }
+                if ($equipGenZone->FRONT_ADIABAT == 0 && $equipGenZone->FRONT_CHANGE == 2) {
+                    $equipGenZone->FRONT_PRM1 = $this->units->convectionCoeff($equipGenZone->FRONT_PRM1, 2, 0);
+                    $equipGenZone->FRONT_PRM2 = $this->units->convectionCoeff($equipGenZone->FRONT_PRM2, 2, 0);
+                    $equipGenZone->FRONT_PRM3 = $this->units->convectionCoeff($equipGenZone->FRONT_PRM3, 2, 0);
+                }
+                if ($equipGenZone->REAR_ADIABAT == 0 && $equipGenZone->REAR_CHANGE == 2) {
+                    $equipGenZone->REAR_PRM1 = $this->units->convectionCoeff($equipGenZone->REAR_PRM1, 2, 0);
+                    $equipGenZone->REAR_PRM2 = $this->units->convectionCoeff($equipGenZone->REAR_PRM2, 2, 0);
+                    $equipGenZone->REAR_PRM3 = $this->units->convectionCoeff($equipGenZone->REAR_PRM3, 2, 0);
+                }
+
+                // *_CHANGE = 3
+                if ($equipGenZone->TOP_ADIABAT == 0 && $equipGenZone->TOP_CHANGE == 3) {
+                    $equipGenZone->TOP_PRM1 = $this->units->lenght($equipGenZone->TOP_PRM1, 2, 0);
+                    $equipGenZone->TOP_PRM2 = $this->units->conductivity($equipGenZone->TOP_PRM2, 2, 0);
+                }
+                if ($equipGenZone->BOTTOM_ADIABAT == 0 && $equipGenZone->BOTTOM_CHANGE == 3) {
+                    $equipGenZone->BOTTOM_PRM1 = $this->units->lenght($equipGenZone->BOTTOM_PRM1, 2, 0);
+                    $equipGenZone->BOTTOM_PRM2 = $this->units->conductivity($equipGenZone->BOTTOM_PRM2, 2, 0);
+                }
+                if ($equipGenZone->LEFT_ADIABAT == 0 && $equipGenZone->LEFT_CHANGE == 3) {
+                    $equipGenZone->LEFT_PRM1 = $this->units->lenght($equipGenZone->LEFT_PRM1, 2, 1);
+                    $equipGenZone->LEFT_PRM2 = $this->units->conductivity($equipGenZone->LEFT_PRM2, 2, 0);
+                }
+                if ($equipGenZone->RIGHT_ADIABAT == 0 && $equipGenZone->RIGHT_CHANGE == 3) {
+                    $equipGenZone->RIGHT_PRM1 = $this->units->lenght($equipGenZone->RIGHT_PRM1, 2, 1);
+                    $equipGenZone->RIGHT_PRM2 = $this->units->conductivity($equipGenZone->RIGHT_PRM2, 2, 0);
+                }
+                if ($equipGenZone->FRONT_ADIABAT == 0 && $equipGenZone->FRONT_CHANGE == 3) {
+                    $equipGenZone->FRONT_PRM1 = $this->units->lenght($equipGenZone->FRONT_PRM1, 2, 1);
+                    $equipGenZone->FRONT_PRM2 = $this->units->conductivity($equipGenZone->FRONT_PRM2, 2, 0);
+                }
+                if ($equipGenZone->REAR_ADIABAT == 0 && $equipGenZone->REAR_CHANGE == 3) {
+                    $equipGenZone->REAR_PRM1 = $this->units->lenght($equipGenZone->REAR_PRM1, 2, 1);
+                    $equipGenZone->REAR_PRM2 = $this->units->conductivity($equipGenZone->REAR_PRM2, 2, 0);
+                }
     
                 $equipGenZone->save();
             }
         } else {
             for ($i = 1; $i <= intval($numberOfZone); $i++) {
-                $equipGenZone = new EquipGenZone();	
+                $equipGenZone = new EquipGenZone(); 
                 $equipGenZone->ID_EQUIPGENERATION = $idEquipGeneration;
                 $equipGenZone->ZONE_NUMBER = $i;
                 $equipGenZone->TEMP_SENSOR = 0;
@@ -2069,7 +2177,6 @@ class Equipments extends Controller
         return true;
     }
 
-    // HAIDT
     public function getEquipmentFilter($id)
     {
         $equipment = Equipment::find($id);
@@ -2089,6 +2196,104 @@ class Equipments extends Controller
                 ->orderBy('ZONE_NUMBER', 'ASC')->get();
 
                 if (count($listEquipGenZone) > 0) {
+
+                    foreach ($listEquipGenZone as $key) {
+                        // AlphaI/Alpha in the mylar zone
+                        if ($key->TOP_ADIABAT == 0 && $key->TOP_CHANGE == 2) {
+                            $key->TOP_PRM1 = $this->units->convectionCoeff($key->TOP_PRM1, 2, 1);
+                        }
+                        if ($key->BOTTOM_ADIABAT == 0 && $key->BOTTOM_CHANGE == 2) {
+                            $key->BOTTOM_PRM1 = $this->units->convectionCoeff($key->BOTTOM_PRM1, 2, 1);
+                        }
+                        if ($key->LEFT_ADIABAT == 0 && $key->LEFT_CHANGE == 2) {
+                            $key->LEFT_PRM1 = $this->units->convectionCoeff($key->LEFT_PRM1, 2, 1);
+                        }
+                        if ($key->RIGHT_ADIABAT == 0 && $key->RIGHT_CHANGE == 2) {
+                            $key->RIGHT_PRM1 = $this->units->convectionCoeff($key->RIGHT_PRM1, 2, 1);
+                        }
+                        if ($key->FRONT_ADIABAT == 0 && $key->FRONT_CHANGE == 2) {
+                            $key->FRONT_PRM1 = $this->units->convectionCoeff($key->FRONT_PRM1, 2, 1);
+                        }
+                        if ($key->REAR_ADIABAT == 0 && $key->REAR_CHANGE == 2) {
+                            $key->REAR_PRM1 = $this->units->convectionCoeff($key->REAR_PRM1, 2, 1);
+                        }
+                        // Alpha spraying zone
+                        if ($key->TOP_ADIABAT == 0 && $key->TOP_CHANGE == 2) {
+                            $key->TOP_PRM2 = $this->units->convectionCoeff($key->TOP_PRM2, 2, 1);
+                        }
+                        if ($key->BOTTOM_ADIABAT == 0 && $key->BOTTOM_CHANGE == 2) {
+                            $key->BOTTOM_PRM2 = $this->units->convectionCoeff($key->BOTTOM_PRM2, 2, 1);
+                        }
+                        if ($key->LEFT_ADIABAT == 0 && $key->LEFT_CHANGE == 2) {
+                            $key->LEFT_PRM2 = $this->units->convectionCoeff($key->LEFT_PRM2, 2, 1);
+                        }
+                        if ($key->RIGHT_ADIABAT == 0 && $key->RIGHT_CHANGE == 2) {
+                            $key->RIGHT_PRM2 = $this->units->convectionCoeff($key->RIGHT_PRM2, 2, 1);
+                        }
+                        if ($key->FRONT_ADIABAT == 0 && $key->FRONT_CHANGE == 2) {
+                            $key->FRONT_PRM2 = $this->units->convectionCoeff($key->FRONT_PRM2, 2, 1);
+                        }
+                        if ($key->REAR_ADIABAT == 0 && $key->REAR_CHANGE == 2) {
+                            $key->REAR_PRM2 = $this->units->convectionCoeff($key->REAR_PRM2, 2, 1);
+                        }
+                        // Alpha stabilization zone
+                        if ($key->TOP_ADIABAT == 0 && $key->TOP_CHANGE == 2) {
+                            $key->TOP_PRM3 = $this->units->convectionCoeff($key->TOP_PRM3, 2, 1);
+                        }
+                        if ($key->BOTTOM_ADIABAT == 0 && $key->BOTTOM_CHANGE == 2) {
+                            $key->BOTTOM_PRM3 = $this->units->convectionCoeff($key->BOTTOM_PRM3, 2, 1);
+                        }
+                        if ($key->LEFT_ADIABAT == 0 && $key->LEFT_CHANGE == 2) {
+                            $key->LEFT_PRM3 = $this->units->convectionCoeff($key->LEFT_PRM3, 2, 1);
+                        }
+                        if ($key->RIGHT_ADIABAT == 0 && $key->RIGHT_CHANGE == 2) {
+                            $key->RIGHT_PRM3 = $this->units->convectionCoeff($key->RIGHT_PRM3, 2, 1);
+                        }
+                        if ($key->FRONT_ADIABAT == 0 && $key->FRONT_CHANGE == 2) {
+                            $key->FRONT_PRM3 = $this->units->convectionCoeff($key->FRONT_PRM3, 2, 1);
+                        }
+                        if ($key->REAR_ADIABAT == 0 && $key->REAR_CHANGE == 2) {
+                            $key->REAR_PRM3 = $this->units->convectionCoeff($key->REAR_PRM3, 2, 1);
+                        }
+                        // Insulation tickness
+                        if ($key->TOP_ADIABAT == 0 && $key->TOP_CHANGE == 3) {
+                            $key->TOP_PRM1 = $this->units->lenght($key->TOP_PRM1, 2, 1);
+                        }
+                        if ($key->BOTTOM_ADIABAT == 0 && $key->BOTTOM_CHANGE == 3) {
+                            $key->BOTTOM_PRM1 = $this->units->lenght($key->BOTTOM_PRM1, 2, 1);
+                        }
+                        if ($key->LEFT_ADIABAT == 0 && $key->LEFT_CHANGE == 3) {
+                            $key->LEFT_PRM1 = $this->units->lenght($key->LEFT_PRM1, 2, 1);
+                        }
+                        if ($key->RIGHT_ADIABAT == 0 && $key->RIGHT_CHANGE == 3) {
+                            $key->RIGHT_PRM1 = $this->units->lenght($key->RIGHT_PRM1, 2, 1);
+                        }
+                        if ($key->FRONT_ADIABAT == 0 && $key->FRONT_CHANGE == 3) {
+                            $key->FRONT_PRM1 = $this->units->lenght($key->FRONT_PRM1, 2, 1);
+                        }
+                        if ($key->REAR_ADIABAT == 0 && $key->REAR_CHANGE == 3) {
+                            $key->REAR_PRM1 = $this->units->lenght($key->REAR_PRM1, 2, 1);
+                        }
+                        // Insulation conductivity
+                        if ($key->TOP_ADIABAT == 0 && $key->TOP_CHANGE == 3) {
+                            $key->TOP_PRM2 = $this->units->conductivity($key->TOP_PRM2, 2, 1);
+                        }
+                        if ($key->BOTTOM_ADIABAT == 0 && $key->BOTTOM_CHANGE == 3) {
+                            $key->BOTTOM_PRM2 = $this->units->conductivity($key->BOTTOM_PRM2, 2, 1);
+                        }
+                        if ($key->LEFT_ADIABAT == 0 && $key->LEFT_CHANGE == 3) {
+                            $key->LEFT_PRM2 = $this->units->conductivity($key->LEFT_PRM2, 2, 1);
+                        }
+                        if ($key->RIGHT_ADIABAT == 0 && $key->RIGHT_CHANGE == 3) {
+                            $key->RIGHT_PRM2 = $this->units->conductivity($key->RIGHT_PRM2, 2, 1);
+                        }
+                        if ($key->FRONT_ADIABAT == 0 && $key->FRONT_CHANGE == 3) {
+                            $key->FRONT_PRM2 = $this->units->conductivity($key->FRONT_PRM2, 2, 1);
+                        }
+                        if ($key->REAR_ADIABAT == 0 && $key->REAR_CHANGE == 3) {
+                            $key->REAR_PRM2 = $this->units->conductivity($key->REAR_PRM2, 2, 1);
+                        }
+                    }
                     $equipment->EquipGenZone = $listEquipGenZone;
                 } else {
                     $checkGenZone = true;
@@ -2147,5 +2352,269 @@ class Equipments extends Controller
         return $equipment;
     }
 
-    // end HAIDT
+    public function checkEquipment()
+    {
+        $input = $this->request->all();
+
+        $nameE = $typeCalculate = $versionE = $equipId1 = $equipId2 = $tempSetPoint0 = $tempSetPoint3 = $dwellingTime0 = $dwellingTime1 = $dwellingTime3 = $newPos = $typeEquipment = null;
+        
+        if (isset($input['typeEquipment'])) $typeEquipment = intval($input['typeEquipment']);
+        if (isset($input['nameEquipment'])) $nameE = $input['nameEquipment'];
+        if (isset($input['versionEquipment'])) $versionE = floatval($input['versionEquipment']);
+        if (isset($input['typeCalculate'])) $typeCalculate = intval($input['typeCalculate']);
+        
+        if ($typeEquipment == 0) {
+            if (isset($input['equipmentId1'])) $equipId1 = intval($input['equipmentId1']);
+            if (isset($input['tempSetPoint'])) $tempSetPoint0 = floatval($input['tempSetPoint']);
+            if (isset($input['dwellingTime'])) $dwellingTime0 = floatval($input['dwellingTime']);
+        } else if ($typeEquipment == 1) {
+            if (isset($input['equipmentId1'])) $equipId1 = intval($input['equipmentId1']);
+            if (isset($input['dwellingTime'])) $dwellingTime1 = floatval($input['dwellingTime']);
+            if (isset($input['newPos'])) $newPos = $input['newPos'];
+        } else if ($typeEquipment == 2) {
+            if (isset($input['equipmentId1'])) $equipId1 = intval($input['equipmentId1']);
+        } else {
+            if (isset($input['equipmentId1'])) $equipId1 = intval($input['equipmentId1']);
+            if (isset($input['equipmentId2'])) $equipId2 = intval($input['equipmentId2']);
+            if (isset($input['tempSetPoint'])) $tempSetPoint3 = floatval($input['tempSetPoint']);
+            if (isset($input['dwellingTime'])) $dwellingTime3 = floatval($input['dwellingTime']);
+        }
+
+        $eq = Equipment::find($equipId1);
+
+        if ($typeEquipment == 3) {
+            $eq2 = Equipment::find($equipId2);
+            $str1 = null;
+            $str2 = null;
+            $min_Dt = null;
+            $max_Dt = null;
+            $min_Tr = null;
+            $max_Tr = null;
+
+            // get min max for TS
+            if ($dwellingTime3 != null) {
+                $limitItem = ( $eq && ($eq->ITEM_TS > 0)) ? $eq->ITEM_TS : 1068;
+                $limitItem2 = ( $eq2 && ($eq2->ITEM_TS > 0)) ? $eq2->ITEM_TS : 1068;
+
+                $mm = $this->minmax->getMinMaxTimes($limitItem, 2);
+                $mm2 = $this->minmax->getMinMaxTimes($limitItem2, 2);
+
+                if ($mm->LIMIT_MIN < $mm2->LIMIT_MIN) {
+                    $str1 = $this->units->time($mm2->LIMIT_MIN, 2, 1);
+                } else {
+                    $str1 = $this->units->time($mm->LIMIT_MIN, 2, 1);
+                }
+
+                if ($mm->LIMIT_MAX < $mm2->LIMIT_MAX) {
+                    $str2 = $this->units->time($mm->LIMIT_MAX, 2, 1);
+                } else {
+                    $str2 = $this->units->time($mm2->LIMIT_MAX, 2, 1);
+                }
+
+                $min_Dt = doubleval($str1);
+                $max_Dt = doubleval($str2);
+
+                if ($min_Dt > $max_Dt) {
+                    $lfTmp  = $min_Dt;
+                    $min_Dt = $max_Dt;
+                    $max_Dt = $lfTmp;
+                }
+
+                $dwellingTime3 = $this->units->time($dwellingTime3, 2, 0);
+
+                if ($dwellingTime3 < $min_Dt || $dwellingTime3 > $max_Dt ) {
+                    return  [
+                        "Message" => "Value out of range in Dwelling Time (" . doubleval($min_Dt) . " : " . doubleval($max_Dt) . ")"
+                    ];
+                }
+            }
+
+            // get min max for TR
+
+            if ($tempSetPoint3 != null) {
+                $limitItemTR = ( $eq && ($eq->ITEM_TR > 0)) ? $eq->ITEM_TR : 1067;
+                $limitItem2TR = ( $eq2 && ($eq2->ITEM_TR > 0)) ? $eq2->ITEM_TR : 1067;
+
+                $mm = $this->minmax->getMinMaxTimes($limitItemTR, 2);
+                $mm2 = $this->minmax->getMinMaxTimes($limitItem2TR, 2);
+
+                if ($mm->LIMIT_MIN < $mm2->LIMIT_MIN) {
+                    $str1 = $this->units->controlTemperature($mm2->LIMIT_MIN, 2, 1);
+                } else {
+                    $str1 = $this->units->controlTemperature($mm->LIMIT_MIN, 2, 1);
+                }
+
+                if ($mm->LIMIT_MAX < $mm2->LIMIT_MAX) {
+                    $str2 = $this->units->controlTemperature($mm->LIMIT_MAX, 2, 1);
+                } else {
+                    $str2 = $this->units->controlTemperature($mm2->LIMIT_MAX, 2, 1);
+                }
+
+                $min_Tr = doubleval($str1);
+                $max_Tr = doubleval($str2);
+
+                if ($min_Tr > $max_Tr) {
+                    $lfTmp  = $min_Tr;
+                    $min_Tr = $max_Tr;
+                    $max_Tr = $lfTmp;
+                }
+                
+                $tempSetPoint3 = $this->units->time($tempSetPoint3, 2, 0);
+                if ( $tempSetPoint3 < $min_Tr || $tempSetPoint3 > $max_Tr ) {
+                    return  [
+                        "Message" => "Value out of range in Regulation temperature (" . doubleval($min_Tr) . " : " . doubleval($max_Tr) . ")"
+                    ];
+                }
+            }
+        } else {
+            if ($typeEquipment == 0) {
+                if ($tempSetPoint0 != null) {
+                    $tempSetPoint0 = $this->units->controlTemperature($tempSetPoint0, 2, 0);
+                    $limitItem0 = $eq->ITEM_TR > 0 ? $eq->ITEM_TR : 1067;
+                    $checkTempSetPoint0 = $this->minmax->checkMinMaxValue($tempSetPoint0, $limitItem0);
+                    if ( !$checkTempSetPoint0 ) {
+                        $mm = $this->minmax->getMinMaxControlTemperature($limitItem0, 2);
+                        return  [
+                            "Message" => "Value out of range in Regulation temperature (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
+                        ];
+                    }
+                }
+                
+                if ($dwellingTime0 != null) {
+                    $dwellingTime0 = $this->units->time($dwellingTime0, 2, 0);
+                    $limitItem0 = $eq->ITEM_TS > 0 ? $eq->ITEM_TS : 1068;
+                    $checkDwellingTime0 = $this->minmax->checkMinMaxValue($dwellingTime0, $limitItem0);
+                    if ( !$checkDwellingTime0 ) {
+                        $mm = $this->minmax->getMinMaxTimes($limitItem0, 2);
+                        return  [
+                            "Message" => "Value out of range in Dwelling Time (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
+                        ];
+                    }
+                }
+            }
+            
+            if ($typeEquipment == 1) {
+                if ($dwellingTime1 != null) {
+                    $dwellingTime1 = $this->units->time($dwellingTime1, 2, 0);
+                    $limitItem = $eq->ITEM_TS > 0 ? $eq->ITEM_TS : 1068;
+                    $checkDwellingTime1 = $this->minmax->checkMinMaxValue($dwellingTime1, $limitItem);
+                    if ( !$checkDwellingTime1 ) {
+                        $mm = $this->minmax->getMinMaxTimes($limitItem, 2);
+                        return  [
+                            "Message" => "Value out of range in Dwelling Time (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
+                        ];
+                    }
+                }
+
+                if ($newPos != null) {
+                    $newPos = $this->units->time($newPos, 2, 0);
+                    $limitItem = $eq->ITEM_TS > 0 ? $eq->ITEM_TS : 1068;
+                    $checkNewPos = $this->minmax->checkMinMaxValue($newPos, $limitItem);
+                    if ( !$checkNewPos ) {
+                        $mm = $this->minmax->getMinMaxTimes($limitItem, 2);
+                        return  [
+                            "Message" => "Value out of range in New position (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
+                        ];
+                    }
+                }
+            }
+            
+        }
+
+        return 1;
+    }
+
+    public function checkRedrawCurves()
+    {
+        $input = $this->request->all();
+
+        $ID_EQUIP = $REGUL_TEMP = $DWELLING_TIME = $PRODTEMP = $LOADINGRATE = $result = null;
+
+        if (isset($input['ID_EQUIP'])) $ID_EQUIP = intval($input['ID_EQUIP']);
+        if (isset($input['REGUL_TEMP'])) $REGUL_TEMP = floatval($input['REGUL_TEMP']);
+        if (isset($input['DWELLING_TIME'])) $DWELLING_TIME = floatval($input['DWELLING_TIME']);
+        if (isset($input['PRODTEMP'])) $PRODTEMP = floatval($input['PRODTEMP']);
+        if (isset($input['LOADINGRATE'])) $LOADINGRATE = floatval($input['LOADINGRATE']);
+
+        $equipment = Equipment::find($ID_EQUIP);
+        if ($equipment) {
+
+            if ($equipment->STD == 1) {
+                $equipGeneration = EquipGeneration::where('ID_EQUIP', $equipment->ID_EQUIPGENERATION)->first();
+
+                if ($equipGeneration) {
+
+                    if ($this->equip->getCapability($equipment->CAPABILITIES, 65536)) {
+                        $DWELLING_TIME = $this->units->time($DWELLING_TIME, 0, 0);
+                        $checkDWELLING_TIME = $this->minmax->checkMinMaxValue($DWELLING_TIME, $equipment->ITEM_TS);
+
+                        if ( !$checkDWELLING_TIME) {
+                            $mm = $this->minmax->getMinMaxTimes($equipment->ITEM_TS, 0);
+                            return  [
+                                "Message" => "Value out of range in Dwelling Time (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
+                            ];
+                        }
+                    } else {
+                        $REGUL_TEMP = $this->units->controlTemperature($REGUL_TEMP, 0, 0);
+                        $checkREGUL_TEMP = $this->minmax->checkMinMaxValue($REGUL_TEMP, $equipment->ITEM_TR);
+
+                        if ( !$checkREGUL_TEMP) {
+                            $mm = $this->minmax->getMinMaxControlTemperature($equipment->ITEM_TR, 0);
+                            return  [
+                                "Message" => "Value out of range in Regulation temperature (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
+                            ];
+                        }
+                    }
+                    $PRODTEMP = $this->units->prodTemperature($PRODTEMP, 1, 0);
+                    $checkPRODTEMP = $this->minmax->checkMinMaxValue($PRODTEMP, 1066);
+
+                    if ( !$checkPRODTEMP) {
+                        $mm = $this->minmax->getMinMaxProdTemperature(1066, 0);
+                        return  [
+                            "Message" => "Value out of range in Initial temperature of the product (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
+                        ];
+                    }
+
+                    $checkLOADINGRATE = $this->minmax->checkMinMaxValue($LOADINGRATE, 704);
+
+                    if ( !$checkLOADINGRATE) {
+                        $mm = $this->minmax->getMinMaxLimitItem(704, 1);
+                        return  [
+                            "Message" => "Value out of range in Loading Rate (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
+                        ];
+                    }
+                }
+            }
+        }
+
+        return 1;
+    }
+
+    public function checkBuildForNewTR()
+    {
+        $input = $this->request->all();
+
+        $lfOldTR = $lfNewTR = $ID_STUDY = $ID_EQUIP = $equipment = $equipGeneration = $result = null;
+        $nbStudies = $lastIdStudy = $id_equip = 0;
+
+        if (isset($input['ID_EQUIP'])) $ID_EQUIP = intval($input['ID_EQUIP']);
+        if (isset($input['ID_STUDY'])) $ID_STUDY = intval($input['ID_STUDY']);
+        if (isset($input['tr_current'])) $lfOldTR = floatval($input['tr_current']);
+        if (isset($input['tr_new'])) $lfNewTR = $this->units->controlTemperature(floatval($input['tr_new']), 0, 0);
+
+        $equipment = Equipment::find($ID_EQUIP);
+        if ($equipment) {
+
+            $checkLfNewTR = $this->minmax->checkMinMaxValue($lfNewTR, $equipment->ITEM_TR);
+
+            if ( !$checkLfNewTR) {
+                $mm = $this->minmax->getMinMaxLimitItem($equipment->ITEM_TR, 0);
+                return  [
+                    "Message" => "Value out of range in New temperature (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
+                ];
+            }
+        }
+
+        return 1;
+    }
 }

@@ -59,4 +59,16 @@ class Translations extends Controller
 
         return $translations;
     }
+
+    public function filterTrans() {
+        $langIds = [
+            'en' => 1,
+            'fr' => 2,
+            'es' => 3,
+            'de' => 4,
+            'it' => 5
+        ];
+        $translations = \App\Models\Translation::get();
+        return $translations;
+    }
 }

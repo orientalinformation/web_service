@@ -31,269 +31,332 @@ use App\Models\Report;
 
 class CalculateService 
 {
-	/**
-	 * @var Illuminate\Contracts\Auth\Factory
-	 */
-	protected $auth;
+    /**
+     * @var Illuminate\Contracts\Auth\Factory
+     */
+    protected $auth;
 
-	/**
-	 * @var App\Cryosoft\ValueListService
-	 */
-	protected $value;
+    /**
+     * @var App\Cryosoft\ValueListService
+     */
+    protected $value;
 
-	/**
-	 * @var App\Cryosoft\UnitsConverterService
-	 */
-	protected $convert;
+    /**
+     * @var App\Cryosoft\UnitsConverterService
+     */
+    protected $convert;
 
-	/**
-	 * @var App\Models\CalculationParametersDef
-	 */
-	protected $calParametersDef;
+    /**
+     * @var App\Models\CalculationParametersDef
+     */
+    protected $calParametersDef;
 
-	/**
-	 * @var App\Cryosoft\UnitsService
-	 */
-	protected $units;
+    /**
+     * @var App\Cryosoft\UnitsService
+     */
+    protected $units;
 
-	public function __construct(\Laravel\Lumen\Application $app) 
+    /**
+     * @var App\Cryosoft\EquipmentsService
+     */
+    protected $equipment;
+
+    public function __construct(\Laravel\Lumen\Application $app) 
     {
-		$this->app = $app;
-		$this->auth = $app['Illuminate\\Contracts\\Auth\\Factory'];
-		$this->value = $app['App\\Cryosoft\\ValueListService'];
-		$this->convert = $app['App\\Cryosoft\\UnitsConverterService'];
-		$this->calParametersDef = $this->getCalculationParametersDef();
-		$this->units = $app['App\\Cryosoft\\UnitsService'];
+        $this->app = $app;
+        $this->auth = $app['Illuminate\\Contracts\\Auth\\Factory'];
+        $this->value = $app['App\\Cryosoft\\ValueListService'];
+        $this->convert = $app['App\\Cryosoft\\UnitsConverterService'];
+        $this->calParametersDef = $this->getCalculationParametersDef();
+        $this->units = $app['App\\Cryosoft\\UnitsService'];
+        $this->equipment = $app['App\\Cryosoft\\EquipmentsService'];
 
-	}
+    }
 
-	public function getCalculationMode($idStudy) 
+    public function getCalculationMode($idStudy) 
     {
-		$calMode = 0;
-		$study = Study::find($idStudy);
+        $calMode = 0;
+        $study = Study::find($idStudy);
 
-		if ($study != null) {
-			$calMode = $study->CALCULATION_MODE;
-		}
+        if ($study != null) {
+            $calMode = $study->CALCULATION_MODE;
+        }
 
-		return $calMode;
-	}
+        return $calMode;
+    }
 
-	public function disableFields($idStudy) 
+    public function disableFields($idStudy) 
     {
-		$disabledField = 0;
+        $disabledField = 0;
 
-		$study = Study::find($idStudy);
+        $study = Study::find($idStudy);
 
-		if ($study != null) {
-			$studyOwnerUserID = $study->ID_USER;
-			$userProfileID = $this->auth->user()->USERPRIO;
-			$userID = $this->auth->user()->ID_USER;
+        if ($study != null) {
+            $studyOwnerUserID = $study->ID_USER;
+            $userProfileID = $this->auth->user()->USERPRIO;
+            $userID = $this->auth->user()->ID_USER;
 
-			if (($userProfileID > $this->value->PROFIL_EXPERT) || ($studyOwnerUserID != $userID)) {
-				$disabledField = 1;
-			}
-		}
+            if (($userProfileID > $this->value->PROFIL_EXPERT) || ($studyOwnerUserID != $userID)) {
+                $disabledField = 1;
+            }
+        }
 
-		return $disabledField;
-	}
+        return $disabledField;
+    }
 
-	public function disableCalculate($idStudy) 
+    public function disableCalculate($idStudy) 
     {
-		$disabledField = 0;
+        $disabledField = 0;
 
-		$study = Study::find($idStudy);
+        $study = Study::find($idStudy);
 
-		if ($study != null) {
-			$studyOwnerUserID = $study->ID_USER;
-			$userProfileID = $this->auth->user()->USERPRIO;
-			$userID = $this->auth->user()->ID_USER;
+        if ($study != null) {
+            $studyOwnerUserID = $study->ID_USER;
+            $userProfileID = $this->auth->user()->USERPRIO;
+            $userID = $this->auth->user()->ID_USER;
 
-			if ($studyOwnerUserID != $userID) {
-				$disabledField = 1;
-			}
+            if ($studyOwnerUserID != $userID) {
+                $disabledField = 1;
+            }
 
-		}
+        }
 
-		return $disabledField;
-	}
+        return $disabledField;
+    }
 
-	public function getOptimErrorT() 
+    public function getOptimErrorT() 
     {
-		$mmErrorT = 0.0;
-		$minMax = $this->getMinMax(1132);
-		$mmErrorT = $this->units->deltaTemperature($minMax->DEFAULT_VALUE, 2, 1);
-		return $mmErrorT;
-	}
+        $mmErrorT = 0.0;
+        $minMax = $this->getMinMax(1132);
+        $mmErrorT = $this->units->deltaTemperature($minMax->DEFAULT_VALUE, 2, 1);
+        return $mmErrorT;
+    }
 
-	public function getOptimErrorH() 
+    public function getOptimErrorTMinMax($minMax) 
     {
-		$mmErrorH = 0.0;
-		$minMax = $this->getMinMax(1131);
-		$uPercent = $this->units->uPercent();
-		$mmErrorH =  $this->units->convertCalculator($minMax->DEFAULT_VALUE, $uPercent["coeffA"], $uPercent["coeffB"], 2, 1);
-		return $mmErrorH;
-	}
+        $mmErrorT = 0.0;
+        if ($minMax) {
+            $mmErrorT = $this->units->deltaTemperature($minMax->DEFAULT_VALUE, 2, 0);
+        }
 
-	public function getNbOptim() 
+        return $mmErrorT;
+    }
+
+    public function getOptimErrorH() 
     {
-		$mmNbOptim = 0.0;
-		$minMax = $this->getMinMax(1130);
-		return intval($minMax->DEFAULT_VALUE);
-	}
+        $mmErrorH = 0.0;
+        $minMax = $this->getMinMax(1131);
+        $uPercent = $this->units->uPercent();
+        $mmErrorH =  $this->units->convertCalculator($minMax->DEFAULT_VALUE, $uPercent["coeffA"], $uPercent["coeffB"], 2, 1);
+        return $mmErrorH;
+    }
 
-	public function getMinMax($limitItem) 
+    public function getOptimErrorHMinMax($minMax) 
     {
-		return MinMax::where('LIMIT_ITEM', $limitItem)->first();
-	}
+        $mmErrorH = 0.0;
+        $uPercent = $this->units->uPercent();
 
-	public function getTimeStep($idStudy) 
+        if ($minMax) {
+            $mmErrorH =  $this->units->convertCalculator($minMax->DEFAULT_VALUE, intval($uPercent["coeffA"]), intval($uPercent["coeffB"]), 2, 0);
+        }
+
+        return $mmErrorH;
+    }
+
+    public function getNbOptim() 
     {
-		$timeStep = -1.0;
-		$bOneTimeStep = true;
+        $mmNbOptim = 0.0;
+        $minMax = $this->getMinMax(1130);
+        return intval($minMax->DEFAULT_VALUE);
+    }
 
-		$studyEquipments = $this->getCalculableStudyEquipments($idStudy);
-
-		foreach ($studyEquipments as $sEquipment) {
-			$calParamester = CalculationParameter::where('ID_CALC_PARAMS', $sEquipment->ID_CALC_PARAMS)->first();
-			if ($calParamester) {
-				if ($timeStep != $calParamester->TIME_STEP) {
-					if ($timeStep == -1.0) {
-						$timeStep = $calParamester->TIME_STEP;
-					} else {
-						$bOneTimeStep = false;
-					}
-				}
-			}
-		}
-
-		if ($bOneTimeStep) {
-			return $this->units->timeStep($timeStep, 3, 1);
-		}
-
-		return "N.A.";
-	}
-
-	public function getPrecision($idStudy) 
+    public function getMinMax($limitItem) 
     {
-		$precision = -1.0;
-		$bOnePrecision = true;
+        return MinMax::where('LIMIT_ITEM', $limitItem)->first();
+    }
 
-		$studyEquipments = $this->getCalculableStudyEquipments($idStudy);
-
-		foreach ($studyEquipments as $sEquipment) {
-			$calParamester = CalculationParameter::where('ID_CALC_PARAMS', $sEquipment->ID_CALC_PARAMS)->first();
-
-			if ($calParamester) {
-				if ($precision != $calParamester->PRECISION_REQUEST) {
-					if ($precision == -1.0) {
-						$precision = $calParamester->PRECISION_REQUEST;
-					} else {
-						$bOnePrecision = false;
-					}
-				}
-			}
-		}
-		
-		if ($bOnePrecision) {
-			return $this->units->convert($precision, 3);
-		}
-
-		return "N.A.";
-	}
-
-	public function getStorageStep() 
+    public function getTimeStep($idStudy) 
     {
-		$lfStep = 0.0;
+        $timeStep = -1.0;
+        $bOneTimeStep = true;
 
-		if ($this->calParametersDef != null) {
-			$lfStep = $this->calParametersDef->STORAGE_STEP_DEF * $this->calParametersDef->TIME_STEP_DEF;
-		}
+        $studyEquipments = $this->getCalculableStudyEquipments($idStudy);
 
-		return $this->units->timeStep($lfStep, 1, 1);
-	}
+        foreach ($studyEquipments as $sEquipment) {
+            $calParamester = CalculationParameter::where('ID_CALC_PARAMS', $sEquipment->ID_CALC_PARAMS)->first();
+            if ($calParamester) {
+                if ($timeStep != $calParamester->TIME_STEP) {
+                    if ($timeStep == -1.0) {
+                        $timeStep = $calParamester->TIME_STEP;
+                    } else {
+                        $bOneTimeStep = false;
+                    }
+                }
+            }
+        }
 
-	public function getCalculableStudyEquipments($idStudy) 
+        if ($bOneTimeStep) {
+            return $this->units->timeStep($timeStep, 3, 1);
+        }
+
+        return "N.A.";
+    }
+
+    public function getPrecision($idStudy) 
     {
-		$studyEquipments = StudyEquipment::where(
-			[['ID_STUDY', '=', $idStudy], ['RUN_CALCULATE', '=', 1], ['BRAIN_TYPE', '=', 0]])->get();
-		return $studyEquipments;
-	}
+        $precision = -1.0;
+        $bOnePrecision = true;
 
-	public function getCalculationParametersDef() 
+        $studyEquipments = $this->getCalculableStudyEquipments($idStudy);
+
+        foreach ($studyEquipments as $sEquipment) {
+            $calParamester = CalculationParameter::where('ID_CALC_PARAMS', $sEquipment->ID_CALC_PARAMS)->first();
+
+            if ($calParamester) {
+                if ($precision != $calParamester->PRECISION_REQUEST) {
+                    if ($precision == -1.0) {
+                        $precision = $calParamester->PRECISION_REQUEST;
+                    } else {
+                        $bOnePrecision = false;
+                    }
+                }
+            }
+        }
+        
+        if ($bOnePrecision) {
+            return $this->units->convert($precision, 3);
+        }
+
+        return "N.A.";
+    }
+
+    public function getStorageStep() 
     {
-		$calParametersDef = CalculationParametersDef::find($this->auth->user()->ID_USER);
+        $lfStep = 0.0;
 
-		return $calParametersDef;
-	}
+        if ($this->calParametersDef) {
+            $lfStep = $this->calParametersDef->STORAGE_STEP_DEF * $this->calParametersDef->TIME_STEP_DEF;
+        }
 
-	public function getVradioOn() 
+        return $this->units->timeStep($lfStep, 1, 1);
+    }
+
+    public function getCalculableStudyEquipments($idStudy) 
     {
-		$etat = 0;
+        $studyEquipments = StudyEquipment::where(
+            [['ID_STUDY', '=', $idStudy], ['RUN_CALCULATE', '=', 1], ['BRAIN_TYPE', '=', 0]])->get();
+        return $studyEquipments;
+    }
 
-		if ($this->calParametersDef->VERT_SCAN_DEF) {
-			$etat = 1;
-		}
-		return $etat;
-	}
-
-	public function getVradioOff() 
+    public function getCalculationParametersDef() 
     {
-		$etat = 0;
+        $calParametersDef = CalculationParametersDef::find($this->auth->user()->ID_USER);
 
-		if (!$this->calParametersDef->VERT_SCAN_DEF) {
-			$etat = 1;
-		}
-		return $etat;
-	}
+        return $calParametersDef;
+    }
 
-	public function getHradioOn() 
+    public function getVradioOn() 
     {
-		$etat = 0;
-		if ($this->calParametersDef->HORIZ_SCAN_DEF) {
-			$etat = 1;
-		}
-		return $etat;
-	}
+        $etat = 0;
 
-	public function getHradioOff() 
-    {
-		$etat = 0;
-		if (!$this->calParametersDef->HORIZ_SCAN_DEF) {
-			$etat = 1;
-		}
-		return $etat;
-	}
+        if ($this->calParametersDef) {
+            if ($this->calParametersDef->VERT_SCAN_DEF) {
+                $etat = 1;
+            }
+        }
+        return $etat;
+    }
 
-	public function getMaxIter() 
+    public function getVradioOff() 
     {
-		return intval($this->calParametersDef->MAX_IT_NB_DEF);
-	}
+        $etat = 0;
 
-	public function getRelaxCoef() 
-    {
-		return $this->calParametersDef->RELAX_COEFF_DEF;
-	}
+        if ($this->calParametersDef) {
+            if (!$this->calParametersDef->VERT_SCAN_DEF) {
+                $etat = 1;
+            }
+        }
+        return $etat;
+    }
 
-	public function getTempPtSurf() 
+    public function getHradioOn() 
     {
-		return $this->units->temperature($this->calParametersDef->STOP_TOP_SURF_DEF, 2, 1);
-	}
+        $etat = 0;
 
-	public function getTempPtIn() 
-    {
-		return $this->units->temperature($this->calParametersDef->STOP_INT_DEF, 2, 1);
-	}
+        if ($this->calParametersDef) {
+            if ($this->calParametersDef->HORIZ_SCAN_DEF) {
+                $etat = 1;
+            }
+        }
+        return $etat;
+    }
 
-	public function getTempPtBot() 
+    public function getHradioOff() 
     {
-		return $this->units->temperature($this->calParametersDef->STOP_BOTTOM_SURF_DEF, 2, 1);
-	}
+        $etat = 0;
+        if ($this->calParametersDef) {
+            if (!$this->calParametersDef->HORIZ_SCAN_DEF) {
+                $etat = 1;
+            }
+        }
+        return $etat;
+    }
 
-	public function getTempPtAvg() 
+    public function getMaxIter() 
     {
-		return $this->units->temperature($this->calParametersDef->STOP_AVG_DEF, 2, 1);
-	}
+        $result = null;
+        if ($this->calParametersDef) {
+            $result = $this->calParametersDef->MAX_IT_NB_DEF;
+        }
+        return intval($result);
+    }
+
+    public function getRelaxCoef() 
+    {
+        $result = null;
+        if ($this->calParametersDef) {
+            $result = $this->calParametersDef->RELAX_COEFF_DEF;
+        }
+
+        return $result;
+    }
+
+    public function getTempPtSurf() 
+    {
+        $result = null;
+        if ($this->calParametersDef) {
+            $result = $this->units->temperature($this->calParametersDef->STOP_TOP_SURF_DEF, 2, 1);
+        }
+        return $result;
+    }
+
+    public function getTempPtIn() 
+    {
+        $result = null;
+        if ($this->calParametersDef) {
+            $result = $this->units->temperature($this->calParametersDef->STOP_INT_DEF, 2, 1);
+        }
+        return $result;
+    }
+
+    public function getTempPtBot() 
+    {
+        $result = null;
+        if ($this->calParametersDef) {
+            $result = $this->units->temperature($this->calParametersDef->STOP_BOTTOM_SURF_DEF, 2, 1);
+        }
+        return $result;
+    }
+
+    public function getTempPtAvg() 
+    {
+        $result = null;
+        if ($this->calParametersDef) {
+            $result = $this->units->temperature($this->calParametersDef->STOP_AVG_DEF, 2, 1);
+        }
+
+        return $result;
+    }
 
     public function getOption($idStudy, $key, $axe)
     {
@@ -379,113 +442,133 @@ class CalculateService
 
     public function getValueSelected($select = array())
     {
-    	$value = 0.0;
-    	if (count($select) > 0) {
-			for ($i = 0; $i < count($select); $i++) { 
-				if ($select[$i]['selected'] == true) {
-					$value = floatval($select[$i]['label']);
-				}
-			}
+        $value = 0.0;
+        if (count($select) > 0) {
+            for ($i = 0; $i < count($select); $i++) { 
+                if ($select[$i]['selected'] == true) {
+                    $value = floatval($select[$i]['label']);
+                }
+            }
 
-			if ($value == 0.0) {
-				$value = floatval($select[0]['label']);
-			}
-		} else {
-			$value = 0.0;
-		}
+            if ($value == 0.0) {
+                $value = floatval($select[0]['label']);
+            }
+        } else {
+            $value = 0.0;
+        }
 
-		return $value;
+        return $value;
     }
 
     public function isStudyHasChilds($idStudy)
     {
-    	$bret = false;
-    	$study = Study::find($idStudy);
-    	if ($study != null) {
-    		if ($study->CHAINING_CONTROLS == 1 && $study->HAS_CHILD == 1) {
-	    		$bret = true;
-	    	}
-    	}
-    	return $bret;
+        $bret = false;
+        $study = Study::find($idStudy);
+        if ($study != null) {
+            if ($study->CHAINING_CONTROLS == 1 && $study->HAS_CHILD == 1) {
+                $bret = true;
+            }
+        }
+        return $bret;
     }
 
     public function setChildsStudiesToRecalculate($idStudy, $idStudyEquipment)
     {
-    	if ($this->isStudyHasChilds($idStudy)) {
-    		$studies = Study::where('PARENT_ID', '=', $idStudy)->get();
-    		if (count($studies) > 0) {
-    			for ($i = 0; $i < count($studies) ; $i++) { 
-    				if (($idStudyEquipment == -1) || ($idStudyEquipment == $studies[$i]->PARENT_STUD_EQP_ID)) {
-    					$studies[$i]->TO_RECALCULATE = 1;
-    					$studies[$i]->save();
-    				}
-    			}
-    		}
-    	}
-    	return 0;
+        if ($this->isStudyHasChilds($idStudy)) {
+            $studies = Study::where('PARENT_ID', '=', $idStudy)->get();
+            if (count($studies) > 0) {
+                for ($i = 0; $i < count($studies) ; $i++) { 
+                    if (($idStudyEquipment == -1) || ($idStudyEquipment == $studies[$i]->PARENT_STUD_EQP_ID)) {
+                        $studies[$i]->TO_RECALCULATE = 1;
+                        $studies[$i]->save();
+                    }
+                }
+            }
+        }
+        return 0;
     }
 
     public function resetEquipSatus($idStudy)
     {
-    	$studyEquipments = StudyEquipment::where('ID_STUDY', $idStudy)->get();
+        $studyEquipments = StudyEquipment::where('ID_STUDY', $idStudy)->get();
 
-    	if (count($studyEquipments) > 0) {
-    		for ($i = 0; $i < count($studyEquipments); $i++) { 
-    			$studyEquipments[$i]->EQUIP_STATUS = 0;
-    			$studyEquipments[$i]->BRAIN_TYPE = 0;
-    			$studyEquipments[$i]->save();
-    		}
-    	}
+        if (count($studyEquipments) > 0) {
+            for ($i = 0; $i < count($studyEquipments); $i++) { 
+                $studyEquipments[$i]->EQUIP_STATUS = 0;
+                $studyEquipments[$i]->BRAIN_TYPE = 0;
+                $studyEquipments[$i]->save();
+            }
+        }
     }
 
     public function saveTempRecordPtsToReport($idStudy)
     {
-    	$tempRecordsPt = TempRecordPts::where('ID_STUDY', $idStudy)->first();
-    	$report = Report::where('ID_STUDY', $idStudy)->first();
+        $tempRecordsPt = TempRecordPts::where('ID_STUDY', $idStudy)->first();
+        $report = Report::where('ID_STUDY', $idStudy)->first();
 
-    	if (($report != null) && ($tempRecordsPt != null)) {
-    		$report->POINT1_X = $tempRecordsPt->AXIS1_PT_TOP_SURF;
-    		$report->POINT1_Y = $tempRecordsPt->AXIS2_PT_BOT_SURF;
-    		$report->POINT1_Z = $tempRecordsPt->AXIS3_PT_BOT_SURF;
+        if (($report != null) && ($tempRecordsPt != null)) {
+            $report->POINT1_X = $tempRecordsPt->AXIS1_PT_TOP_SURF;
+            $report->POINT1_Y = $tempRecordsPt->AXIS2_PT_BOT_SURF;
+            $report->POINT1_Z = $tempRecordsPt->AXIS3_PT_BOT_SURF;
 
-    		$report->POINT2_X = $tempRecordsPt->AXIS1_PT_INT_PT;
-    		$report->POINT2_Y = $tempRecordsPt->AXIS2_PT_INT_PT;
-    		$report->POINT2_Z = $tempRecordsPt->AXIS3_PT_INT_PT;
+            $report->POINT2_X = $tempRecordsPt->AXIS1_PT_INT_PT;
+            $report->POINT2_Y = $tempRecordsPt->AXIS2_PT_INT_PT;
+            $report->POINT2_Z = $tempRecordsPt->AXIS3_PT_INT_PT;
 
-    		$report->POINT3_X = $tempRecordsPt->AXIS1_PT_BOT_SURF;
-    		$report->POINT3_Y = $tempRecordsPt->AXIS2_PT_BOT_SURF;
-    		$report->POINT3_Z = $tempRecordsPt->AXIS3_PT_BOT_SURF;
+            $report->POINT3_X = $tempRecordsPt->AXIS1_PT_BOT_SURF;
+            $report->POINT3_Y = $tempRecordsPt->AXIS2_PT_BOT_SURF;
+            $report->POINT3_Z = $tempRecordsPt->AXIS3_PT_BOT_SURF;
 
-    		$report->AXE1_X = $tempRecordsPt->AXIS1_AX_3;
-    		$report->AXE1_Y = $tempRecordsPt->AXIS2_AX_3;
+            $report->AXE1_X = $tempRecordsPt->AXIS1_AX_3;
+            $report->AXE1_Y = $tempRecordsPt->AXIS2_AX_3;
 
-    		$report->AXE2_X = $tempRecordsPt->AXIS1_AX_2;
-    		$report->AXE2_Z = $tempRecordsPt->AXIS3_AX_2;
+            $report->AXE2_X = $tempRecordsPt->AXIS1_AX_2;
+            $report->AXE2_Z = $tempRecordsPt->AXIS3_AX_2;
 
-    		$report->AXE3_Y = $tempRecordsPt->AXIS2_AX_1;
-    		$report->AXE3_Z = $tempRecordsPt->AXIS3_AX_1;
+            $report->AXE3_Y = $tempRecordsPt->AXIS2_AX_1;
+            $report->AXE3_Z = $tempRecordsPt->AXIS3_AX_1;
 
-    		$report->PLAN_X = $tempRecordsPt->AXIS1_PL_2_3;
-    		$report->PLAN_Y = $tempRecordsPt->AXIS2_PL_1_3;
-    		$report->PLAN_Z = $tempRecordsPt->AXIS3_PL_1_2;
+            $report->PLAN_X = $tempRecordsPt->AXIS1_PL_2_3;
+            $report->PLAN_Y = $tempRecordsPt->AXIS2_PL_1_3;
+            $report->PLAN_Z = $tempRecordsPt->AXIS3_PL_1_2;
 
-    		$report->CONTOUR2D_TEMP_MIN = $tempRecordsPt->CONTOUR2D_TEMP_MIN;
-    		$report->CONTOUR2D_TEMP_MAX = $tempRecordsPt->CONTOUR2D_TEMP_MAX;
+            $report->CONTOUR2D_TEMP_MIN = $tempRecordsPt->CONTOUR2D_TEMP_MIN;
+            $report->CONTOUR2D_TEMP_MAX = $tempRecordsPt->CONTOUR2D_TEMP_MAX;
 
-    		if (($tempRecordsPt->CONTOUR2D_TEMP_MIN) ==  ($tempRecordsPt->CONTOUR2D_TEMP_MAX)) {
-    			$report->CONTOUR2D_TEMP_STEP = 0;
-    		}
-    		$report->save();
-    	}
+            if (($tempRecordsPt->CONTOUR2D_TEMP_MIN) ==  ($tempRecordsPt->CONTOUR2D_TEMP_MAX)) {
+                $report->CONTOUR2D_TEMP_STEP = 0;
+            }
+            $report->save();
+        }
     }
 
     public function reset2DTempRecordPts($idStudy)
     {
-    	$tempRecordsPt = TempRecordPts::where('ID_STUDY', $idStudy)->first();
-    	$tempRecordsPt->CONTOUR2D_TEMP_MIN = 0.0;
-    	$tempRecordsPt->CONTOUR2D_TEMP_MAX = 0.0;
-    	$tempRecordsPt->save();
+        $tempRecordsPt = TempRecordPts::where('ID_STUDY', $idStudy)->first();
+        $tempRecordsPt->CONTOUR2D_TEMP_MIN = 0.0;
+        $tempRecordsPt->CONTOUR2D_TEMP_MAX = 0.0;
+        $tempRecordsPt->save();
 
-    	$this->saveTempRecordPtsToReport($idStudy);
+        $this->saveTempRecordPtsToReport($idStudy);
+    }
+
+    public function isThereAnEquipWithOptimEnable($idStudy)
+    {
+        $bret = false;
+        $studyEquipments = StudyEquipment::where('ID_STUDY', $idStudy)->get();
+
+        if (count($studyEquipments) > 0) {
+            for ($i = 0; $i < count($studyEquipments); $i++) {
+                $capability = $studyEquipments[$i]->CAPABILITIES;
+                $equipWithSpecificSize = (($studyEquipments[$i]->STDEQP_LENGTH != -1) && ($studyEquipments[$i]->STDEQP_WIDTH != -1)) ? true : false;
+                
+                $bspecialEquip = ($this->equipment->getCapability($capability, 262144) && $this->equipment->getCapability($capability, 2097152) && (!$equipWithSpecificSize));
+                if (($this->equipment->getCapability($capability, 64)) && (!$bspecialEquip)) {
+                    $bret = true;
+                    break;
+                }
+            }
+        }
+        return $bret;
     }
 }

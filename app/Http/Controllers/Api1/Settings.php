@@ -33,14 +33,14 @@ class Settings extends Controller
     protected $auth;
 
     /**
-	 * @var App\Cryosoft\UnitsService
-	 */
+     * @var App\Cryosoft\UnitsService
+     */
     protected $units;
     
         /**
-	 * @var App\Cryosoft\MinMaxService
-	 */
-	protected $minmax;
+     * @var App\Cryosoft\MinMaxService
+     */
+    protected $minmax;
 
     /**
      * Create a new controller instance.
@@ -58,9 +58,9 @@ class Settings extends Controller
     public function getMyMeshParamDef()
     {
         $meshParamDef = \App\Models\MeshParamDef::find($this->auth->user()->ID_USER);
-        $meshParamDef->MESH_1_SIZE = $this->units->meshes($meshParamDef->MESH_1_SIZE, 2, 1);
-        $meshParamDef->MESH_2_SIZE = $this->units->meshes($meshParamDef->MESH_2_SIZE, 2, 1);
-        $meshParamDef->MESH_3_SIZE = $this->units->meshes($meshParamDef->MESH_3_SIZE, 2, 1);
+        $meshParamDef->MESH_1_SIZE = $this->units->meshes($meshParamDef->MESH_1_SIZE, 5, 1);
+        $meshParamDef->MESH_2_SIZE = $this->units->meshes($meshParamDef->MESH_2_SIZE, 5, 1);
+        $meshParamDef->MESH_3_SIZE = $this->units->meshes($meshParamDef->MESH_3_SIZE, 5, 1);
 
         return $meshParamDef;
     }
@@ -72,9 +72,9 @@ class Settings extends Controller
         $dimension2 = floatval($input['dim2']);
         $dimension3 = floatval($input['dim3']);
 
-        $checkValue1 = $this->minmax->checkMinMaxValue($dimension1, 1);
-        $checkValue2 = $this->minmax->checkMinMaxValue($dimension2, 1);
-        $checkValue3 = $this->minmax->checkMinMaxValue($dimension3, 1);
+        $checkValue1 = $this->minmax->checkMinMaxValue($this->units->meshes($dimension1, 5, 0), 1);
+        $checkValue2 = $this->minmax->checkMinMaxValue($this->units->meshes($dimension2, 5, 0), 1);
+        $checkValue3 = $this->minmax->checkMinMaxValue($this->units->meshes($dimension3, 5, 0), 1);
 
         if ( !$checkValue1 ) {
             $mm = $this->minmax->getMinMaxMesh(1);
@@ -100,9 +100,9 @@ class Settings extends Controller
         $meshParamDef = \App\Models\MeshParamDef::find($this->auth->user()->ID_USER);
 
         if ($meshParamDef) {
-            if (isset($input['dim1'])) $meshParamDef->MESH_1_SIZE = $this->units->meshes($dimension1, 2, 0);
-            if (isset($input['dim2'])) $meshParamDef->MESH_2_SIZE = $this->units->meshes($dimension2, 2, 0);
-            if (isset($input['dim3'])) $meshParamDef->MESH_3_SIZE = $this->units->meshes($dimension3, 2, 0);
+            if (isset($input['dim1'])) $meshParamDef->MESH_1_SIZE = $this->units->meshes($dimension1, 5, 0);
+            if (isset($input['dim2'])) $meshParamDef->MESH_2_SIZE = $this->units->meshes($dimension2, 5, 0);
+            if (isset($input['dim3'])) $meshParamDef->MESH_3_SIZE = $this->units->meshes($dimension3, 5, 0);
             $meshParamDef->save();
         }
 
@@ -326,19 +326,25 @@ class Settings extends Controller
     public function getMyCalculationParametersDef()
     {
         $calculationparametersdef = \App\Models\CalculationParametersDef::find($this->auth->user()->ID_USER);
-        $calculationparametersdef->STOP_TOP_SURF_DEF = $this->units->prodTemperature($calculationparametersdef->STOP_TOP_SURF_DEF, 2, 1);
-        $calculationparametersdef->STOP_INT_DEF = $this->units->prodTemperature($calculationparametersdef->STOP_INT_DEF, 2, 1);
-        $calculationparametersdef->STOP_BOTTOM_SURF_DEF = $this->units->prodTemperature($calculationparametersdef->STOP_BOTTOM_SURF_DEF, 2, 1);
-        $calculationparametersdef->STOP_AVG_DEF = $this->units->prodTemperature($calculationparametersdef->STOP_AVG_DEF, 2, 1);
-        
-        $calculationparametersdef->STUDY_ALPHA_TOP_DEF = $this->units->convectionCoeff($calculationparametersdef->STUDY_ALPHA_TOP_DEF, 2, 1);
-        $calculationparametersdef->STUDY_ALPHA_BOTTOM_DEF = $this->units->convectionCoeff($calculationparametersdef->STUDY_ALPHA_BOTTOM_DEF, 2, 1);
-        $calculationparametersdef->STUDY_ALPHA_LEFT_DEF = $this->units->convectionCoeff($calculationparametersdef->STUDY_ALPHA_LEFT_DEF, 2, 1);
-        $calculationparametersdef->STUDY_ALPHA_RIGHT_DEF = $this->units->convectionCoeff($calculationparametersdef->STUDY_ALPHA_RIGHT_DEF, 2, 1);
-        $calculationparametersdef->STUDY_ALPHA_FRONT_DEF = $this->units->convectionCoeff($calculationparametersdef->STUDY_ALPHA_FRONT_DEF, 2, 1);
-        $calculationparametersdef->STUDY_ALPHA_REAR_DEF = $this->units->convectionCoeff($calculationparametersdef->STUDY_ALPHA_REAR_DEF, 2, 1);
+        if ($calculationparametersdef) {
+            $calculationparametersdef->MAX_IT_NB_DEF = number_format((float)$calculationparametersdef->MAX_IT_NB_DEF, 2, '.', '');
+            $calculationparametersdef->RELAX_COEFF_DEF = number_format((float)$calculationparametersdef->RELAX_COEFF_DEF, 2, '.', '');
+            $calculationparametersdef->PRECISION_REQUEST_DEF = number_format((float)$calculationparametersdef->PRECISION_REQUEST_DEF, 2, '.', '');
 
-        $calculationparametersdef->TIME_STEP_DEF = $this->units->time($calculationparametersdef->TIME_STEP_DEF, 3, 1);
+            $calculationparametersdef->STOP_TOP_SURF_DEF = $this->units->prodTemperature($calculationparametersdef->STOP_TOP_SURF_DEF, 1, 1);
+            $calculationparametersdef->STOP_INT_DEF = $this->units->prodTemperature($calculationparametersdef->STOP_INT_DEF, 1, 1);
+            $calculationparametersdef->STOP_BOTTOM_SURF_DEF = $this->units->prodTemperature($calculationparametersdef->STOP_BOTTOM_SURF_DEF, 1, 1);
+            $calculationparametersdef->STOP_AVG_DEF = $this->units->prodTemperature($calculationparametersdef->STOP_AVG_DEF, 1, 1);
+
+            $calculationparametersdef->STUDY_ALPHA_TOP_DEF = $this->units->convectionCoeff($calculationparametersdef->STUDY_ALPHA_TOP_DEF, 2, 1);
+            $calculationparametersdef->STUDY_ALPHA_BOTTOM_DEF = $this->units->convectionCoeff($calculationparametersdef->STUDY_ALPHA_BOTTOM_DEF, 2, 1);
+            $calculationparametersdef->STUDY_ALPHA_LEFT_DEF = $this->units->convectionCoeff($calculationparametersdef->STUDY_ALPHA_LEFT_DEF, 2, 1);
+            $calculationparametersdef->STUDY_ALPHA_RIGHT_DEF = $this->units->convectionCoeff($calculationparametersdef->STUDY_ALPHA_RIGHT_DEF, 2, 1);
+            $calculationparametersdef->STUDY_ALPHA_FRONT_DEF = $this->units->convectionCoeff($calculationparametersdef->STUDY_ALPHA_FRONT_DEF, 2, 1);
+            $calculationparametersdef->STUDY_ALPHA_REAR_DEF = $this->units->convectionCoeff($calculationparametersdef->STUDY_ALPHA_REAR_DEF, 2, 1);
+
+            $calculationparametersdef->TIME_STEP_DEF = $this->units->time($calculationparametersdef->TIME_STEP_DEF, 3, 1);
+        }
 
         return $calculationparametersdef;
     }
@@ -351,35 +357,30 @@ class Settings extends Controller
         $maxIter = floor($input['maxIter']);
         $relaxCoef = doubleval($input['relaxCoef']);
         $precision = doubleval($input['precision']);
-
         $isVertScanDef = intval($input['isVertScanDef']);
-
         $stopTopSurfDef = doubleval($input['stopTopSurfDef']);
         $stopIntDef = doubleval($input['stopIntDef']);
         $stopBottomSurfDef = doubleval($input['stopBottomSurfDef']);
         $stopAvgDef = doubleval($input['stopAvgDef']);
-
         $isStudyAlphaTopFixedDef = intval($input['isStudyAlphaTopFixedDef']);
         $isStudyAlphaBottomFixedDef = intval($input['isStudyAlphaBottomFixedDef']);
         $isStudyAlphaLeftFixedDef = intval($input['isStudyAlphaLeftFixedDef']);
         $isStudyAlphaRightFixedDef = intval($input['isStudyAlphaRightFixedDef']);
         $isStudyAlphaFrontFixedDef = intval($input['isStudyAlphaFrontFixedDef']);
         $isStudyAlphaRearFixedDef = intval($input['isStudyAlphaRearFixedDef']);
-
         $studyAlphaTopDef = doubleval($input['studyAlphaTopDef']);
         $studyAlphaBottomDef = doubleval($input['studyAlphaBottomDef']);
         $studyAlphaLeftDef = doubleval($input['studyAlphaLeftDef']);
         $studyAlphaRightDef = doubleval($input['studyAlphaRightDef']);
         $studyAlphaFrontDef = doubleval($input['studyAlphaFrontDef']);
         $studyAlphaRearDef = doubleval($input['studyAlphaRearDef']);
-
         $storageStepDef = intval($input['storageStepDef']);
         $precisionLogStepDef = intval($input['precisionLogStepDef']);
         $timeStepDef = doubleval($input['timeStepDef']);
 
         $checkMaxIter = $this->minmax->checkMinMaxValue($maxIter, 1010);
         if ( !$checkMaxIter ) {
-            $mm = $this->minmax->getMinMaxProdTemperature(1010);
+            $mm = $this->minmax->getMinMaxLimitItem(1010);
             return  [
                 "Message" => "Value out of range in Max of iterations (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
             ];
@@ -387,7 +388,7 @@ class Settings extends Controller
 
         $checkRelaxCoef = $this->minmax->checkMinMaxValue($relaxCoef, 1012);
         if ( !$checkRelaxCoef ) {
-            $mm = $this->minmax->getMinMaxProdTemperature(1012);
+            $mm = $this->minmax->getMinMaxLimitItemRelaxCoef(1012, 0);
             return  [
                 "Message" => "Value out of range in Coef. of relaxation (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
             ];
@@ -395,13 +396,13 @@ class Settings extends Controller
 
         $checkPrecision = $this->minmax->checkMinMaxValue($precision, 1019);
         if ( !$checkPrecision ) {
-            $mm = $this->minmax->getMinMaxProdTemperature(1019);
+            $mm = $this->minmax->getMinMaxLimitItem(1019);
             return  [
                 "Message" => "Value out of range in Precision of numerical modelling (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
             ];
         }
 
-        $checkTopSurfDef = $this->minmax->checkMinMaxValue($stopTopSurfDef, 1014);
+        $checkTopSurfDef = $this->minmax->checkMinMaxValue($this->units->prodTemperature($stopTopSurfDef, 2, 0), 1014);
         if (!$checkTopSurfDef) {
             $mm = $this->minmax->getMinMaxProdTemperature(1014);
             return  [
@@ -409,7 +410,7 @@ class Settings extends Controller
             ];
         }
 
-        $checkIntDef = $this->minmax->checkMinMaxValue($stopIntDef, 1015);
+        $checkIntDef = $this->minmax->checkMinMaxValue($this->units->prodTemperature($stopIntDef, 2, 0), 1015);
         if (!$checkIntDef) {
             $mm = $this->minmax->getMinMaxProdTemperature(1015);
             return  [
@@ -417,7 +418,7 @@ class Settings extends Controller
             ];
         }
 
-        $checkBottomSurfDef = $this->minmax->checkMinMaxValue($stopBottomSurfDef, 1016);
+        $checkBottomSurfDef = $this->minmax->checkMinMaxValue($this->units->prodTemperature($stopBottomSurfDef, 2, 0), 1016);
         if (!$checkBottomSurfDef) {
             $mm = $this->minmax->getMinMaxProdTemperature(1016);
             return  [
@@ -425,7 +426,7 @@ class Settings extends Controller
             ];
         }
 
-        $checkAvgDef = $this->minmax->checkMinMaxValue($stopAvgDef, 1017);
+        $checkAvgDef = $this->minmax->checkMinMaxValue($this->units->prodTemperature($stopAvgDef, 2, 0), 1017);
         if (!$checkAvgDef) {
             $mm = $this->minmax->getMinMaxProdTemperature(1017);
             return  [
@@ -433,7 +434,7 @@ class Settings extends Controller
             ];
         }
 
-        $checkTimeStepDef = $this->minmax->checkMinMaxValue($timeStepDef, 1013);
+        $checkTimeStepDef = $this->minmax->checkMinMaxValue($this->units->time($timeStepDef, 3, 0), 1013);
         if (!$checkTimeStepDef) {
             $mm = $this->minmax->getMinMaxTime(1013);
             return  [
@@ -441,49 +442,49 @@ class Settings extends Controller
             ];
         }
 
-        $checkAlphaTopDef = $this->minmax->checkMinMaxValue($studyAlphaTopDef, 1018);
+        $checkAlphaTopDef = $this->minmax->checkMinMaxValue($this->units->convectionCoeff($studyAlphaTopDef, 2, 0), 1018);
         if (!$checkAlphaTopDef) {
-            $mm = $this->minmax->getMinMaxTime(1018);
+            $mm = $this->minmax->getMinMaxCoeff(1018, 2);
             return  [
                 "Message" => "Value out of range in Alpha top (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
             ];
         }
 
-        $checkAlphaBottomDef = $this->minmax->checkMinMaxValue($studyAlphaTopDef, 1018);
+        $checkAlphaBottomDef = $this->minmax->checkMinMaxValue($this->units->convectionCoeff($studyAlphaBottomDef, 3, 0), 1018);
         if (!$checkAlphaBottomDef) {
-            $mm = $this->minmax->getMinMaxTime(1018);
+            $mm = $this->minmax->getMinMaxCoeff(1018, 2);
             return  [
                 "Message" => "Value out of range in Alpha bottom (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
             ];
         }
 
-        $checkAlphaLeftDef = $this->minmax->checkMinMaxValue($studyAlphaTopDef, 1018);
+        $checkAlphaLeftDef = $this->minmax->checkMinMaxValue($this->units->convectionCoeff($studyAlphaLeftDef, 3, 0), 1018);
         if (!$checkAlphaLeftDef) {
-            $mm = $this->minmax->getMinMaxTime(1018);
+            $mm = $this->minmax->getMinMaxCoeff(1018, 2);
             return  [
                 "Message" => "Value out of range in Alpha left (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
             ];
         }
 
-        $checkAlphaRightDef = $this->minmax->checkMinMaxValue($studyAlphaTopDef, 1018);
+        $checkAlphaRightDef = $this->minmax->checkMinMaxValue($this->units->convectionCoeff($studyAlphaRightDef, 3, 0), 1018);
         if (!$checkAlphaRightDef) {
-            $mm = $this->minmax->getMinMaxTime(1018);
+            $mm = $this->minmax->getMinMaxCoeff(1018, 2);
             return  [
                 "Message" => "Value out of range in Alpha right (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
             ];
         }
 
-        $checkAlphaFrontDef = $this->minmax->checkMinMaxValue($studyAlphaTopDef, 1018);
+        $checkAlphaFrontDef = $this->minmax->checkMinMaxValue($this->units->convectionCoeff($studyAlphaFrontDef, 3, 0), 1018);
         if (!$checkAlphaFrontDef) {
-            $mm = $this->minmax->getMinMaxTime(1018);
+            $mm = $this->minmax->getMinMaxCoeff(1018, 2);
             return  [
                 "Message" => "Value out of range in Alpha front (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
             ];
         }
         
-        $checkAlphaRearDef = $this->minmax->checkMinMaxValue($studyAlphaTopDef, 1018);
+        $checkAlphaRearDef = $this->minmax->checkMinMaxValue($this->units->convectionCoeff($studyAlphaRearDef, 3, 0), 1018);
         if (!$checkAlphaRearDef) {
-            $mm = $this->minmax->getMinMaxTime(1018);
+            $mm = $this->minmax->getMinMaxCoeff(1018, 2);
             return  [
                 "Message" => "Value out of range in Alpha rear (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
             ];
@@ -493,7 +494,7 @@ class Settings extends Controller
 
         if ($calculationparametersdef != null) {
             if (isset($input['ishorizScanDef'])) $calculationparametersdef->HORIZ_SCAN_DEF = $ishorizScanDef;
-            if (isset($input['maxIter'])) $calculationparametersdef->MAX_IT_NB_DEF = $maxIter;
+            if (isset($input['maxIter'])) $calculationparametersdef->MAX_IT_NB_DEF =$maxIter;
 
             if (isset($input['relaxCoef'])) $calculationparametersdef->RELAX_COEFF_DEF = $relaxCoef;
             if (isset($input['precision'])) $calculationparametersdef->PRECISION_REQUEST_DEF = $precision;

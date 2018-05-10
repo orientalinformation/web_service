@@ -16,11 +16,34 @@ class StudyService
     */
     protected $auth;
 
+    public static $MODE_ESTIMATION = 1;
+    public static $MODE_SELECTED = 2;
+    public static $MODE_OPTIMUM = 3;
+    
+    // study options
+    public static $OPTION_NOT_ECONOMIC = 0;
+    public static $OPTION_ECONOMIC = 1;
+    
+    public static $OPTION_NOT_PIPELINE = 0;
+    public static $OPTION_PIPELINE = 1;
+    
+    public static $OPTION_NOT_CHAINING = 0;
+    public static $OPTION_CHAINING = 1;
+    
+    public static $OPTION_NOT_CHAIN_ADDCOMP = 0;
+    public static $OPTION_CHAIN_ADDCOMP = 1;
+    
+    public static $OPTION_NOT_NODE_DECIM = 0;
+    public static $OPTION_NODE_DECIM = 1;
+    
+
     public function __construct(\Laravel\Lumen\Application $app)
     {
         $this->app = $app;
         $this->auth = $app['Illuminate\\Contracts\\Auth\\Factory'];
         $this->value = $app['App\\Cryosoft\\ValueListService'];
+        $this->kernel = $app['App\\Kernel\\KernelService'];
+        $this->calculator = $app['App\\Cryosoft\\CalculateService'];
     }
 
     public function isMyStudy($idStudy) 
@@ -66,7 +89,8 @@ class StudyService
         return $disabled;
     }
 
-    public function getStudyPrice($study) {
+    public function getStudyPrice($study) 
+    {
         if ($study->OPTION_ECO != 0) {
 
             if ($study->ID_PRICE == 0) {
@@ -191,7 +215,8 @@ class StudyService
         return $dbAxe;
     }
 
-    public function convertPointForDB($ldShape, $bIsParallel, $appDim) {
+    public function convertPointForDB($ldShape, $bIsParallel, $appDim) 
+    {
         $dbDim = [];
 
         switch ($ldShape) {
@@ -246,5 +271,29 @@ class StudyService
         ];
 
         return $data;
+    }
+
+    public function RunStudyCleaner($idStudy, $ld_Mode, $ld_StudEqpId = -1) 
+    {
+        $ret = 0;
+        $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $idStudy);
+        $ret = $this->kernel->getKernelObject('StudyCleaner')->SCStudyClean($conf, $ld_Mode);
+        // Chaining management to mark childs to recalculate
+        if ($this->calculator->isStudyHasChilds($idStudy)) {
+            // ret = setChildsStudiesToRecalculate(ld_StudEqpId);
+        }
+
+        return $ret;
+    }
+
+    public function isStudyHasParent (\App\Models\Study $mySTD) 
+    {
+        $bret = false;
+        //study with chaining?
+        if (($mySTD->CHAINING_CONTROLS == self::$OPTION_CHAINING)
+            && ($mySTD->PARENT_ID > 0)) {
+            $bret = true;
+        }
+        return $bret;
     }
 }

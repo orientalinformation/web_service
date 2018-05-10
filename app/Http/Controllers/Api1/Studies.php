@@ -31,6 +31,7 @@ use App\Models\CalculationParametersDef;
 use App\Models\CalculationParameter;
 use App\Cryosoft\CalculateService;
 use App\Cryosoft\StudyService;
+use App\Cryosoft\EquipmentsService;
 use App\Models\TempRecordPts;
 use App\Models\TempRecordPtsDef;
 use App\Models\MeshPosition;
@@ -42,6 +43,7 @@ use App\Models\PipeGen;
 use App\Models\PipeRes;
 use App\Models\LineElmt;
 use App\Models\LineDefinition;
+use App\Cryosoft\MeshService;
 // use DB;
 
 class Studies extends Controller
@@ -88,12 +90,18 @@ class Studies extends Controller
     protected $study;
 
     /**
+     * @var \App\Cryosoft\MeshService
+     */
+    protected $mesh;
+
+    /**
      * Create a new controller instance.
      *
      * @return void
      */
     public function __construct(Request $request, Auth $auth, KernelService $kernel, UnitsConverterService $convert,
-        ValueListService $value, LineService $lineE, StudyEquipmentService $stdeqp, PackingService $packing, StudyService $study)
+        ValueListService $value, LineService $lineE, StudyEquipmentService $stdeqp, PackingService $packing, StudyService $study,
+        MeshService $mesh, EquipmentsService $equip)
     {
         $this->request = $request;
         $this->auth = $auth;
@@ -104,6 +112,8 @@ class Studies extends Controller
         $this->stdeqp = $stdeqp;
         $this->packing = $packing;
         $this->study = $study;
+        $this->mesh = $mesh;
+        $this->equip = $equip;
     }
 
     public function findStudies()
@@ -302,21 +312,12 @@ class Studies extends Controller
             if (!empty($input['name']) || ($study->STUDY_NAME  != null)) {
 
                 //duplicate study already exsits
-                $study->STUDY_NAME = $input['name'];
+                $study = $studyCurrent->replicate();
+                unset($study->STUDY_NAME);
+                unset($study->ID_USER);
                 $study->ID_USER = $this->auth->user()->ID_USER;
-                $study->OPTION_ECO = $studyCurrent->OPTION_ECO;
-                $study->CALCULATION_MODE = $studyCurrent->CALCULATION_MODE;
-                $study->COMMENT_TXT = $studyCurrent->COMMENT_TXT;
-                $study->OPTION_CRYOPIPELINE = $studyCurrent->OPTION_CRYOPIPELINE;
-                $study->OPTION_EXHAUSTPIPELINE = $studyCurrent->OPTION_EXHAUSTPIPELINE;
-                $study->CHAINING_CONTROLS = $studyCurrent->CHAINING_CONTROLS;
-                $study->CHAINING_ADD_COMP_ENABLE = $studyCurrent->CHAINING_ADD_COMP_ENABLE;
-                $study->CHAINING_NODE_DECIM_ENABLE = $studyCurrent->CHAINING_NODE_DECIM_ENABLE;
-                $study->HAS_CHILD = 0;
-                $study->PARENT_ID = $studyCurrent->PARENT_ID;
-                $study->PARENT_STUD_EQP_ID = $studyCurrent->PARENT_STUD_EQP_ID;
-                $study->CALCULATION_STATUS = $studyCurrent->CALCULATION_STATUS;
-                $study->TO_RECALCULATE = $studyCurrent->TO_RECALCULATE;
+                $study->STUDY_NAME = $input['name'];
+                $study->COMMENT_TXT = $studyCurrent->COMMENT_TXT .'</br>'. 'Created on ' . date("D M j G:i:s T Y") . ' by ' . $this->auth->user()->USERNAM;
                 $study->save();
 
                 //duplicate TempRecordPts already exsits
@@ -429,6 +430,7 @@ class Studies extends Controller
                         $studyelmt = new StudyEquipment();
                         $studyelmt = $stuElmt->replicate();
                         $studyelmt->ID_STUDY = $study->ID_STUDY;
+                        $studyelmt->BRAIN_TYPE = 0;
                         unset($studyelmt->ID_STUDY_EQUIPMENTS);
                         if ($studyelmt->save()) {
                             $studyelmtId = $studyelmt->ID_STUDY_EQUIPMENTS;
@@ -567,20 +569,44 @@ class Studies extends Controller
         $study->OPTION_EXHAUSTPIPELINE = $update->OPTION_EXHAUSTPIPELINE;
         $study->OPTION_ECO = $update->OPTION_ECO;
         $study->CHAINING_CONTROLS = $update->CHAINING_CONTROLS;
-        $study->CHAINING_ADD_COMP_ENABLE = $update->CHAINING_ADD_COMP_ENABLE;
+        $study->CHAINING_ADD_COMP_ENABLE = $update->CHAINING_ADD_COMP_ENABLE;        
         $study->CHAINING_NODE_DECIM_ENABLE = $update->CHAINING_NODE_DECIM_ENABLE;
         $study->TO_RECALCULATE = $update->TO_RECALCULATE;
         $study->HAS_CHILD = $update->HAS_CHILD;
         $study->OPEN_BY_OWNER = $update->OPEN_BY_OWNER;
-        if ($study->OPTION_CRYOPIPELINE = $update->OPTION_CRYOPIPELINE) {
+        if ($study->OPTION_CRYOPIPELINE == 0) {
             if (!empty($study->studyEquipments)) {
                 foreach ($study->studyEquipments as $studyEquip) {
                     $pipeGen = $studyEquip->pipeGens->first();
-                    $pipeDefition = $pipeGen->lineDefinitions;
-                    foreach ($pipeDefition as $pipeDefitions) {
-                        $pipeDefitions->delete();
+                    if ($pipeGen != null) {
+                        $pipeDefition = $pipeGen->lineDefinitions;
+                        foreach ($pipeDefition as $pipeDefitions) {
+                            $pipeDefitions->delete();
+                        }
+                        $pipeGen->delete();
                     }
-                    $pipeGen->delete();
+                }
+            }
+        }
+
+        if ($study->CHAINING_ADD_COMP_ENABLE) {
+            $product = $study->products()->first();
+            if ($product) {
+                $meshGen = $product->meshGenerations()->first();
+                if ($meshGen) {
+                    if ($meshGen->MESH_1_FIXED != MeshService::IRREGULAR_MESH ||
+                        $meshGen->MESH_1_MODE != MeshService::MAILLAGE_MODE_IRREGULAR)
+                    {
+                        $meshGen->MESH_1_FIXED = MeshService::IRREGULAR_MESH;
+                        $meshGen->MESH_2_FIXED = MeshService::IRREGULAR_MESH;
+                        $meshGen->MESH_3_FIXED = MeshService::IRREGULAR_MESH;
+                        
+                        $meshGen->MESH_1_MODE = MeshService::MAILLAGE_MODE_IRREGULAR;
+                        $meshGen->MESH_2_MODE = MeshService::MAILLAGE_MODE_IRREGULAR;
+                        $meshGen->MESH_3_MODE = MeshService::MAILLAGE_MODE_IRREGULAR;
+                        $meshGen->save();
+                        $this->mesh->rebuildMesh($study);
+                    }
                 }
             }
         }
@@ -797,11 +823,11 @@ class Studies extends Controller
         $study->ID_USER = $this->auth->user()->ID_USER;
         $study->OPTION_ECO = isset($input['OPTION_ECO'])?$input['OPTION_ECO']:0;
         $study->CALCULATION_MODE = $input['CALCULATION_MODE'];
-        $study->COMMENT_TXT = isset($input['COMMENT_TXT'])?$input['COMMENT_TXT']:'';
-        $study->OPTION_CRYOPIPELINE = false;
-        $study->OPTION_EXHAUSTPIPELINE = false;
-        $study->CHAINING_CONTROLS = false;
-        $study->CHAINING_ADD_COMP_ENABLE = false;
+        $study->COMMENT_TXT = isset($input['COMMENT_TXT'])?$input['COMMENT_TXT'] . '</br>' . 'Created on ' . date("D M j G:i:s T Y") . ' by ' . $this->auth->user()->USERNAM . '</br>': 'Created on ' . date("D M j G:i:s T Y") . ' by ' . $this->auth->user()->USERNAM;
+        $study->OPTION_CRYOPIPELINE = isset($input['OPTION_CRYOPIPELINE'])?$input['OPTION_CRYOPIPELINE']:'';
+        $study->OPTION_EXHAUSTPIPELINE = isset($input['OPTION_EXHAUSTPIPELINE'])?$input['OPTION_EXHAUSTPIPELINE']:'';
+        $study->CHAINING_CONTROLS = isset($input['CHAINING_CONTROLS'])?$input['CHAINING_CONTROLS']:'';
+        $study->CHAINING_ADD_COMP_ENABLE = isset($input['CHAINING_ADD_COMP_ENABLE'])?$input['CHAINING_ADD_COMP_ENABLE']:'';
         $study->CHAINING_NODE_DECIM_ENABLE = 0;
         $study->HAS_CHILD = 0;
         $study->TO_RECALCULATE = 0;
@@ -1035,7 +1061,14 @@ class Studies extends Controller
         
         if ($equip->STD != EQUIP_STANDARD) {
             // TODO: generated non-standard equipment is not supported yet
-            throw new \Exception('Non standard equipment is not yet supported', 500);
+            // throw new \Exception('Non standard equipment is not yet supported', 500);
+            if ($this->equip->getCapability($equip->CAPABILITIES, 65536)) {
+                $tr = $this->getEqpPrmInitialData(array_fill(0, $equip->NB_TR, 0.0), $TRType, false);
+                $ts = $this->setEqpPrmInitialData(array_fill(0, $equip->NB_TS, 0.0), $equip->equipGenerations->first()->DWELLING_TIME);
+            } else {
+                $tr = $this->setEqpPrmInitialData(array_fill(0, $equip->NB_TR, 0.0), $equip->equipGenerations->first()->TEMP_SETPOINT);
+                $ts = $this->getEqpPrmInitialData(array_fill(0, $equip->NB_TS, 0.0), $TSType, true);
+            }
         } else {
             // standard equipment
             $tr = $this->getEqpPrmInitialData(array_fill(0, $equip->NB_TR, 0.0), $TRType, false);
@@ -1187,6 +1220,13 @@ class Studies extends Controller
         return $dd;
     }
 
+    private function setEqpPrmInitialData($dd, $value) {
+        for ($i = 0; $i < count($dd); $i++) {
+            $dd[$i] = $value;
+        }
+        return $dd;
+    }
+
 
     public function removeStudyEquipment($id, $idEquip) {
         $study = \App\Models\Study::findOrFail($id);
@@ -1256,7 +1296,9 @@ class Studies extends Controller
             $meshPoints = MeshPosition::distinct()->select('MESH_AXIS_POS')->where('ID_STUDY', $id)->where('MESH_AXIS', $i+1)->orderBy('MESH_AXIS_POS')->get();
             $itemName = [];
             foreach ($meshPoints as $row) {
-                $itemName[] = $this->convert->meshesUnit($row->MESH_AXIS_POS);
+                $item['value'] = $row->MESH_AXIS_POS;
+                $item['name'] = $this->convert->meshesUnit($row->MESH_AXIS_POS);
+                $itemName[] = $item;
             }
             $tfMesh[$i] = array_reverse($itemName);
         }
@@ -1294,6 +1336,9 @@ class Studies extends Controller
         $layoutGen->save();
 
         $this->stdeqp->calculateEquipmentParams($sEquip);
+        if ($input['studyClean'] == true) {
+            $this->stdeqp->applyStudyCleaner($sEquip->ID_STUDY, $id, 43);
+        }
     }
 
     public function getChainingModel($id) 
@@ -1428,6 +1473,7 @@ class Studies extends Controller
             $layoutGen = LayoutGeneration::where('ID_STUDY_EQUIPMENTS', $idStudyEquipment)->first();
             $orientation = $layoutGen->PROD_POSITION;
             $tempRecordPts =  TempRecordPts::where('ID_STUDY', $id)->first();
+            $report =  Report::where('ID_STUDY', $id)->first();
             
 
             $pointTop = ['x' => $input['POINT_TOP_X'], 'y' => $input['POINT_TOP_Y'], 'z' => $input['POINT_TOP_Z']];
@@ -1451,43 +1497,43 @@ class Studies extends Controller
             $planResult = $this->study->convertPointForDB($shape, $orientation, $plan);
 
             $tempRecordPts->NB_STEPS = $nbSteps;
-            $tempRecordPts->AXIS1_PT_TOP_SURF = $pointTopResult[0];
-            $tempRecordPts->AXIS2_PT_TOP_SURF = $pointTopResult[1];
-            $tempRecordPts->AXIS3_PT_TOP_SURF = $pointTopResult[2];
+            $tempRecordPts->AXIS1_PT_TOP_SURF = $report->POINT1_X = $pointTopResult[0];
+            $tempRecordPts->AXIS2_PT_TOP_SURF = $report->POINT1_Y = $pointTopResult[1];
+            $tempRecordPts->AXIS3_PT_TOP_SURF = $report->POINT1_Z = $pointTopResult[2];
 
-            $tempRecordPts->AXIS1_PT_INT_PT = $pointIntResult[0];
-            $tempRecordPts->AXIS2_PT_INT_PT = $pointIntResult[1];
-            $tempRecordPts->AXIS3_PT_INT_PT = $pointIntResult[2];
+            $tempRecordPts->AXIS1_PT_INT_PT = $report->POINT2_X = $pointIntResult[0];
+            $tempRecordPts->AXIS2_PT_INT_PT = $report->POINT2_Y = $pointIntResult[1];
+            $tempRecordPts->AXIS3_PT_INT_PT = $report->POINT2_Z = $pointIntResult[2];
 
-            $tempRecordPts->AXIS1_PT_BOT_SURF = $pointBotResult[0];
-            $tempRecordPts->AXIS2_PT_BOT_SURF = $pointBotResult[1];
-            $tempRecordPts->AXIS3_PT_BOT_SURF = $pointBotResult[2];
+            $tempRecordPts->AXIS1_PT_BOT_SURF = $report->POINT3_X = $pointBotResult[0];
+            $tempRecordPts->AXIS2_PT_BOT_SURF = $report->POINT3_Y = $pointBotResult[1];
+            $tempRecordPts->AXIS3_PT_BOT_SURF = $report->POINT3_Z = $pointBotResult[2];
 
             if (isset($axisResult[0]['y'])) {
-                $tempRecordPts->AXIS2_AX_1 = $axisResult[0]['y'];
+                $tempRecordPts->AXIS2_AX_1 = $report->AXE1_X = $axisResult[0]['y'];
             }
             if (isset($axisResult[0]['z'])) {
-                $tempRecordPts->AXIS3_AX_1 = $axisResult[0]['z'];
+                $tempRecordPts->AXIS3_AX_1 = $report->AXE1_Y = $axisResult[0]['z'];
             }
             if (isset($axisResult[1]['x'])) {
-                $tempRecordPts->AXIS1_AX_2 = $axisResult[1]['x'];
+                $tempRecordPts->AXIS1_AX_2 = $report->AXE2_X = $axisResult[1]['x'];
             }
             if (isset($axisResult[1]['z'])) {
-                $tempRecordPts->AXIS3_AX_2 = $axisResult[1]['z'];
+                $tempRecordPts->AXIS3_AX_2 = $report->AXE2_Z = $axisResult[1]['z'];
             }
             if (isset($axisResult[2]['x'])) {
-                $tempRecordPts->AXIS1_AX_3 = $axisResult[2]['x'];
+                $tempRecordPts->AXIS1_AX_3 = $report->AXE3_Y = $axisResult[2]['x'];
             }
             if (isset($axisResult[2]['y'])) {
-                $tempRecordPts->AXIS2_AX_3 = $axisResult[2]['y'];
+                $tempRecordPts->AXIS2_AX_3 = $report->AXE3_Z = $axisResult[2]['y'];
             }
 
-            $tempRecordPts->AXIS1_PL_2_3 = $planResult[0];
-            $tempRecordPts->AXIS2_PL_1_3 = $planResult[1];
-            $tempRecordPts->AXIS3_PL_1_2 = $planResult[2];
+            $tempRecordPts->AXIS1_PL_2_3 = $report->PLAN_X = $planResult[0];
+            $tempRecordPts->AXIS2_PL_1_3 = $report->PLAN_Y = $planResult[1];
+            $tempRecordPts->AXIS3_PL_1_2 = $report->PLAN_Z = $planResult[2];
 
-
-            // $tempRecordPts->save();
+            $tempRecordPts->save();
+            $report->save();
         }
 
         return 1;
@@ -1510,7 +1556,7 @@ class Studies extends Controller
         $precalcLdgRatePrm = new PrecalcLdgRatePrm();
         $packing = new Packing();
 
-        $isNumberical = ($stdEqp->BRAIN_TYPE == $this->value->BRAIN_RUN_FULL_YES) ? true : false;
+        $isNumerical = ($stdEqp->BRAIN_TYPE == $this->value->BRAIN_RUN_FULL_YES) ? true : false;
         $isAnalogical = false;
         if ($study->CALCULATION_MODE == $this->value->STUDY_ESTIMATION_MODE) {
             // estimation
@@ -1625,12 +1671,9 @@ class Studies extends Controller
                             $shapeId = $productemlt->ID_SHAPE;
                             unset($productemlt->ID_PRODUCT_ELMT);
                             $productemlt->save();
-                            foreach ($prodelmtCurr->meshPositions as $meshPositionCurr) {
-                                $meshPos = new MeshPosition();
-                                $meshPos = $meshPositionCurr->replicate();
-                                unset($meshPos->ID_MESH_POSITION);
-                                $meshPos->save();
-                            }
+                            DB::insert(DB::RAW('insert into MESH_POSITION (ID_PRODUCT_ELMT, MESH_AXIS, MESH_ORDER, MESH_AXIS_POS) SELECT '
+                                . $productemlt->ID_PRODUCT_ELMT . ',M.MESH_AXIS, M.MESH_ORDER, M.MESH_AXIS_POS FROM MESH_POSITION AS M WHERE ID_PRODUCT_ELMT = '
+                                . $prodelmtCurr->ID_PRODUCT_ELMT));
                         }
                     }
                 }
@@ -1682,7 +1725,7 @@ class Studies extends Controller
                     // just duplicate => child product = parent product
                     $this->stdeqp->setInitialTempFromNumericalResults($stdEqp, $shapeId, $product, $production);
                 } else if ($isAnalogical) {
-                    if ($study->CALCULATION_MODE == $this->values->STUDY_ESTIMATION_MODE) {
+                    if ($study->CALCULATION_MODE == $this->value->STUDY_ESTIMATION_MODE) {
                         // estimation
                         // just duplicate => child product = parent product
                         $this->stdeqp->setInitialTempFromAnalogicalResults($stdEqp, $shapeId, $product, $production);
@@ -1701,6 +1744,8 @@ class Studies extends Controller
                 $study->ID_PRECALC_LDG_RATE_PRM = $precalcLdgRatePrm->ID_PRECALC_LDG_RATE_PRM;
                 $study->ID_PACKING = $packing->ID_PACKING;
                 $study->save();
+
+                $this->mesh->rebuildMesh($study);
 
                 return $study;
 

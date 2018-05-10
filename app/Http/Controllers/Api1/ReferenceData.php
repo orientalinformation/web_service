@@ -21,6 +21,7 @@ use App\Models\EquipGenZone;
 use App\Models\EquipZone;
 use App\Cryosoft\UnitsService;
 use App\Cryosoft\MinMaxService;
+use App\Cryosoft\EquipmentsService;
 
 class ReferenceData extends Controller
 {
@@ -50,22 +51,23 @@ class ReferenceData extends Controller
     protected $kernel;
 
     /**
-	 * @var App\Cryosoft\UnitsService
-	 */
+     * @var App\Cryosoft\UnitsService
+     */
     protected $units;
     
         /**
-	 * @var App\Cryosoft\MinMaxService
-	 */
-	protected $minmax;
+     * @var App\Cryosoft\MinMaxService
+     */
+    protected $minmax;
 
+    protected $equip;
     /**
      * Create a new controller instance.
      *
      * @return void
      */
     public function __construct(Request $request, Auth $auth, UnitsConverterService $convert, ValueListService $value, 
-    KernelService $kernel, UnitsService $units, MinMaxService $minmax)
+    KernelService $kernel, UnitsService $units, MinMaxService $minmax, EquipmentsService $equip)
     {
         $this->request = $request;
         $this->auth = $auth;
@@ -74,6 +76,7 @@ class ReferenceData extends Controller
         $this->kernel = $kernel;
         $this->units = $units;
         $this->minmax = $minmax;
+        $this->equip = $equip;
     }
 
     public function getFamilyTranslations($transType)
@@ -198,6 +201,23 @@ class ReferenceData extends Controller
         }
 
         return compact('mine', 'others');
+    }
+
+    public function getComponentById($id) 
+    {
+
+        $comp = Component::join('Translation', 'ID_COMP', '=', 'Translation.ID_TRANSLATION')
+        ->where('Translation.TRANS_TYPE', 1)
+        ->where('Translation.ID_TRANSLATION', $id)
+        ->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)->first();
+
+        if ($comp) {
+            $comp->AIR = round(($comp->AIR / 0.01205));
+            $comp->FREEZE_TEMP = $this->units->temperature($comp->FREEZE_TEMP, 2, 1);
+            $comp->NON_FROZEN_WATER = number_format((float)$comp->NON_FROZEN_WATER, 2, '.', '');
+        }
+
+        return $comp;
     }
 
     public function saveDataComponent()
@@ -332,8 +352,8 @@ class ReferenceData extends Controller
         if (isset($input['GLUCID'])) $GLUCID = floatval($input['GLUCID']);
         if (isset($input['LIPID'])) $LIPID = floatval($input['LIPID']);
         if (isset($input['CONDUCT_TYPE'])) $CONDUCT_TYPE = intval($input['CONDUCT_TYPE']);
-        if (isset($input['COMP_VERSION'])) $COMP_VERSION = intval($input['COMP_VERSION']);
-        if (isset($input['COMP_VERSION_NEW'])) $COMP_VERSION_NEW = intval($input['COMP_VERSION_NEW']);
+        if (isset($input['COMP_VERSION'])) $COMP_VERSION = floatval($input['COMP_VERSION']);
+        if (isset($input['COMP_VERSION_NEW'])) $COMP_VERSION_NEW = floatval($input['COMP_VERSION_NEW']);
         if (isset($input['FATTYPE'])) $FATTYPE = intval($input['FATTYPE']);
         if (isset($input['NATURE_TYPE'])) $NATURE_TYPE = intval($input['NATURE_TYPE']);
         if (isset($input['PRODUCT_TYPE'])) $PRODUCT_TYPE = intval($input['PRODUCT_TYPE']);
@@ -378,7 +398,13 @@ class ReferenceData extends Controller
         } else {
             $component->COMP_VERSION = $COMP_VERSION;
         }
-        $component->COMP_RELEASE = $release;
+
+        if ($TYPE_COMP == 3) {
+            $component->COMP_RELEASE = 7;
+        } else {
+            $component->COMP_RELEASE = $release;
+        }
+        
         $component->COMP_NATURE = $NATURE_TYPE;
         $component->FAT_TYPE = $FATTYPE;
         $component->CLASS_TYPE = $PRODUCT_TYPE;
@@ -457,8 +483,8 @@ class ReferenceData extends Controller
         if (isset($input['GLUCID'])) $GLUCID = floatval($input['GLUCID']);
         if (isset($input['LIPID'])) $LIPID = floatval($input['LIPID']);
         if (isset($input['CONDUCT_TYPE'])) $CONDUCT_TYPE = intval($input['CONDUCT_TYPE']);
-        if (isset($input['COMP_VERSION'])) $COMP_VERSION = intval($input['COMP_VERSION']);
-        if (isset($input['COMP_VERSION_NEW'])) $COMP_VERSION_NEW = intval($input['COMP_VERSION_NEW']);
+        if (isset($input['COMP_VERSION'])) $COMP_VERSION = floatval($input['COMP_VERSION']);
+        if (isset($input['COMP_VERSION_NEW'])) $COMP_VERSION_NEW = floatval($input['COMP_VERSION_NEW']);
         if (isset($input['FATTYPE'])) $FATTYPE = intval($input['FATTYPE']);
         if (isset($input['NATURE_TYPE'])) $NATURE_TYPE = intval($input['NATURE_TYPE']);
         if (isset($input['PRODUCT_TYPE'])) $PRODUCT_TYPE = intval($input['PRODUCT_TYPE']);
@@ -696,7 +722,7 @@ class ReferenceData extends Controller
         $SALT = $AIR = $NON_FROZEN_WATER = 0;
 
         if (isset($input['COMP_NAME'])) $COMP_NAME = $input['COMP_NAME'];
-        if (isset($input['COMP_VERSION'])) $COMP_VERSION = intval($input['COMP_VERSION']);
+        if (isset($input['COMP_VERSION'])) $COMP_VERSION = floatval($input['COMP_VERSION']);
 
         if (isset($input['FREEZE_TEMP'])) $FREEZE_TEMP = floatval($input['FREEZE_TEMP']);
         if (isset($input['WATER'])) $WATER = floatval($input['WATER']);
@@ -815,4 +841,20 @@ class ReferenceData extends Controller
         return 1;
     }
 
+    public function getCapabitity($idEquip)
+    {   
+        $capabilities = null;
+        $equipment = Equipment::find($idEquip);
+        if ($equipment) {
+            $capabilities = $equipment->CAPABILITIES;
+        }
+
+        $CAP_EQP_DEPEND_ON_TS = $this->equip->getCapability($capabilities, 65536);
+
+        $array = [
+            'CAP_EQP_DEPEND_ON_TS' => $CAP_EQP_DEPEND_ON_TS,
+        ];
+
+        return $array;
+    }
 }

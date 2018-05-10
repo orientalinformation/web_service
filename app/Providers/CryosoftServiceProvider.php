@@ -80,6 +80,10 @@ class CryosoftServiceProvider extends ServiceProvider
         $this->app->singleton(\App\Cryosoft\SVGService::class, function ($app) {
             return new \App\Cryosoft\SVGService($app);
         });
+        
+        $this->app->singleton(\App\Cryosoft\ProductElementsService::class, function ($app) {
+            return new \App\Cryosoft\ProductElementsService($app);
+        });
     }
 
 }

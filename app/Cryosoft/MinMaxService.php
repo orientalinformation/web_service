@@ -41,8 +41,7 @@ class MinMaxService
     public function checkMinMaxValue($value, $limitItem)
     {
         $minMax = MinMax::where('LIMIT_ITEM', intval($limitItem))->first();
-        // ERROR MISTAKE HAIDT
-        if (doubleval($value) < round($minMax->LIMIT_MIN, 2) || doubleval($value) > round($minMax->LIMIT_MAX, 2)) {
+        if (doubleval($value) < round($minMax->LIMIT_MIN, 4) || doubleval($value) > round($minMax->LIMIT_MAX, 4)) {
             return false;
         } else {
             return true;
@@ -109,7 +108,6 @@ class MinMaxService
         return $minMax; 
     }
 
-    // HAIDT
     public function getMinMaxTime($limitItem)
     {  
         $minMax = MinMax::where('LIMIT_ITEM', intval($limitItem))->first();
@@ -139,7 +137,7 @@ class MinMaxService
 
     public function getMinMaxUPercent($limitItem)
     {
-        $uPercent = $this->units->uPercent();		
+        $uPercent = $this->units->uPercent();       
         $minMax = MinMax::where('LIMIT_ITEM', intval($limitItem))->first();
         $minMax->LIMIT_MAX =  $this->units->convertCalculator($minMax->LIMIT_MAX, $uPercent["coeffA"], $uPercent["coeffB"], 2, 1);
         $minMax->LIMIT_MIN = $this->units->convertCalculator($minMax->LIMIT_MIN, $uPercent["coeffA"], $uPercent["coeffB"], 2, 1);
@@ -150,7 +148,7 @@ class MinMaxService
 
     public function getMinMaxUPercentNone($limitItem)
     {
-        $uPercent = $this->units->uPercent();		
+        $uPercent = $this->units->uPercent();       
         $minMax = MinMax::where('LIMIT_ITEM', intval($limitItem))->first();
         return $minMax; 
     }
@@ -181,6 +179,67 @@ class MinMaxService
         $minMax->LIMIT_MAX = $this->units->conductivity($minMax->LIMIT_MAX, $decimal, 1);
         $minMax->LIMIT_MIN = $this->units->conductivity($minMax->LIMIT_MIN, $decimal, 1);
         $minMax->DEFAULT_VALUE = $this->units->conductivity($minMax->DEFAULT_VALUE, $decimal,1);
+
+        return $minMax; 
+    }
+
+    public function getMinMaxCoeff($limitItem, $decimal)
+    {   
+        $minMax = MinMax::where('LIMIT_ITEM', intval($limitItem))->first();
+        $minMax->LIMIT_MAX =  $this->units->convectionCoeff($minMax->LIMIT_MAX, $decimal, 1);
+        $minMax->LIMIT_MIN = $this->units->convectionCoeff($minMax->LIMIT_MIN, $decimal, 1);
+        $minMax->DEFAULT_VALUE = $this->units->convectionCoeff($minMax->DEFAULT_VALUE, $decimal, 1);
+
+        return $minMax; 
+    }
+
+    public function getMinMaxTankCapacity($limitItem, $typeunit, $decimal)
+    {
+        $minMax = MinMax::where('LIMIT_ITEM', intval($limitItem))->first();
+        $minMax->LIMIT_MAX = $this->units->tankCapacity($minMax->LIMIT_MAX, $typeunit, $decimal, 1);
+        $minMax->LIMIT_MIN = $this->units->tankCapacity($minMax->LIMIT_MIN, $typeunit, $decimal, 1);
+        $minMax->DEFAULT_VALUE = $this->units->tankCapacity($minMax->DEFAULT_VALUE, $typeunit, $decimal,1);
+
+        return $minMax; 
+    }
+
+    public function getMinMaxLineDimension($limitItem, $decimal)
+    {
+        $minMax = MinMax::where('LIMIT_ITEM', intval($limitItem))->first();
+        $minMax->LIMIT_MAX = $this->units->lineDimension($minMax->LIMIT_MAX, $decimal, 1);
+        $minMax->LIMIT_MIN = $this->units->lineDimension($minMax->LIMIT_MIN, $decimal, 1);
+        $minMax->DEFAULT_VALUE = $this->units->lineDimension($minMax->DEFAULT_VALUE, $decimal,1);
+
+        return $minMax; 
+    }
+
+    public function getMinMaxControlTemperature($limitItem, $decimal)
+    {
+        $minMax = MinMax::where('LIMIT_ITEM', intval($limitItem))->first();
+        $minMax->LIMIT_MAX = $this->units->controlTemperature($minMax->LIMIT_MAX, $decimal, 1);
+        $minMax->LIMIT_MIN = $this->units->controlTemperature($minMax->LIMIT_MIN, $decimal, 1);
+        $minMax->DEFAULT_VALUE = $this->units->controlTemperature($minMax->DEFAULT_VALUE, $decimal,1);
+
+        return $minMax; 
+
+    }
+
+    public function getMinMaxTimes($limitItem, $decimal)
+    {  
+        $minMax = MinMax::where('LIMIT_ITEM', intval($limitItem))->first();
+        $minMax->LIMIT_MAX = $this->units->time($minMax->LIMIT_MAX, $decimal, 1);
+        $minMax->LIMIT_MIN = $this->units->time($minMax->LIMIT_MIN, $decimal, 1);
+        $minMax->DEFAULT_VALUE = $this->units->time($minMax->DEFAULT_VALUE, $decimal,1);
+
+        return $minMax; 
+    }
+
+    public function getMinMaxLimitItemRelaxCoef($limitItem, $decimal)
+    {  
+        $minMax = MinMax::where('LIMIT_ITEM', intval($limitItem))->first();
+        $minMax->LIMIT_MAX = number_format((float)$minMax->LIMIT_MAX, 0, '.', '');
+        $minMax->LIMIT_MIN = number_format((float)$minMax->LIMIT_MIN, 0, '.', '');
+        $minMax->DEFAULT_VALUE = number_format((float)$minMax->DEFAULT_VALUE, 0, '.', '');
 
         return $minMax; 
     }

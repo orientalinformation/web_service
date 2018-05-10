@@ -7,6 +7,7 @@ use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Contracts\Auth\Factory as Auth;
 use App\Kernel\KernelService;
+use App\Cryosoft\MeshService;
 
 class ProductElements extends Controller
 {
@@ -27,11 +28,12 @@ class ProductElements extends Controller
      *
      * @return void
      */
-    public function __construct(Request $request, Auth $auth, KernelService $kernel)
+    public function __construct(Request $request, Auth $auth, KernelService $kernel, MeshService $mesh)
     {
         $this->request = $request;
         $this->auth = $auth;
         $this->kernel = $kernel;
+        $this->mesh = $mesh;
     }
 
     public function productElementMoveUp($id)
@@ -56,7 +58,8 @@ class ProductElements extends Controller
         // call kernel recalculate weight
         $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $moveElement->product->ID_PROD);
 
-        return $this->kernel->getKernelObject('WeightCalculator')->WCWeightCalculation($moveElement->product->ID_STUDY, $conf, 4);
+        $this->kernel->getKernelObject('WeightCalculator')->WCWeightCalculation($moveElement->product->ID_STUDY, $conf, 4);
+        return $this->mesh->rebuildMesh($moveElement->product->study);
     }
 
     public function productElementMoveDown($id)
@@ -79,7 +82,17 @@ class ProductElements extends Controller
         $moveElement->push();
         
         $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, intval($moveElement->product->ID_PROD));
-        return $this->kernel->getKernelObject('WeightCalculator')->WCWeightCalculation($moveElement->product->ID_STUDY, $conf, 4);
+        
+        $this->kernel->getKernelObject('WeightCalculator')->WCWeightCalculation($moveElement->product->ID_STUDY, $conf, 4);
+        return $this->mesh->rebuildMesh($moveElement->product->study);
     }
 
+    public function initProdElmtTemp($id) 
+    {
+        $elmt = \App\Models\ProductElmt::findOrFail($id);
+
+        $input = $this->request->json()->all();
+
+        return $input;
+    }
 }

@@ -31,7 +31,8 @@ class Packings extends Controller
         $this->auth = $auth;
     }
 
-    public function findPackingLayers() {        
+    public function findPackingLayers() 
+    {        
         $packingLayers = \App\Models\PackingLayer::all();
         return $packingLayers;
     }

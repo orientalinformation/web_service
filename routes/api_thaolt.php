@@ -41,12 +41,12 @@ $router->POST('/api/v1/products/{idProd}/generateMesh', 'Api1\\Products@generate
 $router->POST('/api/v1/products/{idProd}/defaultMesh', 'Api1\\Products@generateDefaultMesh');
 
 /**
- * POST initTemperature
+ * POST initIsoTemperature
  * Summary:
  * Notes: initialize temperature
  * Output-Formats: [application/json]
  */
-$router->POST('/api/v1/products/{idProd}/initTemperature', 'Api1\\Products@initTemperature');
+$router->POST('/api/v1/products/{idProd}/initIsoTemperature', 'Api1\\Products@initIsoTemperature');
 
 /**
  * PUT createStudy
@@ -71,6 +71,14 @@ $router->GET('/api/v1/recentStudies', 'Api1\\Studies@recentStudies');
  * Output-Formats: [application/json]
  */
 $router->GET('/api/v1/studyEquipment/{id}', 'Api1\\StudyEquipments@getStudyEquipmentById');
+
+/**
+ * GET StudyEquipments
+ * Summary: 
+ * Notes: get study equipment by id
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/studyEquipment/{id}/layout', 'Api1\\StudyEquipments@getStudyEquipmentLayout');
 
 /**
  * PUT addEquipment
@@ -130,3 +138,18 @@ $router->GET('/api/v1/studies/{id}/chaining', 'Api1\\Studies@getChainingModel');
  */
 $router->PUT('/api/v1/studies/{id}/chaining', 'Api1\\Studies@createChildStudy');
 
+/**
+ * POST initProdElmtTemp
+ * Summary: 
+ * Notes: init product element temperature
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/productElmts/{id}/initTemp', 'Api1\\ProductElements@initProdElmtTemp');
+
+/**
+ * POST initNonIsoTemperature
+ * Summary: 
+ * Notes: initialize non isothermal temperature
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/products/{idProd}/initNonIsoTemperature', 'Api1\\Products@initNonIsoTemperature');

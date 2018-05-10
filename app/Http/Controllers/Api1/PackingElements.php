@@ -27,14 +27,14 @@ class PackingElements extends Controller
     protected $auth;
     
     /**
-	 * @var App\Cryosoft\UnitsService
-	 */
+     * @var App\Cryosoft\UnitsService
+     */
     protected $units;
     
         /**
-	 * @var App\Cryosoft\MinMaxService
-	 */
-	protected $minmax;
+     * @var App\Cryosoft\MinMaxService
+     */
+    protected $minmax;
 
     /**
      * Create a new controller instance.
@@ -94,14 +94,20 @@ class PackingElements extends Controller
 
         if (isset($input['PACKING_RELEASE'])) $release = $input['PACKING_RELEASE'];
 
-        if ($comment == '') $comment =  'Created on ' . $current->toDateTimeString() . ' by '. $this->auth->user()->USERNAM ;
+        if (count($comment) == 0) {
+            $comment = 'Create on ' . $current->toDateTimeString() . ' by ' . $this->auth->user()->USERNAM;
+        } else if (count($comment) < 2100) {
+            $comment = $comment. "\r\nCreate on " . $current->toDateTimeString() . " by " . $this->auth->user()->USERNAM;
+        } else {
+            $comment = substr($comment, 0, 1999) . '. Create on ' . $current->toDateTimeString() . ' by ' . $this->auth->user()->USERNAM;
+        }
 
         $packingElmts = Translation::where('TRANS_TYPE', 3)->get();
         $idPackExist = 0;
 
         for ($i = 0; $i < count($packingElmts); $i++) { 
 
-			if ($packingElmts[$i]->LABEL == $name) {
+            if ($packingElmts[$i]->LABEL == $name) {
                 $idPackExist = $packingElmts[$i]->ID_TRANSLATION;
                 $packExist = PackingElmt::find(intval($idPackExist));
 
@@ -112,7 +118,7 @@ class PackingElements extends Controller
                         return 0;
                     }
                 }
-			}
+            }
         }
         
         $packingElmt = new PackingElmt();
@@ -155,6 +161,7 @@ class PackingElements extends Controller
                 $packingElmt->OPEN_BY_OWNER = 0;
                 $packingElmt->update();
             }
+            
             $packingLayers = PackingLayer::where('ID_PACKING_ELMT', $idPacking)->get();
             if (count($packingLayers) > 0) {
                 $packingElmt->PACKING_RELEASE = 5;
@@ -212,6 +219,7 @@ class PackingElements extends Controller
                         }
                     }
                 }
+
                 $packingElmtName = Translation::where('TRANS_TYPE', 3)->where('ID_TRANSLATION', $idPacking)
                 ->update(['LABEL' => $name]);
                 $current = Carbon::now('Asia/Ho_Chi_Minh');
@@ -252,20 +260,19 @@ class PackingElements extends Controller
         $idPackExist = 0;
 
         for ($i = 0; $i < count($listLabelPacking); $i++) { 
-
-			if ($listLabelPacking[$i]->LABEL == $name) {
+            if ($listLabelPacking[$i]->LABEL == $name) {
                 $idPackExist = $listLabelPacking[$i]->ID_TRANSLATION;
                 $packExist = PackingElmt::find(intval($idPackExist));
 
                 if ($packExist) {
 
                     if (doubleval($packExist->PACKING_VERSION) == doubleval($version)) {
-
                         return 0;
                     }
                 }
-			}
+            }
         }
+
         $current = Carbon::now('Asia/Ho_Chi_Minh');
         $idUserLogon = $this->auth->user()->ID_USER;
         $packingElmt = new PackingElmt();
@@ -311,7 +318,7 @@ class PackingElements extends Controller
 
         $cond = $this->units->conductivity($cond, 4, 0);
         $checkcond = $this->minmax->checkMinMaxValue($cond, 1051);
-        if ( !$checkcond ) {
+        if (!$checkcond) {
             $mm = $this->minmax->getMinMaxConductivity(1051, 4);
             return  [
                 "Message" => "Value out of range in  FLambda thermal conductivity (" . doubleval($mm->LIMIT_MIN) . " : " . doubleval($mm->LIMIT_MAX) . ")"
@@ -319,6 +326,5 @@ class PackingElements extends Controller
         }
 
         return 1;
-
     }
 }

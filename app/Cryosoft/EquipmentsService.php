@@ -57,7 +57,8 @@ class EquipmentsService
         return $sEquipName;
     }
 
-    public function getResultsEquipName($idStudyEquipment) {
+    public function getResultsEquipName($idStudyEquipment) 
+    {
         $sEquipName = "";
         $studyEquipment = StudyEquipment::where("ID_STUDY_EQUIPMENTS", $idStudyEquipment)->first();
         if (!empty($studyEquipment)) {
@@ -82,7 +83,8 @@ class EquipmentsService
         } 
     }
 
-    public function getSpecificEquipSize($idStudyEquipment) {
+    public function getSpecificEquipSize($idStudyEquipment) 
+    {
         $sEquipName = "";
         $studyEquipment = StudyEquipment::where("ID_STUDY_EQUIPMENTS", $idStudyEquipment)->first();
         if (!empty($studyEquipment)) {
@@ -105,10 +107,12 @@ class EquipmentsService
         $energyDef = 0;
 
         $studyEquipments = StudyEquipment::where("ID_STUDY", $idStudy)->orderBy("ID_STUDY_EQUIPMENTS", "ASC")->get();
-        foreach($studyEquipments as $row){
-            $ener =  $row->ID_COOLING_FAMILY;
-            if (($energyDef == 0) && (($ener == 3) || ($ener == 2))) {
-                $energyDef = $ener;
+        if (count($studyEquipments) > 0) {
+            foreach($studyEquipments as $row){
+                $ener =  $row->ID_COOLING_FAMILY;
+                if (($energyDef == 0) && (($ener == 3) || ($ener == 2))) {
+                    $energyDef = $ener;
+                }
             }
         }
         
@@ -159,7 +163,8 @@ class EquipmentsService
         return $std;
     }
 
-    public function cryogenPrice($value, $energy) {
+    public function cryogenPrice($value, $energy) 
+    {
         if ($energy == 2) {
             $snrjUnitLabel = CONSUMPTION_UNIT_LN2;
         } else if ($energy == 3) {
@@ -172,7 +177,8 @@ class EquipmentsService
     }
     
 
-    public function cryogenPriceSave($value, $energy) {
+    public function cryogenPriceSave($value, $energy) 
+    {
         if ($energy == 2) {
             $snrjUnitLabel = CONSUMPTION_UNIT_LN2;
         } else if ($energy == 3) {
@@ -183,4 +189,6 @@ class EquipmentsService
 
         return $this->unit->unitConvertUserSave($snrjUnitLabel, $value);
     }
+
+
 }

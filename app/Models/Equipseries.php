@@ -71,6 +71,6 @@ class Equipseries extends Model
      */
     public function tempExts()
     {
-        return $this->hasMany('TempExt', 'ID_EQUIPSERIES', 'ID_EQUIPSERIES');
+        return $this->hasMany('App\\Models\\TempExt', 'ID_EQUIPSERIES', 'ID_EQUIPSERIES');
     }
 }

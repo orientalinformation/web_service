@@ -32,6 +32,13 @@ class LineDefinition extends Model
     protected $primaryKey = 'ID_LINE_DEFINITION';
 
     /**
+     * @var array
+     */
+
+    protected $casts = [
+        'ID_PIPELINE_ELMT'     => 'integer',
+    ];
+    /**
      * Indicates if the model should be timestamped.
      * 
      * @var bool

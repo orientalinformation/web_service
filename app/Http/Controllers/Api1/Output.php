@@ -727,18 +727,19 @@ class Output extends Controller
             $maxLength = -1;
 
             $mmWidth = MinMax::where("LIMIT_ITEM", $this->value->MIN_MAX_EQUIPMENT_WIDTH)->first();
-            $minWidth = $this->unit->equipDimension($mmWidth->LIMIT_MIN);
-            $minWidth = $this->unit->equipDimension($mmWidth->LIMIT_MAX);
+            $minWidth = $this->unit->equipDimension($mmWidth->LIMIT_MIN, ['format' => false]);
+            $maxWidth = $this->unit->equipDimension($mmWidth->LIMIT_MAX, ['format' => false]);
 
             $mmLength = MinMax::where("LIMIT_ITEM", $this->value->MIN_MAX_EQUIPMENT_LENGTH)->first();
-            $minLength = $this->unit->equipDimension($mmWidth->LIMIT_MIN);
-            $maxLength = $this->unit->equipDimension($mmWidth->LIMIT_MAX);
+            $minLength = $this->unit->equipDimension($mmLength->LIMIT_MIN, ['format' => false]);
+            $maxLength = $this->unit->equipDimension($mmLength->LIMIT_MAX, ['format' => false]);
 
             $minSurf = $minWidth * $minLength;
             $maxSurf = $maxWidth * $maxLength;
 
             $disabled = false;
-            if (!($this->study->isMyStudy($studyEquipment->ID_STUDY)) || ($this->auth->user()->USERPRIO < $this->value->PROFIL_EXPERT)) {
+            // if (!($this->study->isMyStudy($studyEquipment->ID_STUDY)) || ($this->auth->user()->USERPRIO < $this->value->PROFIL_EXPERT)) {
+            if (!($this->study->isMyStudy($studyEquipment->ID_STUDY))) {
                 $disabled = true;
             }
 
@@ -2062,7 +2063,7 @@ class Output extends Controller
 
         // get TimeInterva
         $recordPosition = RecordPosition::select('RECORD_TIME')->where("ID_STUDY_EQUIPMENTS", $idStudyEquipment)->orderBy("RECORD_TIME", "ASC")->get();
-        $lfDwellingTime = $recordPosition[count($recordPosition) - 1]->RECORD_TIME;
+        $lfDwellingTime = $this->unit->time($recordPosition[count($recordPosition) - 1]->RECORD_TIME);
 
         $calculationParameter = CalculationParameter::select('STORAGE_STEP', 'TIME_STEP')->where('ID_STUDY_EQUIPMENTS', $idStudyEquipment)->first();
 
@@ -2147,8 +2148,8 @@ class Output extends Controller
             system('gnuplot -c '. $this->plotFolder .'/contour.plot "'. $dimension .' '. $axisName[0] .'" "'. $dimension .' '. $axisName[1] .'" "'. $this->unit->prodchartDimensionSymbol() .'" '. $chartTempInterval[0] .' '. $chartTempInterval[1] .' '. $chartTempInterval[2] .' "'. $heatmapFolder . '/' . $userName . '/' . $idStudyEquipment .'" "'. $contourFileName .'"');
         }
 
-        $dataFile = 'http://'.$_SERVER['HTTP_HOST'] . '/heatmap/' . $userName . '/' . $idStudyEquipment . '/data.json';
-        $imageContour[] = 'http://'.$_SERVER['HTTP_HOST'] . '/heatmap/' . $userName . '/' . $idStudyEquipment . '/' . $contourFileName . '.png';
+        $dataFile = getenv('APP_URL') . '/heatmap/' . $userName . '/' . $idStudyEquipment . '/data.json';
+        $imageContour[] = getenv('APP_URL') . '/heatmap/' . $userName . '/' . $idStudyEquipment . '/' . $contourFileName . '.png';
 
         return compact("minMax", "chartTempInterval", "valueRecAxis", "lfDwellingTime", "lftimeInterval", "axisName", "imageContour");
     }
@@ -2157,12 +2158,19 @@ class Output extends Controller
     {
         set_time_limit(1000);
         $input = $this->request->all();
+        $refreshTemp = $input['refreshTemp'];
         $idStudy = $input['idStudy'];
         $idStudyEquipment = $input['idStudyEquipment'];
         $selectedPlan = $input['selectedPlan'];
-        $pasTemp = $input['temperatureStep'];
-        $temperatureMin = ($input['temperatureMin'] != 0) ? $this->unit->prodTemperature($input['temperatureMin']) : $input['temperatureMin'];
-        $temperatureMax = ($input['temperatureMax'] != 0) ? $this->unit->prodTemperature($input['temperatureMax']) : $input['temperatureMax'];
+        if ($refreshTemp == 1) {
+            $pasTemp = $input['temperatureStep'];
+            $temperatureMin = $this->unit->prodTemperature($input['temperatureMin']);
+            $temperatureMax = $this->unit->prodTemperature($input['temperatureMax']);
+        } else {
+            $pasTemp = -1.0;
+            $temperatureMin = 0.0;
+            $temperatureMax = 0.0;
+        }
         $lfDwellingTime = $input['timeSelected'];
         $axisX = $input['axisX'];
         $axisY = $input['axisY'];
@@ -2225,8 +2233,8 @@ class Output extends Controller
             file_put_contents($heatmapFolder . '/' . $userName . '/' . $idStudyEquipment . '/data.json', json_encode($dataContour));
         }
         
-        $dataFile = 'http://'.$_SERVER['HTTP_HOST'] . '/heatmap/' . $userName . '/' . $idStudyEquipment . '/data.json';
-        $imageContour[] = 'http://'.$_SERVER['HTTP_HOST'] . '/heatmap/' . $userName . '/' . $idStudyEquipment . '/' . $contourFileName . '.png';
+        $dataFile = getenv('APP_URL') . '/heatmap/' . $userName . '/' . $idStudyEquipment . '/data.json';
+        $imageContour[] = getenv('APP_URL') . '/heatmap/' . $userName . '/' . $idStudyEquipment . '/' . $contourFileName . '.png';
 
 
         return compact("chartTempInterval", "imageContour");
@@ -2315,7 +2323,7 @@ class Output extends Controller
                 system('gnuplot -c '. $this->plotFolder .'/contour.plot "'. $dimension .' '. $axisX .'" "'. $dimension .' '. $axisY .'" "'. $this->unit->prodchartDimensionSymbol() .'" '. $chartTempInterval[0] .' '. $chartTempInterval[1] .' '. $chartTempInterval[2] .' "'. $heatmapFolder . '/' . $userName . '/' . $idStudyEquipment .'" "'. $contourFileName .'"');
             }
 
-            $imageContour[] = 'http://'.$_SERVER['HTTP_HOST'] . '/heatmap/' . $userName . '/' . $idStudyEquipment . '/' . $contourFileName . '.png';
+            $imageContour[] = getenv('APP_URL') . '/heatmap/' . $userName . '/' . $idStudyEquipment . '/' . $contourFileName . '.png';
         }
 
         $contourFileName = $lfTS;
@@ -2331,7 +2339,7 @@ class Output extends Controller
             system('gnuplot -c '. $this->plotFolder .'/contour.plot "'. $dimension .' '. $axisX .'" "'. $dimension .' '. $axisY .'" "'. $this->unit->prodchartDimensionSymbol() .'" '. $chartTempInterval[0] .' '. $chartTempInterval[1] .' '. $chartTempInterval[2] .' "'. $heatmapFolder . '/' . $userName . '/' . $idStudyEquipment .'" "'. $contourFileName .'"');
         }
 
-        $imageContour[] = 'http://'.$_SERVER['HTTP_HOST'] . '/heatmap/' . $userName . '/' . $idStudyEquipment . '/' . $contourFileName . '.png';
+        $imageContour[] = getenv('APP_URL') . '/heatmap/' . $userName . '/' . $idStudyEquipment . '/' . $contourFileName . '.png';
 
         return compact("chartTempInterval", "imageContour");
     }

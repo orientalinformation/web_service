@@ -430,3 +430,59 @@ $router->POST('/api/v1/referencedata/checktemperature', 'Api1\\ReferenceData@che
  * Output-Formats: [application/json]
  */
 $router->POST('/api/v1/referencedata/checkpacking', 'Api1\\PackingElements@checkPacking');
+
+/**
+ * GET getMonetary
+ * Summary:
+ * Notes: get list Monetary 
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/users/{id}/unitsmonetary', 'Api1\\Users@getMonetaryUser');
+
+/**
+ * POST checkPipeline
+ * Summary:
+ * Notes: Check unit min max Pipeline
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/referencedata/checkpipeline', 'Api1\\PipeLine@checkPipeline');
+
+/**
+ * POST checkEquipment
+ * Summary:
+ * Notes: Check unit min max Equipment
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/referencedata/checkequipment', 'Api1\\Equipments@checkEquipment');
+
+/**
+ * POST checkUpdateEquipment
+ * Summary:
+ * Notes: Check unit min max Equipment
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/referencedata/checkupdateequipment', 'Api1\\Equipments@checkUpdateEquipment');
+
+/**
+ * POST checkRedrawCurves
+ * Summary:
+ * Notes: Check unit min max Curves
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/referencedata/checkredrawcurves', 'Api1\\Equipments@checkRedrawCurves');
+
+/**
+ * POST checkBuildForNewTR
+ * Summary:
+ * Notes: Check unit min max tempsetpoint
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/referencedata/checktempsetpoint', 'Api1\\Equipments@checkBuildForNewTR');
+
+/**
+ * GET Data component
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/referencedata/components/{id}', 'Api1\\ReferenceData@getComponentById');

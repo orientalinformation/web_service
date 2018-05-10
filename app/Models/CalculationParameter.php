@@ -49,6 +49,7 @@ class CalculationParameter extends Model
      */
     protected $primaryKey = 'ID_CALC_PARAMS';
 
+
     /**
      * Indicates if the model should be timestamped.
      * 

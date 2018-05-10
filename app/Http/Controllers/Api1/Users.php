@@ -238,6 +238,15 @@ class Users extends Controller
         return $list;
     }
 
+    public function getMonetaryUser($id) 
+    {
+        $userMonetary = MonetaryCurrency::find($this->auth->user()->ID_MONETARY_CURRENCY);
+        
+        $unitMonetary = Unit::where('SYMBOL', $userMonetary->MONEY_SYMB)->first();
+
+        return $unitMonetary;
+    }
+
     public function updateUnits($id)
     {
         $input = $this->request->all();

@@ -46,7 +46,8 @@ class Components extends Controller
         return compact('active', 'sleeping');
     }*/
 
-    public function findComponents() {
+    public function findComponents() 
+    {
         $input = $this->request->all();
         $idStudy = (!empty($input['idStudy'])) ? $input['idStudy'] : 0;;
         $compfamily = (!empty($input['compfamily'])) ? $input['compfamily'] : 0;

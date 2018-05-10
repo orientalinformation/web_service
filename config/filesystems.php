@@ -47,7 +47,7 @@ return [
         'uploads' => [
             'driver' => 'local',
             'root' => rtrim(app()->basePath('public/uploads'), '/'),
-            'url' => 'http://'.$_SERVER['HTTP_HOST'] . '/assets',
+            'url' => getenv('APP_URL') . '/assets',
         ],
         'private' => [
             'driver' => 'local',
@@ -61,7 +61,7 @@ return [
             'driver' => 'local',
             'root' => app()->basePath('public/uploads'),
             'visibility' => 'public',
-            'url' => 'http://'.$_SERVER['HTTP_HOST'],
+            'url' => getenv('APP_URL'),
         ],
         's3' => [
             'driver' => 's3',
