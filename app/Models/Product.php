@@ -32,6 +32,12 @@ class Product extends Model
      */
     protected $fillable = ['ID_PROD', 'ID_STUDY', 'ID_MESH_GENERATION', 'PRODNAME', 'PROD_ISO', 'PROD_WEIGHT', 'PROD_REALWEIGHT', 'PROD_VOLUME'];
 
+     protected $casts = [
+        'PROD_WEIGHT' => 'double',
+        'PROD_REALWEIGHT' => 'double',
+        'PROD_VOLUME' => 'double'
+    ];
+
     /**
      * @var string
      */

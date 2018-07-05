@@ -97,6 +97,22 @@ $router->GET('/api/v1/minMaxs/productMeshPacking', 'Api1\\MinMaxs@getMinMaxProdu
 $router->GET('/api/v1/minMaxs/{id}/equipment', 'Api1\\MinMaxs@getMinMaxEquipment');
 
 /**
+ * GET findColorPalettes
+ * Summary: 
+ * Notes: get color palettes
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/colorPalettes', 'Api1\\ColorPalettes@findColorPalettes');
+
+/**
+ * POST updateProductCharColor
+ * Summary: 
+ * Notes: update product char color
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/products/{id}/productCharColor', 'Api1\\Products@updateProductCharColor');
+
+/**
  * GET getstudyEquipmentProductChart
  * Summary: 
  * Notes: get Study Equipment Product Chart
@@ -129,6 +145,14 @@ $router->GET('/api/v1/studyEquipment/{id}/recordPosition', 'Api1\\StudyEquipment
 $router->POST('/api/v1/studyEquipment/{id}/saveEquipSizing', 'Api1\\StudyEquipments@saveEquipSizing');
 
 /**
+ * POST addConsPieToReport
+ * Summary: 
+ * Notes: add Consumption Pie To Report
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/studyEquipment/{id}/addConsPieToReport', 'Api1\\StudyEquipments@addConsPieToReport');
+
+/**
  * GET getOperatingSetting
  * Summary: 
  * Notes: get Operating Settings
@@ -143,6 +167,14 @@ $router->GET('/api/v1/studyEquipment/{id}/operatingSetting', 'Api1\\StudyEquipme
  * Output-Formats: [application/json]
  */
 $router->POST('/api/v1/studyEquipment/{id}/saveEquipmentData', 'Api1\\StudyEquipments@saveEquipmentData');
+
+/**
+ * POST computeTrTs
+ * Summary: 
+ * Notes: compute Tr Ts Equiment
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/studyEquipment/{id}/computeTrTsConfig', 'Api1\\StudyEquipments@computeTrTsConfig');
 
 /**
  * GET units
@@ -191,6 +223,23 @@ $router->PATCH('/api/v1/monetaryCurrency', 'Api1\\MonetaryCurrencies@saveMonetar
  * Output-Formats: [application/json]
  */
 $router->GET('/api/v1/monetaryCurrency/{id}', 'Api1\\MonetaryCurrencies@getMonetaryCurrencyById');
+
+/**
+ * GET sizingOptimumResult
+ * Summary: 
+ * Notes: 
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/output/sizingresult/{idStudy}/optimum', 'Api1\\Output@sizingOptimumResult');
+
+/**
+ * POST sizingOptimumResult
+ * Summary: 
+ * Notes: 
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/output/sizingresult/{idStudy}/optimum', 'Api1\\Output@sizingOptimumDraw');
+
 /**
  * GET sizingEstimationResult
  * Summary: 
@@ -263,3 +312,18 @@ $router->POST('/api/v1/output/productchart2DAnim', 'Api1\\Output@productchart2DA
  */
 $router->GET('/api/v1/output/readDataContour/{idStudyEquipment}', 'Api1\\Output@readDataContour');
 
+/**
+ * POST computeTrTs
+ * Summary: 
+ * Notes: compute Tr Ts Output
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/output/{id}/computeTrTs', 'Api1\\Output@computeTrTs');
+
+/**
+ * POST runSequenceCalculation
+ * Summary: 
+ * Notes: run Sequence Calculation
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/output/{id}/runSequenceCalculation', 'Api1\\Output@runSequenceCalculation');

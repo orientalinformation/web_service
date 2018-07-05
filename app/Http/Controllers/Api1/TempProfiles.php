@@ -88,9 +88,4 @@ class TempProfiles extends Controller
         ];
         return $array;
     }
-
-    public function initLines($listofPoints)
-    {
-        
-    }
 }

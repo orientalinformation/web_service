@@ -296,7 +296,6 @@ $router->PUT('/api/v1/referencedata/tempsetpoint', 'Api1\\Equipments@buildForNew
  */
 $router->GET('/api/v1/calculator/calculatestatus/{idStudy}', 'Api1\\CalculStatus@getMyStudies');
 
-
 /**
  * PUT initial 
  * Summary: 
@@ -336,3 +335,68 @@ $router->GET('/api/v1/input/temppoint', 'Api1\\InputInitial@getDataTempoint');
  * Output-Formats: [application/json]
  */
 $router->GET('/api/v1/referencedata/capability/{idEquip}', 'Api1\\ReferenceData@getCapabitity');
+
+/**
+ * POST warning
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/input/warningequipment', 'Api1\\CheckWarnings@checkWarningEquipment');
+
+/**
+ * POST warning
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/input/phamcast', 'Api1\\CheckWarnings@checkPhamCast');
+
+/**
+ * PUT study 
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->PUT('/api/v1/input/update/{idStudy}', 'Api1\\Studies@updateStudy');
+
+/**
+ * GET Data equipment
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/referencedata/inputequipment/{idEquip}', 'Api1\\Equipments@getInputEquipment');
+
+/**
+ * GET Data capability
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->GET('/api/v1/threed/mesh3dInfo/{idProd}', 'Api1\\Input3Ds@getMesh3DInfo');
+
+/**
+ * POST init 3D temparature
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/threed/{idProd}/initIso3DTemperature', 'Api1\\Input3Ds@initIso3DTemperature');
+
+/**
+ * POST init none iso 3D temparature
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->POST('/api/v1/threed/{idProd}/initNonIso3DTemperature', 'Api1\\Input3Ds@initNonIso3DTemperature');
+
+
+/**
+ * PUT initial 3D
+ * Summary: 
+ * Notes: get head balance result
+ * Output-Formats: [application/json]
+ */
+$router->PUT('/api/v1/threed/meshinitial/{idStudy}', 'Api1\\InputInitial3D@initTempRecordPts3D');

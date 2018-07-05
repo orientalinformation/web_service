@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Sofa\Eloquence\Eloquence; // base trait
+use Sofa\Eloquence\Mappable; // extension trait
 
 /**
  * @property int $ID_PRODCHAR_COLORS
@@ -14,6 +16,7 @@ use Illuminate\Database\Eloquent\Model;
  */
 class ProdcharColor extends Model
 {
+    use Eloquence, Mappable;
     /**
      * The table associated with the model.
      * 
@@ -32,11 +35,29 @@ class ProdcharColor extends Model
     protected $primaryKey = 'ID_PRODCHAR_COLORS';
 
     /**
+     * @var array
+     */
+    protected $hidden = [
+        'colorPalette'
+    ];
+
+    /**
      * Indicates if the model should be timestamped.
      * 
      * @var bool
      */
     public $timestamps = false;
+
+    protected $maps = [
+       'colorPalette' => ['COLOR_NAME', 'CODE_HEXA']
+    ];
+
+    /**
+     * @var array
+     */
+    protected $appends = [
+        'COLOR_NAME', 'CODE_HEXA'
+    ];
 
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo

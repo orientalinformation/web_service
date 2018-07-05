@@ -47,9 +47,9 @@ class MeshService
         $product = $study->products->first();
         // $meshGen = $study->products->first()->meshGenerations->first();
         
-        // run study cleaner, mode 51
+        // run study cleaner, mode 51 change by haipt SC_CLEAN_OUTPUT_SIZINGCONSO => SC_CLEAN_OUTPUT_PRODUCT
         $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $product->ID_STUDY, -1);
-        $this->kernel->getKernelObject('StudyCleaner')->SCStudyClean($conf, SC_CLEAN_OUTPUT_SIZINGCONSO);
+        $this->kernel->getKernelObject('StudyCleaner')->SCStudyClean($conf, SC_CLEAN_OUTPUT_PRODUCT);
 
         $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $product->ID_STUDY);
         $this->kernel->getKernelObject('MeshBuilder')->MBMeshBuild($conf);
@@ -88,14 +88,8 @@ class MeshService
             $meshGen->MESH_3_SIZE = 0;
         }
         $meshGen->save();
-
+        
         $product = $meshGen->product;
-
-        // run study cleaner, mode 51
-        $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $product->ID_STUDY, -1);
-        $this->kernel->getKernelObject('StudyCleaner')->SCStudyClean($conf, SC_CLEAN_OUTPUT_SIZINGCONSO);
-
-
         $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $product->ID_STUDY);
         $this->kernel->getKernelObject('MeshBuilder')->MBMeshBuild($conf);
 

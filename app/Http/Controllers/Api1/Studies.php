@@ -43,8 +43,12 @@ use App\Models\PipeGen;
 use App\Models\PipeRes;
 use App\Models\LineElmt;
 use App\Models\LineDefinition;
+use App\Models\RecordPosition;
+use App\Models\Mesh3DInfo;
+use App\Models\InitTemp3D;
 use App\Cryosoft\MeshService;
-// use DB;
+use App\Cryosoft\UnitsService;
+
 
 class Studies extends Controller
 {
@@ -94,14 +98,17 @@ class Studies extends Controller
      */
     protected $mesh;
 
+    protected $units;
+
     /**
      * Create a new controller instance.
      *
      * @return void
      */
-    public function __construct(Request $request, Auth $auth, KernelService $kernel, UnitsConverterService $convert,
-        ValueListService $value, LineService $lineE, StudyEquipmentService $stdeqp, PackingService $packing, StudyService $study,
-        MeshService $mesh, EquipmentsService $equip)
+    public function __construct(Request $request, Auth $auth, KernelService $kernel, 
+        UnitsConverterService $convert, ValueListService $value, LineService $lineE, 
+        StudyEquipmentService $stdeqp, PackingService $packing, StudyService $study, 
+        UnitsService $units, MeshService $mesh, EquipmentsService $equip)
     {
         $this->request = $request;
         $this->auth = $auth;
@@ -114,6 +121,7 @@ class Studies extends Controller
         $this->study = $study;
         $this->mesh = $mesh;
         $this->equip = $equip;
+        $this->units = $units;
     }
 
     public function findStudies()
@@ -138,28 +146,50 @@ class Studies extends Controller
     {
         /** @var Study $study */
         $study = Study::findOrFail($id);
-
-        if (!$study)
-            return -1;
-
+        if (!$study) return -1;
+        
         $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, intval($id), -1);
         $this->kernel->getKernelObject('StudyCleaner')->SCStudyClean($conf, SC_CLEAN_OUTPUT_ALL);
-
+        
         /** @var Product[] $product */
         $products = $study->products;
-
+        
         foreach ($products as $product) {
+            // 3d featrue delete mesh3D_info
+            $mesh3D_info = Mesh3DInfo::Where('ID_PROD', $product->ID_PROD)->first();
+            if(count($mesh3D_info) > 0) {
+                // if (file_exists($mesh3D_info->file_path)) {
+                //     $dir = $mesh3D_info->file_path;
+                //     foreach (scandir($dir) as $object) {
+                //         if ($object != "." && $object != "..") {
+                //             if (filetype($dir."/".$object) == "dir") 
+                //                 rmdir($dir."/".$object); 
+                //             else unlink   ($dir."/".$object);
+                //         }
+                //     }
+                //         rmdir($dir);
+                // }
+                $mesh3D_info->delete();
+            }
+
             /** @var MeshGeneration $meshGenerations */
             $meshGenerations = $product->meshGenerations;
-
             foreach ($meshGenerations as $mesh) {
                 $mesh->delete();
             }
 
             foreach ($product->productElmts as $productElmt) {
-                foreach ($productElmt->meshPositions as $meshPst) {
-                    $meshPst->delete();
-                } 
+                // 3d featrue not delete mesh position
+                // foreach ($productElmt->meshPositions as $meshPst) {
+                //     $meshPst->delete();
+                // }
+                // 3d feature delete initial_temp
+                $initial3D_temps = InitTemp3D::where('ID_PRODUCT_ELMT', $productElmt->ID_PRODUCT_ELMT)->get();
+                if (count($initial3D_temps) > 0) {
+                    foreach ($initial3D_temps as $initial3D_temp) {
+                        $initial3D_temp->delete();
+                    }
+                }
                 $productElmt->delete();
             }
 
@@ -175,11 +205,11 @@ class Studies extends Controller
         foreach ($study->prices as $price) {
             $price->delete();
         }
-
-        foreach ($productions as $production) {
-            InitialTemperature::where('ID_PRODUCTION', $production->ID_PRODUCTION)->delete();
-            $production->delete();
-        }
+        // 3d featrue not delete Initial_temperature
+        // foreach ($productions as $production) {
+        //     InitialTemperature::where('ID_PRODUCTION', $production->ID_PRODUCTION)->delete();
+        //     $production->delete();
+        // }
 
         $tempRecordPts = $study->tempRecordPts;
 
@@ -286,7 +316,7 @@ class Studies extends Controller
 
             return response([
                 'code' => 1002,
-                'message' => 'Duplicate Study Name!'
+                'message' => 'This study name already exists, please try another one.'
             ], 406);
         }
         
@@ -298,6 +328,7 @@ class Studies extends Controller
             $productionCurr = Production::where('ID_STUDY',$studyCurrent->ID_STUDY)->first(); 
             // @class: \App\Models\Product
             $productCurr = Product::where('ID_STUDY',$studyCurrent->ID_STUDY)->first();
+            $mesh3D_info = Mesh3DInfo::where('ID_PROD',$productCurr->ID_PROD)->first();
             // @class: \App\Models\Price
             $priceCurr = Price::where('ID_STUDY',$studyCurrent->ID_STUDY)->first(); 
             // @class: \App\Models\Price
@@ -339,8 +370,8 @@ class Studies extends Controller
                 }
 
                 //duplicate initial_Temp already exsits
-                    DB::insert(DB::RAW('insert into INITIAL_TEMPERATURE (ID_PRODUCTION, INITIAL_T, MESH_1_ORDER, MESH_2_ORDER, MESH_3_ORDER) SELECT '
-                . $production->ID_PRODUCTION . ',I.INITIAL_T, I.MESH_1_ORDER, I.MESH_2_ORDER, I.MESH_3_ORDER FROM INITIAL_TEMPERATURE AS I WHERE ID_PRODUCTION = ' . $productionCurr->ID_PRODUCTION ));
+                //     DB::insert(DB::RAW('insert into INITIAL_TEMPERATURE (ID_PRODUCTION, INITIAL_T, MESH_1_ORDER, MESH_2_ORDER, MESH_3_ORDER) SELECT '
+                // . $production->ID_PRODUCTION . ',I.INITIAL_T, I.MESH_1_ORDER, I.MESH_2_ORDER, I.MESH_3_ORDER FROM INITIAL_TEMPERATURE AS I WHERE ID_PRODUCTION = ' . $productionCurr->ID_PRODUCTION ));
                 
 
                 //duplicate Product already exsits
@@ -363,6 +394,22 @@ class Studies extends Controller
                         $product->ID_MESH_GENERATION = $meshgeneration->ID_MESH_GENERATION;
                         $product->save();
                     } 
+                    if (count($mesh3D_info) > 0) {
+                        $mesh3D_new = new Mesh3DInfo();
+                        $mesh3D_new = $mesh3D_info->replicate();
+                        $mesh3D_new->id_prod = $product->ID_PROD;
+                        unset($mesh3D_new->id_mesh3d_info);
+                        // if (file_exists($mesh3D_info->file_path)) {
+                        //     $src = $mesh3D_info->file_path."/*";
+                        //     if (!is_dir($mesh3D_info->file_path."-saveAs-".$mesh3D_new->id_prod)) {
+                        //         mkdir($mesh3D_info->file_path."-saveAs-".$mesh3D_new->id_prod, 0777, true);
+                        //     }
+                        //     $dest = $mesh3D_info->file_path."-saveAs-".$mesh3D_new->id_prod;
+                        //     shell_exec("cp -r $src $dest");
+                        //     $mesh3D_new->file_path =$dest;
+                        // }
+                        $mesh3D_new->save();
+                    }
 
                     if (count($productemltCurr) > 0) {
                         foreach ($productemltCurr as $prodelmtCurr ) {
@@ -372,18 +419,25 @@ class Studies extends Controller
                             $productemlt->INSERT_LINE_ORDER = $study->ID_STUDY;
                             unset($productemlt->ID_PRODUCT_ELMT);
                             $productemlt->save();
-                            foreach ($prodelmtCurr->meshPositions as $meshPositionCurr) {
-                                $meshPos = new MeshPosition();
-                                $meshPos = $meshPositionCurr->replicate();
-                                $meshPos->ID_PRODUCT_ELMT = $productemlt->ID_PRODUCT_ELMT;
-                                unset($meshPos->ID_MESH_POSITION);
-                                $meshPos->save();
+                            $initial3D_temps = InitTemp3D::where('ID_PRODUCT_ELMT', $prodelmtCurr->ID_PRODUCT_ELMT)->get();
+                            // foreach ($prodelmtCurr->meshPositions as $meshPositionCurr) {
+                            //     $meshPos = new MeshPosition();
+                            //     $meshPos = $meshPositionCurr->replicate();
+                            //     $meshPos->ID_PRODUCT_ELMT = $productemlt->ID_PRODUCT_ELMT;
+                            //     unset($meshPos->ID_MESH_POSITION);
+                            //     $meshPos->save();
+                            // }
+                            foreach ($initial3D_temps as $initial3D_temp) {
+                                $inital3D_new = new InitTemp3D();
+                                $inital3D_new = $initial3D_temp->replicate();
+                                $inital3D_new->ID_PRODUCT_ELMT = $productemlt->ID_PRODUCT_ELMT;
+                                unset($inital3D_new->ID_MESH_POSITION);
+                                $inital3D_new->save();
                             }
                         }
                     }
                 }
                     
-                
                 //duplicate Price already exsits
                 if (count($priceCurr) > 0) {
                     $price = $priceCurr->replicate();
@@ -550,13 +604,8 @@ class Studies extends Controller
         }
     }
 
-    /**
-     * @param $id
-     * @return int
-     */
     public function saveStudy($id)
     {
-        // @class: \App\Models\Study
         $study = Study::find($id);
         $update = (object) $this->request->json()->all();
 
@@ -579,6 +628,8 @@ class Studies extends Controller
                 foreach ($study->studyEquipments as $studyEquip) {
                     $pipeGen = $studyEquip->pipeGens->first();
                     if ($pipeGen != null) {
+                        $studyEquip->ID_PIPE_GEN = 0;
+                        $studyEquip->save();
                         $pipeDefition = $pipeGen->lineDefinitions;
                         foreach ($pipeDefition as $pipeDefitions) {
                             $pipeDefitions->delete();
@@ -614,7 +665,8 @@ class Studies extends Controller
         return (int) $study->save();
     }
 
-    public function refreshMesh($id) {
+    public function refreshMesh($id)
+    {
         $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $id, 10);
         
         return $this->kernel->getKernelObject('MeshBuilder')->MBMeshBuild($conf);
@@ -622,7 +674,6 @@ class Studies extends Controller
 
     public function openStudy($id)
     {
-        // 165 : tempRecordPts = new TempRecordPtsBean(userPrivateData, convert, this);
         $study = Study::find($id);
 
         $tempRecordPts = TempRecordPts::where('ID_STUDY', $id)->first();
@@ -669,15 +720,12 @@ class Studies extends Controller
         }
 
         $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, intval($id), -1);
-        return $this->kernel->getKernelObject('StudyCleaner')->SCStudyClean($conf, 10);
+        return $this->kernel->getKernelObject('StudyCleaner')->SCStudyClean($conf, SC_CLEAN_TMP_DATA);
     }
 
-    /**
-    * 
-    **/
     public function getStudyEquipments($id) 
     {
-        $study = \App\Models\Study::findOrFail($id);
+        $study = Study::findOrFail($id);
         return $this->stdeqp->findStudyEquipmentsByStudy($study);
     }
 
@@ -688,11 +736,11 @@ class Studies extends Controller
         if (!isset($input['name']) || empty($input['name']))
             return 1;
 
-        $study = \App\Models\Study::find($id);
+        $study = Study::find($id);
         $product = $study->products;
 
         if (count($product) == 0) {
-            $product = new \App\Models\Product();
+            $product = new Product();
             $product->ID_STUDY = $study->ID_STUDY;
         } else {
             $product = $product[0];
@@ -721,7 +769,7 @@ class Studies extends Controller
 
     public function updateProduct($id) 
     {
-        $study = \App\Models\Study::find($id);
+        $study = Study::find($id);
         $product = $study->products->first();
         $input = $this->request->json()->all();
 
@@ -739,10 +787,14 @@ class Studies extends Controller
                     if (isset($input['dim1'])) $elmt->SHAPE_PARAM1 = $this->convert->prodDimensionSave(floatval($input['dim1']));
                     if (isset($input['dim2'])) $elmt->SHAPE_PARAM2 = $this->convert->prodDimensionSave(floatval($input['dim2']));
                     if (isset($input['dim3'])) $elmt->SHAPE_PARAM3 = $this->convert->prodDimensionSave(floatval($input['dim3']));
+                    if (isset($input['dim4'])) $elmt->SHAPE_PARAM4 = $this->convert->prodDimensionSave(floatval($input['dim4']));
+                    if (isset($input['dim5'])) $elmt->SHAPE_PARAM5 = $this->convert->prodDimensionSave(floatval($input['dim5']));
                     $elmt->save();
+
                     $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $product->ID_PROD, intval($elmt->ID_PRODUCT_ELMT));
                     $ok = $this->kernel->getKernelObject('WeightCalculator')->WCWeightCalculation($id, $conf, 2);
-                }                
+                }
+
                 $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $product->ID_PROD);
                 $ok = $this->kernel->getKernelObject('WeightCalculator')->WCWeightCalculation($id, $conf, 4);
             }
@@ -752,13 +804,12 @@ class Studies extends Controller
 
     public function getStudyPackingLayers($id)
     {
-        $packing = \App\Models\Packing::where('ID_STUDY', $id)->first();
+        $packing = Packing::where('ID_STUDY', $id)->first();
         $packingLayers = null;
-
-        if ($packing != null) {
-            $packingLayers = \App\Models\PackingLayer::where('ID_PACKING', $packing->ID_PACKING)->get();
+        if ($packing) {
+            $packingLayers = PackingLayer::where('ID_PACKING', $packing->ID_PACKING)->get();
             for ($i = 0; $i < count($packingLayers); $i++) { 
-                $value = $this->convert->unitConvert(16, $packingLayers[$i]->THICKNESS);
+                $value = $this->units->packingThickness($packingLayers[$i]->THICKNESS, 2, 1);
                 $packingLayers[$i]->THICKNESS = $value;
             }
         }
@@ -766,82 +817,83 @@ class Studies extends Controller
         return compact('packing', 'packingLayers');
     }
 
-    
-    
-    /**
-     * 
-     */
     public function savePacking($id)
     {
         $input = $this->request->all();
-        $packing = \App\Models\Packing::where('ID_STUDY', $id)->first();
+        
+        $packing = Packing::where('ID_STUDY', $id)->first();
         if (empty($packing)) {
             $packing = new \App\Models\Packing();
             $packing->ID_SHAPE = $input['packing']['ID_SHAPE'];
             $packing->ID_STUDY = $id;
         }
+
         if (!isset($input['packing']['NOMEMBMAT']))
             $input['packing']['NOMEMBMAT'] = "";
 
         $packing->NOMEMBMAT = $input['packing']['NOMEMBMAT'];
         $packing->save();
 
-        $packingLayer = \App\Models\PackingLayer::where('ID_PACKING', $packing->ID_PACKING)->delete();
+        $packingLayer = PackingLayer::where('ID_PACKING', $packing->ID_PACKING)->delete();
 
         foreach ($input['packingLayers'] as $key => $value) {
-            $packingLayer = new \App\Models\PackingLayer();
+            $packingLayer = new PackingLayer();
             $packingLayer->ID_PACKING = $packing->ID_PACKING;
-            $packingLayer->ID_PACKING_ELMT = $value['ID_PACKING_ELMT'];
-            $packingLayer->THICKNESS = $value['THICKNESS'] / 1000000;
-            $packingLayer->PACKING_SIDE_NUMBER = $value['PACKING_SIDE_NUMBER'];
-            $packingLayer->PACKING_LAYER_ORDER = $value['PACKING_LAYER_ORDER'];
+            if (isset($value['ID_PACKING_ELMT'])) $packingLayer->ID_PACKING_ELMT = $value['ID_PACKING_ELMT'];
+            if (isset($value['THICKNESS'])) $packingLayer->THICKNESS = $this->units->packingThickness($value['THICKNESS'], 5, 0);
+            if (isset($value['PACKING_SIDE_NUMBER'])) $packingLayer->PACKING_SIDE_NUMBER = $value['PACKING_SIDE_NUMBER'];
+            if (isset($value['PACKING_LAYER_ORDER'])) $packingLayer->PACKING_LAYER_ORDER = $value['PACKING_LAYER_ORDER'];
             $packingLayer->save();
         }
         return 1;
     }
 
-    /**
-     * @return Study
-     */
     public function createStudy()
     {
-        /** @var Study $study */
         $study = new Study();
 
-        /** @var Production $production */
         $production = new Production();
 
-        /** @var PrecalcLdgRatePrm $precalc */
         $precalc = new PrecalcLdgRatePrm();
 
         $tempRecordPts = new TempRecordPts();
 
-
         $input = $this->request->json()->all();
 
         $study->STUDY_NAME = $input['STUDY_NAME'];
+        $duplicateStudy = Study::where('STUDY_NAME', '=', $input['STUDY_NAME'])->count();
+        if($duplicateStudy){
+
+            return response([
+                'code' => 1002,
+                'message' => 'This study name already exists, please try another one.'
+            ], 406);
+        }
         $study->ID_USER = $this->auth->user()->ID_USER;
-        $study->OPTION_ECO = isset($input['OPTION_ECO'])?$input['OPTION_ECO']:0;
+        $study->OPTION_ECO = isset($input['OPTION_ECO']) ? $input['OPTION_ECO'] : 0;
         $study->CALCULATION_MODE = $input['CALCULATION_MODE'];
-        $study->COMMENT_TXT = isset($input['COMMENT_TXT'])?$input['COMMENT_TXT'] . '</br>' . 'Created on ' . date("D M j G:i:s T Y") . ' by ' . $this->auth->user()->USERNAM . '</br>': 'Created on ' . date("D M j G:i:s T Y") . ' by ' . $this->auth->user()->USERNAM;
-        $study->OPTION_CRYOPIPELINE = isset($input['OPTION_CRYOPIPELINE'])?$input['OPTION_CRYOPIPELINE']:'';
-        $study->OPTION_EXHAUSTPIPELINE = isset($input['OPTION_EXHAUSTPIPELINE'])?$input['OPTION_EXHAUSTPIPELINE']:'';
-        $study->CHAINING_CONTROLS = isset($input['CHAINING_CONTROLS'])?$input['CHAINING_CONTROLS']:'';
-        $study->CHAINING_ADD_COMP_ENABLE = isset($input['CHAINING_ADD_COMP_ENABLE'])?$input['CHAINING_ADD_COMP_ENABLE']:'';
+
+        $date = 'Created on ' . date("D M j G:i:s T Y") . ' by ' . $this->auth->user()->USERNAM;
+        $study->COMMENT_TXT = isset($input['COMMENT_TXT']) ? $input['COMMENT_TXT'] . "\n" . $date  : $date;
+
+        $study->OPTION_CRYOPIPELINE = isset($input['OPTION_CRYOPIPELINE']) ? $input['OPTION_CRYOPIPELINE'] : '';
+        $study->OPTION_EXHAUSTPIPELINE = isset($input['OPTION_EXHAUSTPIPELINE']) ? $input['OPTION_EXHAUSTPIPELINE']: '';
+        $study->CHAINING_CONTROLS = isset($input['CHAINING_CONTROLS']) ? $input['CHAINING_CONTROLS'] : '';
+        $study->CHAINING_ADD_COMP_ENABLE = isset($input['CHAINING_ADD_COMP_ENABLE']) ? $input['CHAINING_ADD_COMP_ENABLE'] : '';
         $study->CHAINING_NODE_DECIM_ENABLE = 0;
         $study->HAS_CHILD = 0;
         $study->TO_RECALCULATE = 0;
         $study->ID_REPORT = 0;
         $study->save();
 
-        $nbMF 					= (float) MinMax::where('LIMIT_ITEM', $this->value->MIN_MAX_DAILY_STARTUP)->first()->DEFAULT_VALUE;
-        $nbWeekPeryear 		    = (float) MinMax::where('LIMIT_ITEM', $this->value->MIN_MAX_PROD_WEEK_PER_YEAR)->first()->DEFAULT_VALUE;
-        $nbheures 			    = (float) MinMax::where('LIMIT_ITEM', $this->value->MIN_MAX_PRODUCT_DURATION)->first()->DEFAULT_VALUE;
-        $nbjours 				= (float) MinMax::where('LIMIT_ITEM', $this->value->MIN_MAX_WEEKLY_PRODUCTION)->first()->DEFAULT_VALUE;
-        $humidity 			    = (float) MinMax::where('LIMIT_ITEM', $this->value->MIN_MAX_AMBIENT_HUM)->first()->DEFAULT_VALUE;
-        $dailyProductFlow 	    = (float) MinMax::where('LIMIT_ITEM', $this->value->MIN_MAX_FLOW_RATE)->first()->DEFAULT_VALUE;
-        $avTempDesired 		    = (float) MinMax::where('LIMIT_ITEM', $this->value->MIN_MAX_AVG_TEMPERATURE_DES)->first()->DEFAULT_VALUE;
-        $temp 					= (float) MinMax::where('LIMIT_ITEM', $this->value->MIN_MAX_TEMP_AMBIANT)->first()->DEFAULT_VALUE;
+        $nbMF                   = (float) MinMax::where('LIMIT_ITEM', $this->value->MIN_MAX_DAILY_STARTUP)->first()->DEFAULT_VALUE;
+        $nbWeekPeryear          = (float) MinMax::where('LIMIT_ITEM', $this->value->MIN_MAX_PROD_WEEK_PER_YEAR)->first()->DEFAULT_VALUE;
+        $nbheures               = (float) MinMax::where('LIMIT_ITEM', $this->value->MIN_MAX_PRODUCT_DURATION)->first()->DEFAULT_VALUE;
+        $nbjours                = (float) MinMax::where('LIMIT_ITEM', $this->value->MIN_MAX_WEEKLY_PRODUCTION)->first()->DEFAULT_VALUE;
+        $humidity               = (float) MinMax::where('LIMIT_ITEM', $this->value->MIN_MAX_AMBIENT_HUM)->first()->DEFAULT_VALUE;
+        $dailyProductFlow       = (float) MinMax::where('LIMIT_ITEM', $this->value->MIN_MAX_FLOW_RATE)->first()->DEFAULT_VALUE;
+        $avTempDesired          = (float) MinMax::where('LIMIT_ITEM', $this->value->MIN_MAX_AVG_TEMPERATURE_DES)->first()->DEFAULT_VALUE;
+        $temp                   = (float) MinMax::where('LIMIT_ITEM', $this->value->MIN_MAX_TEMP_AMBIANT)->first()->DEFAULT_VALUE;
 
         $production->DAILY_STARTUP          = $nbMF;
         $production->DAILY_PROD             = $nbheures;
@@ -915,19 +967,41 @@ class Studies extends Controller
         return $study;
     }
 
-    public function recentStudies() {
+    public function updateStudy($idStudy)
+    {
+        $input = $this->request->all();
+
+        if (isset($input['COMMENT_TXT'])) $comment = $input['COMMENT_TXT'];
+
+        $study = Study::findOrFail($idStudy);
+        if ($study) {
+            $study->COMMENT_TXT = $comment;
+            $study->save();
+        }
+
+        return 1;
+    }
+
+    public function recentStudies()
+    {
         $studies = Study::where('ID_USER',$this->auth->user()->ID_USER)->orderBy('ID_STUDY', 'desc')->take(5)->get();
         return $studies;
     }
 
-    function getDefaultPrecision ($productshape, $nbComp, $itemPrecis) {
+    // add equipment shape >= 10 error
+    function getDefaultPrecision ($productshape, $nbComp, $itemPrecis)
+    {
         $limitItem = 0;
         $defaultPrecis = 0.005;
         $FirstItemMonoComp = [
-            0,1151 ,1161 ,1171 ,1181 ,1191 ,1201 ,1211 ,1221 , 1231
+            0,1151 ,1161 ,1171 ,1181 ,1191 ,1201 ,1211 ,1221 , 1231, 
+            #3D case precision.
+            1151 ,1161 ,1171 ,1181 ,1191 ,1201 ,1211 ,1221 , 1231, 1171, 1181, 1201 ,1211, 1171
         ];
         $FirstItemMultiComp = [
-            0,1156 ,1166 ,1176 ,1186 ,1196 ,1206 ,1216 ,1226 , 1236
+            0,1156 ,1166 ,1176 ,1186 ,1196 ,1206 ,1216 ,1226 , 1236,
+            #3D case precision.
+            1156 ,1166 ,1176 ,1186 ,1196 ,1206 ,1216 ,1226 , 1236, 1176 ,1186 , 1206 ,1216, 1176
         ];
 
         switch ($productshape) {
@@ -940,6 +1014,20 @@ class Studies extends Controller
             case CYLINDER_CONCENTRIC_STANDING:
             case CYLINDER_CONCENTRIC_LAYING:
             case PARALLELEPIPED_BREADED:
+            case PARALLELEPIPED_STANDING_3D:
+            case PARALLELEPIPED_LAYING_3D:
+            case CYLINDER_STANDING_3D:
+            case CYLINDER_LAYING_3D:
+            case SPHERE_3D:
+            case CYLINDER_CONCENTRIC_STANDING_3D:
+            case CYLINDER_CONCENTRIC_LAYING_3D:
+            case PARALLELEPIPED_BREADED_3D:
+            case TRAPEZOID_3D:
+            case OVAL_STANDING_3D:
+            case OVAL_LAYING_3D:
+            case OVAL_CONCENTRIC_STANDING_3D:
+            case OVAL_CONCENTRIC_LAYING_3D:
+            case SEMI_CYLINDER_3D:
                 if ($nbComp == 1) {
                     $limitItem = $FirstItemMonoComp[$productshape] + $itemPrecis - 1;
                 } else {
@@ -958,9 +1046,10 @@ class Studies extends Controller
         return ($defaultPrecis);
     }
 
-    public function getDefaultTimeStep ($itemTimeStep) {
+    public function getDefaultTimeStep ($itemTimeStep)
+    {
         $limitItem = 0;
-        $defaultTimeStep = 1;		// s
+        $defaultTimeStep = 1;
         $FirstItem = 1241;
 
         $limitItem = $FirstItem + $itemTimeStep - 1;
@@ -970,9 +1059,6 @@ class Studies extends Controller
         return ($defaultTimeStep);
     }
 
-    /**
-     * @param $id
-     */
     public function addEquipment($id)
     {
         $input = $this->request->all();
@@ -1076,7 +1162,7 @@ class Studies extends Controller
         }
 
         $vc = $this->getEqpPrmInitialData(array_fill(0, $equip->NB_VC, 0.0), $VCType, false);
-		//number of DH = number of TR
+        //number of DH = number of TR
         $dh = $this->getEqpPrmInitialData(array_fill(0, $equip->NB_TR, 0.0), 0, false);
         $TExt = doubleval($tr[0]);
 
@@ -1127,10 +1213,10 @@ class Studies extends Controller
         $position = POSITION_PARALLEL;
         
         // if (this . stdBean . isStudyHasParent()) {
-		// 	// Chaining : use orientation from parent equip
+        //  // Chaining : use orientation from parent equip
         //     position = stdBean . ParentProdPosition;
         // } else {
-			// no chaining : force standard orientation depending on the shape
+            // no chaining : force standard orientation depending on the shape
         $position = (($productshape == CYLINDER_LAYING)
             || ($productshape == CYLINDER_CONCENTRIC_LAYING)
             || ($productshape == PARALLELEPIPED_LAYING))
@@ -1193,13 +1279,8 @@ class Studies extends Controller
         return $productElmt;
     }
 
-    /**
-     * @param double[]
-     * @param int
-     * @param boolean
-     */
-    private function getEqpPrmInitialData (array $dd, int $type, $isTS) {
-        // MinMax mm = (MinMax) retrieveApplValueList(type, 0, ValuesList . MINMAX);
+    private function getEqpPrmInitialData (array $dd, $type, $isTS)
+    {
         $mm = MinMax::where('LIMIT_ITEM', $type)->first();
         for ($i=0; $i < count($dd); $i++) {
             if ((($type > 0) && ($mm != null))) {
@@ -1208,8 +1289,8 @@ class Studies extends Controller
                 $dd[$i] = 0.0;
             }
         }
-		
-		// Special for multi_tr : apply a simple coeff : find something better in the future
+        
+        // Special for multi_tr : apply a simple coeff : find something better in the future
         if (($isTS) && (count($dd) > 1)) {
             $MultiTRRatio = MinMax::where('LIMIT_ITEM', MIN_MAX_MULTI_TR_RATIO)->first();
             if ($MultiTRRatio != null) {
@@ -1220,15 +1301,17 @@ class Studies extends Controller
         return $dd;
     }
 
-    private function setEqpPrmInitialData($dd, $value) {
+    private function setEqpPrmInitialData($dd, $value) 
+    {
         for ($i = 0; $i < count($dd); $i++) {
             $dd[$i] = $value;
         }
         return $dd;
     }
 
+    public function removeStudyEquipment($id, $idEquip) 
+    {
 
-    public function removeStudyEquipment($id, $idEquip) {
         $study = \App\Models\Study::findOrFail($id);
 
         if (!$study) {
@@ -1239,6 +1322,11 @@ class Studies extends Controller
 
         if (!$equip) {
             throw new \Exception('Study equipment not found', 404);
+        }
+
+        // add by oriental Tran
+        if ($equip) {
+            $this->study->RunStudyCleaner($id, SC_CLEAN_OUTPUT_EQP_PRM, $idEquip);
         }
 
         foreach ($equip->layoutGenerations as $layoutGen) {
@@ -1306,13 +1394,14 @@ class Studies extends Controller
         return $tfMesh;
     }
 
-    public function getStudyComment($id) {
+    public function getStudyComment($id) 
+    {
         // @class: \App\Models\Study
         $study = Study::find($id);
     }
 
-    public function postStudyComment($id) {
-        // @class: \App\Models\Study
+    public function postStudyComment($id)
+    {
         $study = Study::find($id);
         $input = $this->request->json()->all();
 
@@ -1324,26 +1413,42 @@ class Studies extends Controller
         return $study;
     }
 
-    public function updateStudyEquipmentLayout($id) {
+    public function updateStudyEquipmentLayout($id)
+    {
         $sEquip = StudyEquipment::findOrFail($id);
         $input = $this->request->json()->all();    
+        $loadingRate = $input['toc'];
 
         $layoutGen = $this->stdeqp->getStudyEquipmentLayoutGen($sEquip);
         // $layoutGen->ORI
         $layoutGen->PROD_POSITION = $input['orientation'];
-        $layoutGen->WIDTH_INTERVAL = $this->convert->prodDimensionSave($input['widthInterval']);
-        $layoutGen->LENGTH_INTERVAL = $this->convert->prodDimensionSave($input['lengthInterval']);
+       
+        $oldLoadingRate = (double) $this->convert->toc($sEquip->layoutResults->first()->LOADING_RATE);
+
+        if ($loadingRate != $oldLoadingRate) {
+            $layoutResult = LayoutResults::where('ID_STUDY_EQUIPMENTS', $id)->first();
+            $layoutResult->LOADING_RATE = $this->convert->toc($loadingRate, ['save' => true]);
+            $layoutResult->LEFT_RIGHT_INTERVAL = 0.0;
+            $layoutResult->NUMBER_IN_WIDTH = 0.0;
+            $layoutResult->NUMBER_PER_M = 0.0;
+            $layoutResult->save();
+
+            $layoutGen->WIDTH_INTERVAL = -2.0;
+            $layoutGen->LENGTH_INTERVAL = -2.0;
+        } else {
+            $layoutGen->WIDTH_INTERVAL = $this->convert->prodDimensionSave($input['widthInterval']);
+            $layoutGen->LENGTH_INTERVAL = $this->convert->prodDimensionSave($input['lengthInterval']);
+        }
         $layoutGen->save();
 
         $this->stdeqp->calculateEquipmentParams($sEquip);
         if ($input['studyClean'] == true) {
-            $this->stdeqp->applyStudyCleaner($sEquip->ID_STUDY, $id, 43);
+            $this->stdeqp->applyStudyCleaner($sEquip->ID_STUDY, $id, SC_CLEAN_OUPTUT_LAYOUT_CHANGED);
         }
     }
 
     public function getChainingModel($id) 
     {
-        /** @var \App\Models\Study */
         $study = Study::findOrFail($id);
         
         // $chaining = [
@@ -1439,23 +1544,115 @@ class Studies extends Controller
         return $chaining;
     }
 
+
     public function getlocationAxisSelected($id)
     {
         $tempRecordPts = TempRecordPts::where("ID_STUDY", $id)->first();
 
-        $axisTemp["top"] = [$this->convert->meshesUnit($tempRecordPts->AXIS1_PT_TOP_SURF), $this->convert->meshesUnit($tempRecordPts->AXIS2_PT_TOP_SURF), $this->convert->meshesUnit($tempRecordPts->AXIS3_PT_TOP_SURF)];
+        $axisTemp["top"] = [
+            [
+                'name' => $this->convert->meshesUnit($tempRecordPts->AXIS1_PT_TOP_SURF),
+                'value' => $tempRecordPts->AXIS1_PT_TOP_SURF
+            ],
+            [
+                'name' => $this->convert->meshesUnit($tempRecordPts->AXIS2_PT_TOP_SURF),
+                'value' => $tempRecordPts->AXIS2_PT_TOP_SURF
+            ],
+            [
+                'name' => $this->convert->meshesUnit($tempRecordPts->AXIS3_PT_TOP_SURF),
+                'value' => $tempRecordPts->AXIS3_PT_TOP_SURF
+            ],
+        ];
 
-        $axisTemp["int"] = [$this->convert->meshesUnit($tempRecordPts->AXIS1_PT_INT_PT), $this->convert->meshesUnit($tempRecordPts->AXIS2_PT_INT_PT), $this->convert->meshesUnit($tempRecordPts->AXIS3_PT_INT_PT)];
+        $axisTemp["int"] = [
+            [
+                'name' => $this->convert->meshesUnit($tempRecordPts->AXIS1_PT_INT_PT),
+                'value' => $tempRecordPts->AXIS1_PT_INT_PT
+            ],
+            [
+                'name' => $this->convert->meshesUnit($tempRecordPts->AXIS2_PT_INT_PT),
+                'value' => $tempRecordPts->AXIS2_PT_INT_PT
+            ],
+            [
+                'name' => $this->convert->meshesUnit($tempRecordPts->AXIS3_PT_INT_PT),
+                'value' => $tempRecordPts->AXIS3_PT_INT_PT
+            ]
+        ];
 
-        $axisTemp["bot"] = [$this->convert->meshesUnit($tempRecordPts->AXIS1_PT_BOT_SURF), $this->convert->meshesUnit($tempRecordPts->AXIS2_PT_BOT_SURF), $this->convert->meshesUnit($tempRecordPts->AXIS3_PT_BOT_SURF)];
+        $axisTemp["bot"] = [
+            [
+                'name' => $this->convert->meshesUnit($tempRecordPts->AXIS1_PT_BOT_SURF),
+                'value' => $tempRecordPts->AXIS1_PT_BOT_SURF
+            ],
+            [
+                'name' => $this->convert->meshesUnit($tempRecordPts->AXIS2_PT_BOT_SURF),
+                'value' => $tempRecordPts->AXIS2_PT_BOT_SURF
+            ],
+            [
+                'name' => $this->convert->meshesUnit($tempRecordPts->AXIS3_PT_BOT_SURF),
+                'value' => $tempRecordPts->AXIS3_PT_BOT_SURF
+            ]
+        ];
 
-        $axisTemp["axe1"] = [0.0, $this->convert->meshesUnit($tempRecordPts->AXIS2_AX_1), $this->convert->meshesUnit($tempRecordPts->AXIS3_AX_1)];
+        $axisTemp["axe1"] = [
+            [
+                'name' => 0.0,
+                'value' => 0.0
+            ],
+            [
+                'name' => $this->convert->meshesUnit($tempRecordPts->AXIS2_AX_1),
+                'value' => $tempRecordPts->AXIS2_AX_1
+            ],
+            [
+                'name' => $this->convert->meshesUnit($tempRecordPts->AXIS3_AX_1),
+                'value' => $tempRecordPts->AXIS3_AX_1
+            ]
+        ];
 
-        $axisTemp["axe2"] = [$this->convert->meshesUnit($tempRecordPts->AXIS1_AX_2), 0.0, $this->convert->meshesUnit($tempRecordPts->AXIS3_AX_2)];
+        $axisTemp["axe2"] = [
+            [
+                'name' => $this->convert->meshesUnit($tempRecordPts->AXIS1_AX_2),
+                'value' => $tempRecordPts->AXIS1_AX_2
+            ],
+            [
+                'name' => 0.0,
+                'value' => 0.0
+            ],
+            [
+                'name' => $this->convert->meshesUnit($tempRecordPts->AXIS3_AX_2),
+                'value' => $tempRecordPts->AXIS3_AX_2
+            ]
+        ];
 
-        $axisTemp["axe3"] = [$this->convert->meshesUnit($tempRecordPts->AXIS1_AX_3), $this->convert->meshesUnit($tempRecordPts->AXIS2_AX_3), 0.0];
+        $axisTemp["axe3"] = [
+            [
+                'name' => $this->convert->meshesUnit($tempRecordPts->AXIS1_AX_3),
+                'value' => $tempRecordPts->AXIS1_AX_3
+            ],
+            [
+                'name' => $this->convert->meshesUnit($tempRecordPts->AXIS2_AX_3),
+                'value' => $tempRecordPts->AXIS2_AX_3
+            ],
+            [
+                'name' => 0.0,
+                'value' => 0.0
+            ]
+        ];
 
-        $axisTemp["plan"] = [$this->convert->meshesUnit($tempRecordPts->AXIS1_PL_2_3), $this->convert->meshesUnit($tempRecordPts->AXIS2_PL_1_3), $this->convert->meshesUnit($tempRecordPts->AXIS3_PL_1_2)];
+        $axisTemp["plan"] = [
+            [
+                'name' => $this->convert->meshesUnit($tempRecordPts->AXIS1_PL_2_3),
+                'value' => $tempRecordPts->AXIS1_PL_2_3
+            ],
+            [
+                'name' => $this->convert->meshesUnit($tempRecordPts->AXIS2_PL_1_3),
+                'value' => $tempRecordPts->AXIS2_PL_1_3
+            ],
+            [
+                'name' => $this->convert->meshesUnit($tempRecordPts->AXIS3_PL_1_2),
+                'value' => $tempRecordPts->AXIS3_PL_1_2
+            ]
+        ];
 
 
         return $axisTemp;
@@ -1497,50 +1694,73 @@ class Studies extends Controller
             $planResult = $this->study->convertPointForDB($shape, $orientation, $plan);
 
             $tempRecordPts->NB_STEPS = $nbSteps;
-            $tempRecordPts->AXIS1_PT_TOP_SURF = $report->POINT1_X = $pointTopResult[0];
-            $tempRecordPts->AXIS2_PT_TOP_SURF = $report->POINT1_Y = $pointTopResult[1];
-            $tempRecordPts->AXIS3_PT_TOP_SURF = $report->POINT1_Z = $pointTopResult[2];
+            $tempRecordPts->AXIS1_PT_TOP_SURF = $pointTopResult[0];
+            $tempRecordPts->AXIS2_PT_TOP_SURF = $pointTopResult[1];
+            $tempRecordPts->AXIS3_PT_TOP_SURF = $pointTopResult[2];
 
-            $tempRecordPts->AXIS1_PT_INT_PT = $report->POINT2_X = $pointIntResult[0];
-            $tempRecordPts->AXIS2_PT_INT_PT = $report->POINT2_Y = $pointIntResult[1];
-            $tempRecordPts->AXIS3_PT_INT_PT = $report->POINT2_Z = $pointIntResult[2];
+            $tempRecordPts->AXIS1_PT_INT_PT = $pointIntResult[0];
+            $tempRecordPts->AXIS2_PT_INT_PT = $pointIntResult[1];
+            $tempRecordPts->AXIS3_PT_INT_PT = $pointIntResult[2];
 
-            $tempRecordPts->AXIS1_PT_BOT_SURF = $report->POINT3_X = $pointBotResult[0];
-            $tempRecordPts->AXIS2_PT_BOT_SURF = $report->POINT3_Y = $pointBotResult[1];
-            $tempRecordPts->AXIS3_PT_BOT_SURF = $report->POINT3_Z = $pointBotResult[2];
+            $tempRecordPts->AXIS1_PT_BOT_SURF = $pointBotResult[0];
+            $tempRecordPts->AXIS2_PT_BOT_SURF = $pointBotResult[1];
+            $tempRecordPts->AXIS3_PT_BOT_SURF = $pointBotResult[2];
+
+            if ($report) {
+                $report->POINT1_X = $pointTopResult[0];
+                $report->POINT1_Y = $pointTopResult[1];
+                $report->POINT1_Z = $pointTopResult[2];
+                $report->POINT2_X = $pointIntResult[0];
+                $report->POINT2_Y = $pointIntResult[1];
+                $report->POINT2_Z = $pointIntResult[2];
+                $report->POINT3_X = $pointBotResult[0];
+                $report->POINT3_Y = $pointBotResult[1];
+                $report->POINT3_Z = $pointBotResult[2];
+            }
 
             if (isset($axisResult[0]['y'])) {
-                $tempRecordPts->AXIS2_AX_1 = $report->AXE1_X = $axisResult[0]['y'];
+                $tempRecordPts->AXIS2_AX_1 = $axisResult[0]['y'];
+                if ($report) $report->AXE1_X = $axisResult[0]['y'];
             }
             if (isset($axisResult[0]['z'])) {
-                $tempRecordPts->AXIS3_AX_1 = $report->AXE1_Y = $axisResult[0]['z'];
+                $tempRecordPts->AXIS3_AX_1 = $axisResult[0]['z'];
+                if ($report) $report->AXE1_Y = $axisResult[0]['z'];
             }
             if (isset($axisResult[1]['x'])) {
-                $tempRecordPts->AXIS1_AX_2 = $report->AXE2_X = $axisResult[1]['x'];
+                $tempRecordPts->AXIS1_AX_2 = $axisResult[1]['x'];
+                if ($report) $report->AXE2_X = $axisResult[1]['x'];
             }
             if (isset($axisResult[1]['z'])) {
-                $tempRecordPts->AXIS3_AX_2 = $report->AXE2_Z = $axisResult[1]['z'];
+                $tempRecordPts->AXIS3_AX_2 = $axisResult[1]['z'];
+                if ($report) $report->AXE2_Z = $axisResult[1]['z'];
             }
             if (isset($axisResult[2]['x'])) {
-                $tempRecordPts->AXIS1_AX_3 = $report->AXE3_Y = $axisResult[2]['x'];
+                $tempRecordPts->AXIS1_AX_3 = $axisResult[2]['x'];
+                if ($report) $report->AXE3_Y = $axisResult[2]['x'];
             }
             if (isset($axisResult[2]['y'])) {
-                $tempRecordPts->AXIS2_AX_3 = $report->AXE3_Z = $axisResult[2]['y'];
+                $tempRecordPts->AXIS2_AX_3 = $axisResult[2]['y'];
+                if ($report) $report->AXE3_Z = $axisResult[2]['y'];
             }
 
-            $tempRecordPts->AXIS1_PL_2_3 = $report->PLAN_X = $planResult[0];
-            $tempRecordPts->AXIS2_PL_1_3 = $report->PLAN_Y = $planResult[1];
-            $tempRecordPts->AXIS3_PL_1_2 = $report->PLAN_Z = $planResult[2];
+            $tempRecordPts->AXIS1_PL_2_3 = $planResult[0];
+            $tempRecordPts->AXIS2_PL_1_3 = $planResult[1];
+            $tempRecordPts->AXIS3_PL_1_2 = $planResult[2];
+            if ($report) {
+                $report->PLAN_X = $planResult[0];
+                $report->PLAN_Y = $planResult[1];
+                $report->PLAN_Z = $planResult[2];
+            }
 
             $tempRecordPts->save();
-            $report->save();
+            if ($report) $report->save();
         }
 
         return 1;
     }
 
-
-    public function createChildStudy($id) {
+    public function createChildStudy($id) 
+    {
         $input = $this->request->all();
         $childStudyName = $input['studyName'];
         $stdEqpId = $input['stdEqpId'];
@@ -1555,7 +1775,6 @@ class Studies extends Controller
         $report = new Report();
         $precalcLdgRatePrm = new PrecalcLdgRatePrm();
         $packing = new Packing();
-
         $isNumerical = ($stdEqp->BRAIN_TYPE == $this->value->BRAIN_RUN_FULL_YES) ? true : false;
         $isAnalogical = false;
         if ($study->CALCULATION_MODE == $this->value->STUDY_ESTIMATION_MODE) {
@@ -1563,10 +1782,9 @@ class Studies extends Controller
             $isAnalogical = $this->stdeqp->isAnalogicResults($stdEqp);
         } else {
             // selected or optimum
-            $isAnalogical = $stdEqp->BRAIN_TYPE == $this->value->BRAIN_RUN_NONE ? true : false;
+            $isAnalogical = $stdEqp->BRAIN_TYPE != $this->value->BRAIN_RUN_NONE ? true : false;
         }
         
-        // @class: \App\Models\Study
         $studyCurrent = Study::findOrFail($id);
         $studyCurrent->HAS_CHILD = 1;
         $studyCurrent->save();
@@ -1577,27 +1795,19 @@ class Studies extends Controller
 
             return response([
                 'code' => 1002,
-                'message' => 'Duplicate Study Name!'
+                'message' => 'This study name already exists, please try another one.'
             ], 406);
         }
 
         if ($studyCurrent != null) {
 
-            // @class: \App\Models\TempRecordPts
             $temprecordpstCurr = TempRecordPts::where('ID_STUDY', $studyCurrent->ID_STUDY)->first();
-            // @class: \App\Models\Production
             $productionCurr = Production::where('ID_STUDY', $studyCurrent->ID_STUDY)->first(); 
-            // @class: \App\Models\Product
             $productCurr = Product::where('ID_STUDY', $studyCurrent->ID_STUDY)->first();
-            // @class: \App\Models\Price
             $priceCurr = Price::where('ID_STUDY', $studyCurrent->ID_STUDY)->first(); 
-            // @class: \App\Models\Price
             $reportCurr = Report::where('ID_STUDY', $studyCurrent->ID_STUDY)->first(); 
-            // @class: \App\Models\PrecalcLdgRatePrm
             $precalcLdgRatePrmCurr = PrecalcLdgRatePrm::where('ID_STUDY', $studyCurrent->ID_STUDY)->first();
-            // @class: \App\Models\Packing
             $packingCurr = Packing::where('ID_STUDY', $studyCurrent->ID_STUDY)->first(); 
-            
 
             if (!empty($childStudyName)) {
                 //duplicate study already exsits
@@ -1629,7 +1839,6 @@ class Studies extends Controller
 
                 //duplicate Production already exsits
                 if (count($productionCurr) > 0) {
-
                     $production = $productionCurr->replicate();
                     $production->ID_STUDY = $study->ID_STUDY;
                     unset($production->ID_PRODUCTION);
@@ -1649,9 +1858,8 @@ class Studies extends Controller
                     unset($product->ID_PROD);
                     $product->save();
 
-                    // @class: \App\Models\MeshGeneration
+
                     $meshgenerationCurr = MeshGeneration::where('ID_PROD', $productCurr->ID_PROD)->first(); 
-                    // @class: \App\Models\ProductEmlt
                     $productemltCurr = ProductElmt::where('ID_PROD', $productCurr->ID_PROD)->get(); 
                     //duplicate MeshGeneration already exsits
                     if (count($meshgenerationCurr) > 0) {
@@ -1678,7 +1886,6 @@ class Studies extends Controller
                     }
                 }
                     
-                
                 //duplicate Price already exsits
                 if (count($priceCurr) > 0) {
                     $price = $priceCurr->replicate();

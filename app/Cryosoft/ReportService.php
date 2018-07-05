@@ -11,6 +11,7 @@
  ****************************************************************************/
 namespace App\Cryosoft;
 
+use Illuminate\Support\Facades\DB;
 use App\Models\Study;
 use App\Models\StudyEquipment;
 use App\Models\Production;
@@ -92,17 +93,166 @@ class ReportService
 		$this->stu = $app['App\\Cryosoft\\StudyService'];
         $this->output = $app['App\\Cryosoft\\OutputService'];
         $this->plotFolder = $this->output->base_path('scripts');
+        $this->pasTemp = -1.0;
 	}
+
+    public function getParentIdChaining($idStudy, $arrStudyId = [])
+    {
+        $study = Study::find($idStudy);
+        if ($study) {
+            $arrStudyId[] = $idStudy;
+            $arrStudyId = $this->getParentIdChaining($study->PARENT_ID, $arrStudyId);
+        }
+
+        return $arrStudyId;
+    }
+
+    public function getChainingStudy($idStudy)
+    {
+        $study = Study::find($idStudy);
+        if ($study->PARENT_ID != 0) {
+            $arrStudyId = $this->getParentIdChaining($study->PARENT_ID);
+
+            $studyEquipments = StudyEquipment::whereIn("ID_STUDY", $arrStudyId)->orderBy("ID_STUDY_EQUIPMENTS", "ASC")->get();
+
+            $lfcoef = $this->unit->unitConvert($this->value->MASS_PER_UNIT, 1.0);
+
+            $result = array();
+
+            foreach ($studyEquipments as $row) {
+                $capabilitie = $row->CAPABILITIES;
+                $equipStatus = $row->EQUIP_STATUS;
+                $brainType = $row->BRAIN_TYPE;
+                $stuName = $row->study->STUDY_NAME;
+                $calculWarning = "";
+
+                $item["id"] = $idStudyEquipment = $row->ID_STUDY_EQUIPMENTS;
+
+                $sSpecificSize = "";
+                if ($this->equip->getCapability($capabilitie , 2097152)) {
+                    $sSpecificSize = $this->equip->getSpecificEquipSize($idStudyEquipment);
+                }
+                $item["specificSize"] = $sSpecificSize;   
+                
+                $item["equipName"] = $this->equip->getResultsEquipName($idStudyEquipment);
+                $calculate = "";
+                $tr = $ts = $vc = $vep = $tfp = $dhp = $conso= $conso_warning = $toc = $precision = "";
+
+                $item["runBrainPopup"] = false;
+                if ($this->equip->getCapability($capabilitie, 128)) {
+                    $item["runBrainPopup"] = true;
+                }
+
+                if (!($this->equip->getCapability($capabilitie, 128))) {
+                    $tr = $ts = $vc = $vep = $tfp = $dhp = $conso= $conso_warning = $toc = $precision = "";
+                    $calculate = "disabled";
+                } else if (($equipStatus != 0) && ($equipStatus != 1) && ($equipStatus != 100000)) {
+                    $tr = $ts = $vc = $vep = $tfp = $dhp = $conso = $conso_warning = $toc = $precision = "****";
+                    $calculate = "disabled";
+                } else if ($equipStatus == 10000) {
+                    $tr = $ts = $vc = $vep = $tfp = $dhp = $conso= $conso_warning = $toc = $precision = "";
+                    $calculate = "disabled";
+                } else {
+                    $dimaResult = DimaResults::where("ID_STUDY_EQUIPMENTS", $idStudyEquipment)->where("DIMA_TYPE", 1)->first();
+                    if ($dimaResult == null) {
+                        $tr = $ts = $vc = $vep = $tfp = $dhp = $conso= $conso_warning = $toc = $precision = "";
+                    } else {
+                        switch ($brainType) {
+                            case 0:
+                                $calculate = true;
+                                break;
+
+                            case 1:
+                            case 2:
+                            case 3:
+                                $calculate = false;
+                                break;
+
+                            case 4:
+                                $calculate = false;
+                                break;
+
+                            default:
+                                $calculate = "";
+                                break;
+                        }
+
+                        if ($this->dima->getCalculationWarning($dimaResult->DIMA_STATUS) != 0) {
+                            $calculWarning = $this->dima->getCalculationWarning($dimaResult->DIMA_STATUS);
+                        }
+
+                        $tr = $this->unit->controlTemperature($dimaResult->SETPOINT);
+                        $ts = $this->unit->time($dimaResult->DIMA_TS);
+                        $vc = $this->unit->convectionSpeed($dimaResult->DIMA_VC);
+                        $vep = $this->unit->enthalpy($dimaResult->DIMA_VEP);
+                        $tfp = $this->unit->prodTemperature($dimaResult->DIMA_TFP);
+
+                        if ($this->equip->getCapability($capabilitie, 256)) {
+                            $consumption = $dimaResult->CONSUM / $lfcoef;
+                            $idCoolingFamily = $row->ID_COOLING_FAMILY;
+
+                            $valueStr = $this->unit->consumption($consumption, $idCoolingFamily, 1);
+
+                            $calculationStatus = $this->dima->getCalculationStatus($dimaResult->DIMA_STATUS);
+
+                            $consumptionCell = $this->dima->consumptionCell($lfcoef, $calculationStatus, $valueStr);
+                            $conso = $consumptionCell["value"];
+                            $conso_warning = $consumptionCell["warning"];
+
+                        } else {
+                            $conso = "****";
+                        }
+
+                        if ($this->equip->getCapability($capabilitie, 32)) {
+                            $dhp = $this->unit->productFlow($dimaResult->HOURLYOUTPUTMAX);
+
+                            $batch = $row->BATCH_PROCESS;
+                            if ($batch) {
+                                $massConvert = $this->unit->mass($dimaResult->USERATE);
+                                $massSymbol = $this->unit->massSymbol();
+                                $toc = $massConvert . " " . $massSymbol . "/batch";
+                            } else {
+                                $toc = $this->unit->toc($dimaResult->USERATE) . "%";
+                            }
+                        } else {
+                            $dhp = $toc = "****";
+                        }
+
+                        if ($dimaResult->DIMA_PRECIS < 50.0) {
+                            $precision = $this->unit->precision($dimaResult->DIMA_PRECIS);
+                        } else {
+                            $precision = "!!!!";
+                        }
+
+                    }
+                }
+
+                $item["tr"] = $tr;
+                $item["ts"] = $ts;
+                $item["vc"] = $vc;
+                $item["vep"] = $vep;
+                $item["tfp"] = $tfp;
+                $item["dhp"] = $dhp;
+                $item["conso"] = $conso;
+                $item["conso_warning"] = $conso_warning;
+                $item["toc"] = $toc;
+                $item["precision"] = $precision;
+                $item["stuName"] = $stuName;
+
+                $result[] = $item;
+            }
+
+
+            return $result;
+        } 
+    }
 
     public function getOptimumHeadBalance($idStudy)
     {
         $idUser = $this->auth->user()->ID_USER;
         $study = Study::find($idStudy);
         $calculationMode = $study->CALCULATION_MODE;
-        $stuName = $study->STUDY_NAME;
-
-        //get study equipment
-        $studyEquipments = StudyEquipment::where("ID_STUDY", $idStudy)->orderBy("ID_STUDY_EQUIPMENTS", "ASC")->get();
+        $studyEquipments = StudyEquipment::where("ID_STUDY", $idStudy)->orderBy("ID_STUDY_EQUIPMENTS", "ASC")->get();     
 
         $lfcoef = $this->unit->unitConvert($this->value->MASS_PER_UNIT, 1.0);
 
@@ -112,6 +262,7 @@ class ReportService
             $capabilitie = $row->CAPABILITIES;
             $equipStatus = $row->EQUIP_STATUS;
             $brainType = $row->BRAIN_TYPE;
+            $stuName = $row->study->STUDY_NAME;
             $calculWarning = "";
 
             $item["id"] = $idStudyEquipment = $row->ID_STUDY_EQUIPMENTS;
@@ -248,15 +399,14 @@ class ReportService
 
         $lfcoef = $this->unit->unitConvert($this->value->MASS_PER_UNIT, 1.0);
 
-
-
         $result = array();
+        // return $studyEquipments;
 
         foreach ($studyEquipments as $row) {
             $capabilitie = $row->CAPABILITIES;
             $equipStatus = $row->EQUIP_STATUS;
             $brainType = $row->BRAIN_TYPE;
-            $calculWarning = "";
+            $ldWarning = 0;
             $item["id"] = $idStudyEquipment = $row->ID_STUDY_EQUIPMENTS;
             $sSpecificSize = "";
             if ($this->equip->getCapability($capabilitie , 2097152)) {
@@ -269,12 +419,17 @@ class ReportService
 
             if (!($this->equip->getCapability($capabilitie, 128))) {
                 $tr = $ts = $vc = $vep = $tfp = $dhp = $conso = $conso_warning = $toc = $precision = "****";
-            } else if ($dimaResult == null) {
+            } else if (!$dimaResult) {
                 $tr = $ts = $vc = $vep = $tfp = $dhp = $conso = $conso_warning = $toc = $precision = "";
             } else {
-                $calculWarning = $this->dima->getCalculationWarning($dimaResult->DIMA_STATUS);
+                $ldError = $this->dima->getCalculationWarning($dimaResult->DIMA_STATUS);
+                $ldWarning = 0;
+                if (($ldError == 282) || ($ldError == 283) || ($ldError == 284) || ($ldError == 285) || ($ldError == 286)) {
+                    $ldWarning = $ldError;
+                    $ldError = 0;
+                }
 
-                if ($calculWarning != 0) {
+                if ($ldError != 0) {
                     $tr = $ts = $vc = $vep = $tfp = $dhp = $conso = $conso_warning = $toc = $precision = "****";
                 } else {
                     $tr = $this->unit->controlTemperature($dimaResult->SETPOINT);
@@ -323,7 +478,7 @@ class ReportService
                 }
             }
 
-            $item["calculWarning"] = $calculWarning;
+            $item["calculWarning"] = $ldWarning;
             $item["tr"] = $tr;
             $item["ts"] = $ts;
             $item["vc"] = $vc;
@@ -513,8 +668,8 @@ class ReportService
                     $dimaR = DimaResults::where("ID_STUDY_EQUIPMENTS", $idStudyEquipment)->where("DIMA_TYPE", 1)->first();
                 }
 
-                if ($economicResult != null) {
-                    if ($dimaR != null) {
+                if ($economicResult) {
+                    if ($dimaR) {
                         $dimaStatus = $this->dima->getCalculationStatus($dimaR->DIMA_STATUS);
                         $equipStatus = $row->EQUIP_STATUS;
                     } else {
@@ -524,7 +679,6 @@ class ReportService
 
                     $consoToDisplay = $this->eco->isConsoToDisplay($dimaStatus, $equipStatus);
                     if (!$consoToDisplay) {
-                        $equipName = "****";
                         $tc = "****";
                         $kgProduct = "****";
                         $product = "****";
@@ -555,6 +709,7 @@ class ReportService
                         $week = $this->unit->consumption($economicResult->FLUID_CONSUMPTION_WEEK, $idCoolingFamily, 1, 0);
                         $hour = $this->unit->consumption($economicResult->FLUID_CONSUMPTION_HOUR, $idCoolingFamily, 1);
                         $month = $this->unit->consumption($economicResult->FLUID_CONSUMPTION_MONTH, $idCoolingFamily, 1, 0);
+                        
                         $year = $this->unit->consumption($economicResult->FLUID_CONSUMPTION_YEAR, $idCoolingFamily, 1, 0);
                         $eqptCold = $this->unit->consumption($economicResult->FLUID_CONSUMPTION_MAT_GETCOLD, $idCoolingFamily, 3);
                         $eqptPerm = $this->unit->consumption($economicResult->FLUID_CONSUMPTION_MAT_PERM, $idCoolingFamily, 2);
@@ -584,18 +739,17 @@ class ReportService
                     $item["lineCold"] = $lineCold;
                     $item["linePerm"] = $linePerm;
                     $item["tank"] = $tank;
-
                     $item["percentProduct"] = $percentProduct;
                     $item["percentEquipmentPerm"] = $percentEquipmentPerm;
                     $item["percentEquipmentDown"] = $percentEquipmentDown;
                     $item["percentLine"] = $percentLine;
+                    $item['ENABLE_CONS_PIE'] = $row->ENABLE_CONS_PIE;
 
                     $result[] = $item;
                 }
             }
 
         }
-
         return $result;
     }
 
@@ -647,6 +801,7 @@ class ReportService
                         $day = "****";
                         $week = "****";
                         $hour = "****";
+                        $month = "****";
                         $year = "****";
                         $eqptPerm = "****";
                         $eqptCold = "****";
@@ -665,6 +820,7 @@ class ReportService
                         $day = $this->unit->monetary($economicResult->COST_DAY, 0);
                         $week = $this->unit->monetary($economicResult->COST_WEEK, 0);
                         $hour = $this->unit->monetary($economicResult->COST_HOUR);
+                        $month = $this->unit->monetary($economicResult->COST_MONTH, 0);
                         $year = $this->unit->monetary($economicResult->COST_YEAR, 0);
                         $eqptCold = $this->unit->monetary($economicResult->COST_MAT_GETCOLD);
                         $eqptPerm = $this->unit->monetary($economicResult->COST_MAT_PERM);
@@ -681,6 +837,7 @@ class ReportService
                     $item["day"] = $day;
                     $item["week"] = $week;
                     $item["hour"] = $hour;
+                    $item["month"] = $month;
                     $item["year"] = $year;
                     $item["eqptPerm"] = $eqptPerm;
                     $item["eqptCold"] = $eqptCold;
@@ -702,8 +859,8 @@ class ReportService
         $production = Production::select("PROD_FLOW_RATE", "AVG_T_INITIAL")->where("ID_STUDY", $idStudy)->first();
         $product = Product::select("PROD_REALWEIGHT")->where("ID_STUDY", $idStudy)->first();
 
-        $prodFlowRate = $production->PROD_FLOW_RATE;
-        $avgTInitial = $production->AVG_T_INITIAL;
+        $prodFlowRate = $this->unit->productFlow($production->PROD_FLOW_RATE);
+        $avgTInitial = $this->unit->prodTemperature($production->AVG_T_INITIAL);
         $prodElmtRealweight = $this->unit->mass($product->PROD_REALWEIGHT);
 
         return compact("prodFlowRate", "prodElmtRealweight", "avgTInitial");
@@ -732,7 +889,6 @@ class ReportService
         $lfTS = $listRecordPos[$nbRecord - 1]->RECORD_TIME;
         $lfStep = $listRecordPos[1]->RECORD_TIME - $listRecordPos[0]->RECORD_TIME;
         $lEchantillon = $this->output->calculateEchantillon($nbSample, $nbRecord, $lfTS, $lfStep);
-
         foreach ($lEchantillon as $row) {
 
             $recordPos = $listRecordPos[$row];
@@ -766,8 +922,8 @@ class ReportService
         return compact("result", "equipName", "idStudyEquipment");
     }
 
-    public function productSection($idStudy, $idStudyEquipment, $selectedAxe){
-
+    public function productSection($idStudy, $idStudyEquipment, $selectedAxe)
+    {
         $productElmt = ProductElmt::where('ID_STUDY', $idStudy)->first();
         $shape = $productElmt->SHAPECODE;
         $layoutGen = LayoutGeneration::where('ID_STUDY_EQUIPMENTS', $idStudyEquipment)->first();
@@ -777,6 +933,7 @@ class ReportService
         $timeSymbol = $this->unit->timeSymbol();
         $temperatureSymbol = $this->unit->temperatureSymbol();
         $prodchartDimensionSymbol = $this->unit->prodchartDimensionSymbol();
+        
         $resultLabel = [];
         $resultTemperature = [];
 
@@ -821,10 +978,8 @@ class ReportService
         $lfStep = $listRecordPos[1]->RECORD_TIME - $listRecordPos[0]->RECORD_TIME;
         $lEchantillon = $this->output->calculateEchantillon($nbSample, $nbRecord, $lfTS, $lfStep);
         $dataChart = [];
-        // return $axeTempRecordData;
 
         foreach ($lEchantillon as $row) {
-
             $recordPos = $listRecordPos[$row];
 
             $itemResult["x"] = $this->unit->time($recordPos->RECORD_TIME);
@@ -949,49 +1104,49 @@ class ReportService
             }
         }
 
-        $f = fopen("/tmp/productSection.inp", "w");
-
-        $dataLabel = '';
-        fputs($f, '"X" ');
-        foreach ($resultLabel as $row) {
-            $dataLabel .= '"Temperature T' . $row . '(' . $this->unit->timeSymbol() . ')' . '"' . ' ';
-        } 
-
-        fputs($f, $dataLabel);
-        fputs($f, "\n");
-
-        $i = 0;
-        foreach ($resultValue as $key => $row) {
-            $dataValue = '';
-            $dataValue = $i . ' ';
-            foreach ($row as $value) {
-                $dataValue .= $value . ' ';
-            }
-            fputs($f, $dataValue);
-            fputs($f, "\n");
-            $i++;
-        }
-        fclose($f);
-
         $study = Study::find($idStudy);
         $userName = $study->USERNAM;
         $productSectionFolder = $this->output->public_path('productSection');
-
-        if (!is_dir($productSectionFolder)) {
-            mkdir($productSectionFolder, 0777);
-        }
-        if (!is_dir($productSectionFolder . '/' . $userName)) {
-            mkdir($productSectionFolder . '/' . $userName, 0777);
-        }
-
         $fileName = $idStudyEquipment . '-' . $selectedAxe;
 
-        system('gnuplot -c '. $this->plotFolder .'/productSection.plot "('. $this->unit->prodchartDimensionSymbol() .')" "('. $this->unit->temperatureSymbol() .')" "'. $productSectionFolder . '/' . $userName .'" "'. $fileName .'"');
+        if (!file_exists($productSectionFolder . '/' . $userName . '/' . $fileName . '.png')) {
+            $f = fopen("/tmp/productSection.inp", "w");
+
+            $dataLabel = '';
+            fputs($f, '"X" ');
+            foreach ($resultLabel as $row) {
+                $dataLabel .= '"Temperature T' . $row . '(' . $this->unit->timeSymbol() . ')' . '"' . ' ';
+            } 
+
+            fputs($f, $dataLabel);
+            fputs($f, "\n");
+
+            $i = 0;
+            foreach ($resultValue as $key => $row) {
+                $dataValue = '';
+                $dataValue = $i . ' ';
+                foreach ($row as $value) {
+                    $dataValue .= $value . ' ';
+                }
+                fputs($f, $dataValue);
+                fputs($f, "\n");
+                $i++;
+            }
+            fclose($f);
+
+            if (!is_dir($productSectionFolder)) {
+                mkdir($productSectionFolder, 0777);
+            }
+            if (!is_dir($productSectionFolder . '/' . $userName)) {
+                mkdir($productSectionFolder . '/' . $userName, 0777);
+            }
+
+            system('gnuplot -c '. $this->plotFolder .'/productSection.plot "('. $this->unit->prodchartDimensionSymbol() .')" "('. $this->unit->temperatureSymbol() .')" "'. $productSectionFolder . '/' . $userName .'" "'. $fileName .'"');
+        }
 
         $result["recAxis"] = $recAxis;
         $result["mesAxis"] = $mesAxis;
         $result["resultValue"] = $resultValue;
-
 
         return compact("equipName", "axeTemp", "dataChart", "resultLabel",
          "result", "selectedAxe", "timeSymbol", "temperatureSymbol", "prodchartDimensionSymbol",
@@ -1000,17 +1155,17 @@ class ReportService
 
     public function timeBased($idStudy, $idStudyEquipment)
     {
-
         $listRecordPos = RecordPosition::where("ID_STUDY_EQUIPMENTS", $idStudyEquipment)->get();
         $result = array();
         $label = array();
         $curve = array();
+        $axisValue = $this->output->getRightPosition($idStudy, $idStudyEquipment);
 
         if (count($listRecordPos) > 0) {
             foreach ($listRecordPos as $row) {
-                $termRecordDataTop = $this->output->getTemperaturePosition($row->ID_REC_POS, (int) $row->AXIS1_PT_TOP_SURF, (int) $row->AXIS2_PT_TOP_SURF);
-                $termRecordDataInt = $this->output->getTemperaturePosition($row->ID_REC_POS, (int) $row->AXIS1_PT_INT_PT, (int) $row->AXIS2_PT_INT_PT);
-                $termRecordDataBot = $this->output->getTemperaturePosition($row->ID_REC_POS, (int) $row->AXIS1_PT_BOT_SURF, (int) $row->AXIS2_PT_BOT_SURF);
+                $termRecordDataTop = $this->output->getTemperaturePosition($row->ID_REC_POS, (int) $axisValue['axis1TopPos'], (int) $axisValue['axis2TopPos']);
+                $termRecordDataInt = $this->output->getTemperaturePosition($row->ID_REC_POS, (int) $axisValue['axis1IntPos'], (int) $axisValue['axis2IntPos']);
+                $termRecordDataBot = $this->output->getTemperaturePosition($row->ID_REC_POS, (int) $axisValue['axis1BotPos'], (int) $axisValue['axis2BotPos']);
 
                 $itemCurveTop["x"] = $this->unit->time($row->RECORD_TIME);
                 $itemCurveTop["y"] = $this->unit->prodTemperature($termRecordDataTop->TEMP);
@@ -1029,39 +1184,40 @@ class ReportService
                 $curve["bot"][] = $itemCurveBotom;
                 $curve["average"][] = $itemCurveAverage;
             }
+            
             $tempRecordPts = TempRecordPts::where("ID_STUDY", $idStudy)->first();
             $nbSample = $tempRecordPts->NB_STEPS;
-            $equipName = $this->equip->getResultsEquipName($idStudyEquipment);
-
-            $timeSymbol = $this->unit->timeSymbol();
-            $temperatureSymbol = $this->unit->temperatureSymbol();
 
             $nbRecord = count($listRecordPos);
 
             $lfTS = $listRecordPos[$nbRecord - 1]->RECORD_TIME;
             $lfStep = $listRecordPos[1]->RECORD_TIME - $listRecordPos[0]->RECORD_TIME;
-            $lEchantillon = $this->output->calculateEchantillon($nbSample, $nbRecord, $lfTS, $lfStep);
 
+            $equipName = $this->equip->getResultsEquipName($idStudyEquipment);
+            $timeSymbol = $this->unit->timeSymbol();
+            $temperatureSymbol = $this->unit->temperatureSymbol();
+
+            $lEchantillon = $this->output->calculateEchantillon($nbSample, $nbRecord, $lfTS, $lfStep);
             foreach ($lEchantillon as $row) {
                 $recordPos = $listRecordPos[$row];
                 $item["points"] = $this->unit->time($recordPos->RECORD_TIME);
 
                 //top
-                $termRecordDataTop = $this->output->getTemperaturePosition($recordPos->ID_REC_POS, (int) $tempRecordPts->AXIS1_PT_TOP_SURF, (int) $tempRecordPts->AXIS2_PT_TOP_SURF);
+                $termRecordDataTop = $this->output->getTemperaturePosition($recordPos->ID_REC_POS, (int) $axisValue['axis1TopPos'], (int) $axisValue['axis2TopPos']);
                 $item["top"] =  $this->unit->prodTemperature($termRecordDataTop->TEMP);
                 
                 //int
-                $termRecordDataInt = $this->output->getTemperaturePosition($recordPos->ID_REC_POS, (int) $tempRecordPts->AXIS1_PT_INT_PT, (int) $tempRecordPts->AXIS2_PT_INT_PT);
+                $termRecordDataInt = $this->output->getTemperaturePosition($recordPos->ID_REC_POS, (int) $axisValue['axis1IntPos'], (int) $axisValue['axis2IntPos']);
                 $item["int"] = $this->unit->prodTemperature($termRecordDataInt->TEMP);
 
                 //bot
-                $termRecordDataBot = $this->output->getTemperaturePosition($recordPos->ID_REC_POS, (int) $tempRecordPts->AXIS1_PT_BOT_SURF, (int) $tempRecordPts->AXIS2_PT_BOT_SURF);
+                $termRecordDataBot = $this->output->getTemperaturePosition($recordPos->ID_REC_POS, (int) $axisValue['axis1BotPos'], (int) $axisValue['axis2BotPos']);
                 $item["bot"] = $this->unit->prodTemperature($termRecordDataBot->TEMP);
 
                 $item["average"] = $this->unit->prodTemperature($recordPos->AVERAGE_TEMP);
                 $result[] = $item; 
             }
-
+            
             $label["top"] = $this->unit->meshesUnit($tempRecordPts->AXIS1_PT_TOP_SURF) . "," . $this->unit->meshesUnit($tempRecordPts->AXIS2_PT_TOP_SURF) . "," . $this->unit->meshesUnit($tempRecordPts->AXIS3_PT_TOP_SURF);
 
             $label["int"] = $this->unit->meshesUnit($tempRecordPts->AXIS1_PT_INT_PT) . "," . $this->unit->meshesUnit($tempRecordPts->AXIS2_PT_INT_PT) . "," . $this->unit->meshesUnit($tempRecordPts->AXIS3_PT_INT_PT);
@@ -1069,32 +1225,34 @@ class ReportService
             $label["bot"] = $this->unit->meshesUnit($tempRecordPts->AXIS1_PT_BOT_SURF) . "," . $this->unit->meshesUnit($tempRecordPts->AXIS2_PT_BOT_SURF) . "," . $this->unit->meshesUnit($tempRecordPts->AXIS3_PT_BOT_SURF);
         }
 
-        $f = fopen("/tmp/timeBased.inp", "w");
-
-        $dataLabel = '';
-        fputs($f, '"X" ');
-        fputs($f, '"Top('. $label['top'] .')" ');
-        fputs($f, '"Internal('. $label['int'] .')" ');
-        fputs($f, '"Bottom('. $label['bot'] .')" ');
-        fputs($f, '"Average temperature"'. "\n");
-
         $study = Study::find($idStudy);
         $userName = $study->USERNAM;
         $timeBasedFolder = $this->output->public_path('timeBased');
+        if (!file_exists($timeBasedFolder . '/' . $userName . '/' . $idStudyEquipment . '.png')) {
+            $f = fopen("/tmp/timeBased.inp", "w");
 
-        if (!is_dir($timeBasedFolder)) {
-            mkdir($timeBasedFolder, 0777);
+            $dataLabel = '';
+            fputs($f, '"X" ');
+            fputs($f, '"Top('. $label['top'] .')" ');
+            fputs($f, '"Internal('. $label['int'] .')" ');
+            fputs($f, '"Bottom('. $label['bot'] .')" ');
+            fputs($f, '"Average temperature"'. "\n");
+
+            if (!is_dir($timeBasedFolder)) {
+                mkdir($timeBasedFolder, 0777);
+            }
+            if (!is_dir($timeBasedFolder . '/' . $userName)) {
+                mkdir($timeBasedFolder . '/' . $userName, 0777);
+            }
+
+            foreach ($curve['top'] as $key => $row) {
+                fputs($f, (double) $row['x'] . ' ' . (double) $row['y'] . ' ' . (double) $curve['bot'][$key]['y'] . ' ' . (double) $curve['int'][$key]['y'] . ' ' . (double) $curve['average'][$key]['y'] . "\n");
+            } 
+            fclose($f);
+
+            system('gnuplot -c '. $this->plotFolder .'/timeBased.plot "('. $this->unit->timeSymbol() .')" "('. $this->unit->temperatureSymbol() .')" "'. $timeBasedFolder . '/' . $userName .'" "'. $idStudyEquipment .'"');
         }
-        if (!is_dir($timeBasedFolder . '/' . $userName)) {
-            mkdir($timeBasedFolder . '/' . $userName, 0777);
-        }
-
-        foreach ($curve['top'] as $key => $row) {
-            fputs($f, (double) $row['x'] . ' ' . (double) $row['y'] . ' ' . (double) $curve['bot'][$key]['y'] . ' ' . (double) $curve['int'][$key]['y'] . ' ' . (double) $curve['average'][$key]['y'] . "\n");
-        } 
-        fclose($f);
-
-        system('gnuplot -c '. $this->plotFolder .'/timeBased.plot "('. $this->unit->timeSymbol() .')" "('. $this->unit->temperatureSymbol() .')" "'. $timeBasedFolder . '/' . $userName .'" "'. $idStudyEquipment .'"');
+        
 
         return compact("label", "result", "timeSymbol", "temperatureSymbol", "equipName", "idStudyEquipment");
     }
@@ -1214,43 +1372,45 @@ class ReportService
     
             $chartTempInterval = $this->output->init2DContourTempInterval($idStudyEquipment, $lfDwellingTime, $tempInterval, $pasTemp);
             $axisName = $this->output->getAxisName($shape, $orientation, $selectedPlan);
-    
-            $heatmapFolder = $this->output->public_path('heatmap');
-            $study = Study::find($idStudy);
-            $userName = $study->USERNAM;
-            if (!is_dir($heatmapFolder)) {
-                mkdir($heatmapFolder, 0777);
-            }
-            if (!is_dir($heatmapFolder . '/' . $userName)) {
-                mkdir($heatmapFolder . '/' . $userName, 0777);
-            }
-            if (!is_dir($heatmapFolder . '/' . $userName . '/' . $idStudyEquipment)) {
-                mkdir($heatmapFolder . '/' . $userName . '/' . $idStudyEquipment, 0777);
-            }
-            if (!is_dir($heatmapFolder . '/' . $userName . '/' . $idStudyEquipment)) {
-                mkdir($heatmapFolder . '/' . $userName . '/' . $idStudyEquipment, 0777);
-            }
-    
-            $contourFileName = $lfDwellingTime . '-' . $chartTempInterval[0] . '-' . $chartTempInterval[1] . '-' . $chartTempInterval[2];
-    
-    
-            if (!file_exists($heatmapFolder . '/' . $userName . '/' . $idStudyEquipment . '/' . $contourFileName . '.png')) { 
-                
-                $dataContour = $this->output->getGrideByPlan($idStudy, $idStudyEquipment, $lfDwellingTime, $chartTempInterval[0], $chartTempInterval[1], $planTempRecordData, $selectedPlan - 1, $shape, $orientation);
-    
-                $f = fopen("/tmp/contour.inp", "w");
-                foreach ($dataContour as $datum) {
-                    fputs($f, (double) $datum['X'] . ' ' . (double) $datum['Y'] . ' ' .  (double) $datum['Z'] . "\n" );
+            if ($axisName != []) {
+
+                $heatmapFolder = $this->output->public_path('heatmap');
+                $study = Study::find($idStudy);
+                $userName = $study->USERNAM;
+                if (!is_dir($heatmapFolder)) {
+                    mkdir($heatmapFolder, 0777);
                 }
-                fclose($f);
-    
-                file_put_contents($heatmapFolder . '/' . $userName . '/' . $idStudyEquipment . '/data.json', json_encode($dataContour));
-    
-                system('gnuplot -c '. $this->plotFolder .'/contour.plot "'. $dimension .' '. $axisName[0] .'" "'. $dimension .' '. $axisName[1] .'" "'. $this->unit->prodchartDimensionSymbol() .'" '. $chartTempInterval[0] .' '. $chartTempInterval[1] .' '. $chartTempInterval[2] .' "'. $heatmapFolder . '/' . $userName . '/' . $idStudyEquipment .'" "'. $contourFileName .'"');
+                if (!is_dir($heatmapFolder . '/' . $userName)) {
+                    mkdir($heatmapFolder . '/' . $userName, 0777);
+                }
+                if (!is_dir($heatmapFolder . '/' . $userName . '/' . $idStudyEquipment)) {
+                    mkdir($heatmapFolder . '/' . $userName . '/' . $idStudyEquipment, 0777);
+                }
+                if (!is_dir($heatmapFolder . '/' . $userName . '/' . $idStudyEquipment)) {
+                    mkdir($heatmapFolder . '/' . $userName . '/' . $idStudyEquipment, 0777);
+                }
+        
+                $contourFileName = $lfDwellingTime . '-' . $chartTempInterval[0] . '-' . $chartTempInterval[1] . '-' . $chartTempInterval[2];
+        
+        
+                if (!file_exists($heatmapFolder . '/' . $userName . '/' . $idStudyEquipment . '/' . $contourFileName . '.png')) { 
+                    
+                    $dataContour = $this->output->getGrideByPlan($idStudy, $idStudyEquipment, $lfDwellingTime, $chartTempInterval[0], $chartTempInterval[1], $planTempRecordData, $selectedPlan - 1, $shape, $orientation);
+        
+                    $f = fopen("/tmp/contour.inp", "w");
+                    foreach ($dataContour as $datum) {
+                        fputs($f, (double) $datum['X'] . ' ' . (double) $datum['Y'] . ' ' .  (double) $datum['Z'] . "\n" );
+                    }
+                    fclose($f);
+        
+                    file_put_contents($heatmapFolder . '/' . $userName . '/' . $idStudyEquipment . '/data.json', json_encode($dataContour));
+        
+                    system('gnuplot -c '. $this->plotFolder .'/contour.plot "'. $dimension .' '. $axisName[0] .'" "'. $dimension .' '. $axisName[1] .'" "'. $this->unit->prodchartDimensionSymbol() .'" '. $chartTempInterval[0] .' '. $chartTempInterval[1] .' '. $chartTempInterval[2] .' "'. $heatmapFolder . '/' . $userName . '/' . $idStudyEquipment .'" "'. $contourFileName .'"');
+                }
+        
+                $dataFile = 'http://'.$_SERVER['HTTP_HOST'] . '/heatmap/' . $userName . '/' . $idStudyEquipment . '/data.json';
+                $imageContour[] = 'http://'.$_SERVER['HTTP_HOST'] . '/heatmap/' . $userName . '/' . $idStudyEquipment . '/' . $contourFileName . '.png';
             }
-    
-            $dataFile = 'http://'.$_SERVER['HTTP_HOST'] . '/heatmap/' . $userName . '/' . $idStudyEquipment . '/data.json';
-            $imageContour[] = 'http://'.$_SERVER['HTTP_HOST'] . '/heatmap/' . $userName . '/' . $idStudyEquipment . '/' . $contourFileName . '.png';
     
             return compact("chartTempInterval", "lfDwellingTime", "lftimeInterval", "equipName", "idStudyEquipment");
         }
@@ -1496,6 +1656,8 @@ class ReportService
             }
         }
 
+        $imageSizing = '';
+
         if (!empty($selectedEquipment)) {
             $f = fopen("/tmp/sizing.inp", "w");
             fputs($f, '"Equip Name" "Product flowrate" "Maximum product flowrate" "Cryogen consumption (product + equipment heat losses)" "Maximum cryogen consumption (product + equipment heat losses)"' . "\n");
@@ -1534,7 +1696,7 @@ class ReportService
             
                 $dataGrapChart[] =  $itemChart;   
 
-                fputs($f, '"' . trim($itemChart["equipName"]) . '"' . ' ' . (double) $itemChart["dhp"] . ' ' . (double) $itemChart["dhpMax"] . ' ' . (double) $itemChart["conso"] . ' ' . (double) $itemChart["consoMax"] . "\n" ); 
+                fputs($f, '"'. trim($itemChart["equipName"]) .'"' . ' '. (double) $itemChart["dhp"] .' '. (double) $itemChart["dhpMax"] .' '. (double) $itemChart["conso"] .' '. (double) $itemChart["consoMax"] . "\n"); 
             }
             fclose($f);
 
@@ -1544,15 +1706,23 @@ class ReportService
             if (!is_dir($sizingFolder)) {
                 mkdir($sizingFolder, 0777);
             }
+
             if (!is_dir($sizingFolder . '/' . $userName)) {
                 mkdir($sizingFolder . '/' . $userName, 0777);
             }
 
-            system('gnuplot -c '. $this->plotFolder .'/sizing.plot "Flowrate '. $this->unit->productFlowSymbol() .'" "Conso '. $this->unit->consumptionSymbol($this->equip->initEnergyDef($idStudy), 1) .'/'. $this->unit->perUnitOfMassSymbol() .'" "'. $sizingFolder . '/' . $userName . '" '. $idStudy .' '. $productFlowRate .' "Custom Flowrate"');
+            if (!is_dir($sizingFolder . '/' . $userName . '/' . $idStudy)) {
+                mkdir($sizingFolder . '/' . $userName . '/' . $idStudy, 0777);
+            }
+            
+            system('gnuplot -c '. $this->plotFolder .'/sizing.plot "Flowrate '. $this->unit->productFlowSymbol() .'" "Conso '. $this->unit->consumptionSymbol($this->equip->initEnergyDef($idStudy), 1) .'/'. $this->unit->perUnitOfMassSymbol() .'" "'. $sizingFolder . '/' . $userName . '/' . $idStudy . '" '. $idStudy .' '. $productFlowRate .' "Custom Flowrate"');
+
+            $imageSizing = getenv('APP_URL') . '/sizing/' . $userName . '/' . $idStudy . '/' . $idStudy . '.png?time=' . time();
         }
 
-        return compact("result", "selectedEquipment", "availableEquipment", "dataGrapChart", "productFlowRate");
+        return compact("result", "selectedEquipment", "availableEquipment", "dataGrapChart", "productFlowRate", "imageSizing");
     }
+
 
     public function sizingEstimationResult($idStudy, $trSelect = 1) 
     {
@@ -1672,9 +1842,25 @@ class ReportService
             $result[] = $item;
         }
 
-        $f = fopen("/tmp/sizing.inp", "w");
-        fputs($f, '"Equip Name" "Product flowrate" "Maximum product flowrate" "Cryogen consumption (product + equipment heat losses)" "Maximum cryogen consumption (product + equipment heat losses)"' . "\n");
+        $sizingFolder = $this->output->public_path('sizing');
+
+        $userName = $study->USERNAM;
+        if (!is_dir($sizingFolder)) {
+            mkdir($sizingFolder, 0777);
+        }
+        if (!is_dir($sizingFolder . '/' . $userName)) {
+            mkdir($sizingFolder . '/' . $userName, 0777);
+        }
+
+        if (!is_dir($sizingFolder . '/' . $userName . '/' . $idStudy)) {
+            mkdir($sizingFolder . '/' . $userName . '/' . $idStudy, 0777);
+        }
+        
         foreach ($studyEquipments as $row) {
+            $f = '/tmp/sizing.inp';
+            file_put_contents($f, '');
+            file_put_contents($f, '"Equip Name" "Product flowrate" "Maximum product flowrate" "Cryogen consumption (product + equipment heat losses)" "Maximum cryogen consumption (product + equipment heat losses)"'. "\n" .'');
+
             $capabilitie = $row->CAPABILITIES;
             $equipStatus = $row->EQUIP_STATUS;
             $brainType = $row->BRAIN_TYPE;
@@ -1683,7 +1869,7 @@ class ReportService
             $itemGrap["equipName"] = $equipName = $this->equip->getSpecificEquipName($idStudyEquipment);
 
             $dimaResults = DimaResults::where("ID_STUDY_EQUIPMENTS", $idStudyEquipment)->orderBy("SETPOINT", "DESC")->get();
-            $dhp = $conso = $dhpMax = $consoMax = "";
+            $dhp = $conso = $dhpMax = $consoMax = $chartName = "";
 
             foreach ($dimaResults as $key => $dimaR) {
                 $dhp = $this->unit->productFlow($production->PROD_FLOW_RATE);
@@ -1733,26 +1919,152 @@ class ReportService
                 $itemGrap["data"][$key]["dhp"] = (double) $dhp;
                 $itemGrap["data"][$key]["conso"] = (double) $conso;
                 $itemGrap["data"][$key]["dhpMax"] = (double) $dhpMax;
-                $itemGrap["data"][$key]["consoMax"] = (double) $consoMax;
-                fputs($f, '"'. $trName .'"' . ' ' . (double) $dhp . ' ' . (double) $dhpMax . ' ' . (double) $conso . ' ' . (double) $consoMax . "\n" );
+                $itemGrap["data"][$key]["consoMax"] = (double) $consoMax; 
+                file_put_contents($f, '"'. $trName .'" '. (double) $dhp .' '. (double) $dhpMax .' '. (double) $conso .' '. (double) $consoMax .'' . "\n", FILE_APPEND);  
+
+                $chartName =  $idStudy . '-' . $row->ID_STUDY_EQUIPMENTS;
+
+                system('gnuplot -c '. $this->plotFolder .'/sizing.plot "Flowrate '. $this->unit->productFlowSymbol() .'" "Conso '. $this->unit->consumptionSymbol($this->equip->initEnergyDef($idStudy), 1) .'/'. $this->unit->perUnitOfMassSymbol() .'" "'. $sizingFolder . '/' . $userName . '/' . $idStudy . '" '. $chartName .' '. $productFlowRate .' "Custom Flowrate"');
+                $itemGrap['image'] = $imageSizing = getenv('APP_URL') . '/sizing/' . $userName . '/' . $idStudy . '/' . $chartName . '.png?time=' . time();                
             } 
-
+            
             $dataGraphChart[] =  $itemGrap;
-            fclose($f);
-
-            $sizingFolder = $this->output->public_path('sizing');
-
-            $userName = $study->USERNAM;
-            if (!is_dir($sizingFolder)) {
-                mkdir($sizingFolder, 0777);
-            }
-            if (!is_dir($sizingFolder . '/' . $userName)) {
-                mkdir($sizingFolder . '/' . $userName, 0777);
-            }
-
-            system('gnuplot -c '. $this->plotFolder .'/sizing.plot "Flowrate '. $this->unit->productFlowSymbol() .'" "Conso '. $this->unit->consumptionSymbol($this->equip->initEnergyDef($idStudy), 1) .'/'. $this->unit->perUnitOfMassSymbol() .'" "'. $sizingFolder . '/' . $userName . '" '. $idStudy .' '. $productFlowRate .' "Custom Flowrate"');
         }
 
         return compact("result", "dataGraphChart", "productFlowRate");
     }
+
+    public function initTempDataForReport($idStudy)
+    {
+        $bornesTemp = $this->getReportTemperatureBorne($idStudy);
+
+        $tempInterval[0] = $bornesTemp[0];
+        $tempInterval[1] = $bornesTemp[1];
+
+        $bornesTemp[0] = $this->unit->prodTemperature($tempInterval[0], ['format' => false]);
+        $bornesTemp[1] = $this->unit->prodTemperature($tempInterval[1], ['format' => false]);
+
+        $res = $this->calculatePasTemp($bornesTemp[0], $bornesTemp[1], true);
+        $bornesTemp[0] = $res[0];
+        $bornesTemp[1] = $res[1];
+        $pasTemp = $res[2];
+
+        $tempInterval[0] = $this->unit->prodTemperature($bornesTemp[0]);
+        $tempInterval[1] = $this->unit->prodTemperature($bornesTemp[1]);
+
+        $data = [$tempInterval[0], $tempInterval[1], $pasTemp];
+
+        return $data;
+    }
+
+    public function getReportTemperatureBorne($idStudy)
+    {
+        $tabBorne[0] = 0.0;
+        $tabBorne[1] = 0.0;
+
+        $query =  DB::select("SELECT MIN( TRD.TEMP ) AS MIN_TEMP, MAX( TRD.TEMP ) AS MAX_TEMP FROM TEMP_RECORD_DATA AS TRD 
+        JOIN (SELECT REC_POS.ID_REC_POS FROM RECORD_POSITION AS REC_POS JOIN (SELECT REC_POS1.ID_STUDY_EQUIPMENTS, 
+        MAX(REC_POS1.RECORD_TIME) AS RECORD_TIME FROM RECORD_POSITION AS REC_POS1 
+        JOIN STUDY_EQUIPMENTS AS STD_EQP ON REC_POS1.ID_STUDY_EQUIPMENTS = STD_EQP.ID_STUDY_EQUIPMENTS 
+        WHERE STD_EQP.ID_STUDY = " . $idStudy . " GROUP BY REC_POS1.ID_STUDY_EQUIPMENTS) AS REC_POS2 
+        ON REC_POS.ID_STUDY_EQUIPMENTS = REC_POS2.ID_STUDY_EQUIPMENTS AND REC_POS.RECORD_TIME = REC_POS2.RECORD_TIME) AS REC_POS3 ON TRD.ID_REC_POS = REC_POS3.ID_REC_POS");
+
+        if ($query) {
+            $tabBorne[0] = $query[0]->MIN_TEMP;
+            $tabBorne[1] = $query[0]->MAX_TEMP;
+        }
+
+        return $tabBorne;
+    }
+
+    public function initTempDataForReportData($idStudyEquipment)
+    {
+        $recordPosition = RecordPosition::select('RECORD_TIME')->where("ID_STUDY_EQUIPMENTS", $idStudyEquipment)->orderBy("RECORD_TIME", "ASC")->get();
+        $recordTime = $this->unit->time($recordPosition[count($recordPosition) - 1]->RECORD_TIME);
+        $tempInterval = [0.0, 0.0];
+
+        $result = $this->initReportTempInterval($idStudyEquipment, $recordTime, $tempInterval);
+
+        $data = [$this->unit->prodTemperature($result[0]), $this->unit->prodTemperature($result[1]), $result[2]];
+
+        return $data;
+    }
+
+    public function initReportTempInterval($idStudyEquipment, $recordTime, $tempInterval)
+    {
+        $tempResult = [];
+        $result = '';
+
+        if ($recordTime < 0) {
+            $tempRecordDataMin = TempRecordData::where('ID_STUDY_EQUIPMENTS', $idStudyEquipment)->orderBy('TEMP', 'ASC')->first();
+            $tempRecordDataMax = TempRecordData::where('ID_STUDY_EQUIPMENTS', $idStudyEquipment)->orderBy('TEMP', 'DESC')->first();
+            $tempResult = [$tempRecordDataMin->TEMP, $tempRecordDataMax->TEMP];
+        } else {
+            $tempRecordDataMin = TempRecordData::where('ID_STUDY_EQUIPMENTS', $idStudyEquipment)->where('RECORD_TIME', $recordTime)->orderBy('TEMP', 'ASC')->first();
+            $tempRecordDataMax = TempRecordData::where('ID_STUDY_EQUIPMENTS', $idStudyEquipment)->where('RECORD_TIME', $recordTime)->orderBy('TEMP', 'DESC')->first();
+            $tempResult = [$tempRecordDataMin->TEMP, $tempRecordDataMax->TEMP];
+        }
+
+        $bornesTemp = [];
+        if (!empty($tempResult)) {
+            if ($tempInterval[0] >= $tempInterval[1]) {
+                $tempInterval[0] = $tempResult[0];
+                $tempInterval[1] = $tempResult[1];
+            } else {
+                if ($tempInterval[0] > $tempResult[0]) {
+                    $tempInterval[0] = $tempResult[0];
+                }
+                if ($tempInterval[1] < $tempResult[1]) {
+                    $tempInterval[1] = $tempResult[1];
+                }
+            }
+            $bornesTemp = [$this->unit->prodTemperature($tempInterval[0], ['save' => true]), $this->unit->prodTemperature($tempInterval[1], ['save' => true])];
+
+            $result = $this->calculatePasTemp($bornesTemp[0], $bornesTemp[1], false);
+        }
+
+        return $result;
+    }
+
+    protected function calculatePasTemp($lfTmin, $lfTMax, $auto)
+    {
+        set_time_limit(1000);
+        $tab = [];
+        $dTMin = 0;
+        $dTMax = 0;
+        $dpas = 0;
+        $dnbpas = 0;
+
+        $dTMin = intval(floor($lfTmin));
+        $dTMax = intval(ceil($lfTMax));
+
+        if ($auto) {
+            $dpas = intval(floor(abs($dTMax - $dTMin) / 14) - 1);
+        } else {
+            $dpas = intval(floor($this->pasTemp) - 1);
+        }
+
+        if ($dpas < 0) {
+            $dpas = 0;
+        }
+
+        do {
+            $dpas++;
+
+            while ($dTMin % $dpas != 0) {
+                $dTMin--;
+            }
+
+            while ($dTMax % $dpas != 0) {
+                $dTMax++;
+            }
+
+            $dnbpas = abs($dTMax - $dTMin) / $dpas;
+        } while ($dnbpas > 16);
+
+        $tab = [$this->unit->prodTemperature($dTMin), $this->unit->prodTemperature($dTMax), $dpas];
+
+        return $tab;
+    }
+
 }

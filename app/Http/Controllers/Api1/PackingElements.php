@@ -51,7 +51,7 @@ class PackingElements extends Controller
 
     public function findPackingElements() 
     {        
-        $packingElmts = \App\Models\PackingElmt::all();
+        $packingElmts = PackingElmt::where('PACKING_RELEASE', 3)->get();
         return $packingElmts;
     }
 

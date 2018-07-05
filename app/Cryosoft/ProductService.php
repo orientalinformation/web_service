@@ -9,6 +9,8 @@ use App\Models\Translation;
 use App\Models\ProductElmt;
 use App\Models\MeshPosition;
 use App\Models\InitialTemperature;
+use App\Models\MeshGeneration;
+use App\Models\InitTemp3D;
 
 class ProductService
 {
@@ -79,13 +81,14 @@ class ProductService
                 $query->where('component.COMP_IMP_ID_STUDY', 0)
                     ->orWhere('component.COMP_IMP_ID_STUDY', $idStudy);
             })->where(function($query) {
-                $query->where('component.COMP_RELEASE', 3)
+                $query->where(function($q) {
+                    $q->where('component.COMP_RELEASE', 3)
                     ->orWhere('component.COMP_RELEASE', 4)
-                    ->orWhere('component.COMP_RELEASE', 8)
-                    ->orWhere(function($q){
-                        $q->where('component.COMP_RELEASE', 2)
-                        ->where('component.ID_USER', $this->auth->user()->ID_USER);
-                    });
+                    ->orWhere('component.COMP_RELEASE', 8);
+                })->orWhere(function($q){
+                    $q->where('component.COMP_RELEASE', 2)
+                    ->where('component.ID_USER', $this->auth->user()->ID_USER);
+                });
             });  
         } else {
             $querys->where('component.COMP_RELEASE', '<>', 6);   
@@ -113,7 +116,8 @@ class ProductService
             $i = 0;
             foreach ($components as $cp) {
                 if ($cp->COMP_RELEASE != 9 || $cp->ID_USER == $this->auth->user()->ID_USER || $this->auth->user()->USERPRIO <= 1) {
-                    $displayName = $cp->LABEL . ' - ' . $cp->COMP_VERSION . ' (Active)';
+                    $libValue = $this->getLibValue(100, $cp->COMP_RELEASE);
+                    $displayName = $cp->LABEL . ' - ' . $cp->COMP_VERSION . ' ('. $libValue .')';
                     if ($cp->USERNAM != 'KERNEL') {
                         $displayName .= ' - ' . $cp->USERNAM; 
                     }
@@ -157,10 +161,12 @@ class ProductService
         if (count($components) > 0) {
             $i = 0;
             foreach ($components as $cp) {
-                $displayName = $cp->LABEL . ' - ' . $cp->COMP_VERSION;
-                $result[$i]['ID_COMP'] = $cp->ID_COMP; 
-                $result[$i]['displayName'] = trim($displayName);
-                $i++;
+                if (($cp->ID_TRANSLATION != 9) || ($cp->ID_USER == $this->auth->user()->ID_USER) || ($this->auth->user()->USERPRIO <= 1)) {
+                    $displayName = $cp->LABEL . ' - ' . $cp->COMP_VERSION;
+                    $result[$i]['ID_COMP'] = $cp->ID_COMP; 
+                    $result[$i]['displayName'] = trim($displayName);
+                    $i++;
+                }
             }
         }
 
@@ -169,14 +175,24 @@ class ProductService
 
     public function getComponentDisplayName($idComp)
     {
-        $component = Translation::select('Translation.ID_TRANSLATION', 'Translation.LABEL', 'component.ID_USER', 'component.COMP_RELEASE', 'component.COMP_VERSION', 'component.OPEN_BY_OWNER', 'component.ID_COMP', 'ln2user.USERNAM')
-        ->join('component', 'Translation.ID_TRANSLATION', '=', 'component.ID_COMP')
+        $component = Translation::select('translation.ID_TRANSLATION', 'translation.LABEL', 'component.ID_USER', 'component.COMP_RELEASE', 'component.COMP_VERSION', 'component.OPEN_BY_OWNER', 'component.ID_COMP', 'ln2user.USERNAM')
+        ->join('component', 'translation.ID_TRANSLATION', '=', 'component.ID_COMP')
         ->join('ln2user', 'component.ID_USER', '=', 'ln2user.ID_USER')
-        ->where('Translation.TRANS_TYPE', 1)
+        ->where('translation.TRANS_TYPE', 1)
         ->where('component.ID_COMP', $idComp)
-        ->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)->first();
+        ->where('translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)->first();
 
-        return $component->LABEL . ' - ' . $component->COMP_VERSION . ' (Active)';;
+        $libValue = $this->getLibValue(100, $component->COMP_RELEASE);
+
+        return $component->LABEL . ' - ' . $component->COMP_VERSION . ' ('. $libValue .')';;
+    }
+
+    public function getLibValue($tid, $id)
+    {
+        $translation = Translation::where('TRANS_TYPE', $tid)
+        ->where('CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
+        ->where('ID_TRANSLATION', $id)->first();
+        if ($translation) return $translation->LABEL;
     }
 
     // search mesh order for one elment on an axis
@@ -198,25 +214,15 @@ class ProductService
     {
         $idProduction = $study->productions->first()->ID_PRODUCTION;
         $product = $study->products->first();
-        //     ArrayList < Integer > listOfElmtId = getProdElmtComeFromParentProduct();
+        
         $listOfElmtId = ProductElmt::where('ID_PROD', $product->ID_PROD)->where('INSERT_LINE_ORDER', '!=', $study->ID_STUDY)
             ->pluck('ID_PRODUCT_ELMT')->toArray();
         
-        // 	// delete old
-        //     String sChartPrefix = CONTOUR2D_FILENAME + getUserID() + "_" + idProduction;
-        //     deleteCharts(sChartPrefix);
-
-        //     if ((imgType != $this->values->JPG_TYPE)
-        //         && (imgType != $this->values->PNG_TYPE)
-        //         && (imgType != $this->values->SVG_TYPE))
-        //         return null;
-
         if (!count($listOfElmtId)>0) {
             return null;
         }
 
-        // /*int*/ $ldAxe[] = $this->getPlanFor2DContour(productBean . idShapeencours, $listOfElmtId, $idProduction);
-        /*int*/ $ldAxe[] = $this->getPlanFor2DContour($product, $listOfElmtId, $idProduction);
+        $ldAxe[] = $this->getPlanFor2DContour($product, $listOfElmtId, $idProduction);
         if (($ldAxe[0] < $this->values->MESH_AXIS_1) || ($ldAxe[1] < $this->values->MESH_AXIS_1)) {
             return null;
         }
@@ -234,92 +240,22 @@ class ProductService
         $zStep = $lfPasTemp;
         $zStart = $BorneTemp[$this->values->ID_TMIN];
         $zEnd = $BorneTemp[$this->values->ID_TMAX];
-
-        //     Grid myGrid = getGrideByPlan(listOfElmtId, idProduction, ldAxe[0], ldAxe[1], ldAxe[2]);
-        //     if (myGrid == null || myGrid . getNbColumn() == 0 || myGrid . getNbLine() == 0) {
-        //         return null;
-        //     }
-
-        //     HorizontalNumberAxis axisX = new HorizontalNumberAxis(this . getLabel("OUT_2D_DIM")
-        //         + " " + ldAxe[0]
-        //         + " (" + convert . prodchartDimensionSymbol() + ")");
-        //     axisX . setLabelPosition(HorizontalNumberAxis . LABEL_POSITION_HORIZONTAL_RIGHT_CENTER);
-        //     axisX . disableArrow();
-        //     axisX . setIntermediaryGapIndicatorVisible(true);
-
-        //     VerticalNumberAxis axisY = new VerticalNumberAxis(this . getLabel("OUT_2D_DIM")
-        //         + " " + ldAxe[1]
-        //         + " (" + convert . prodchartDimensionSymbol() + ")");
-        //     axisY . setLabelPosition(VerticalNumberAxis . LABEL_POSITION_VERTICAL_LEFT_CENTER);
-        //     axisY . disableArrow();
-        //     axisY . setIntermediaryGapIndicatorVisible(true);
-
-        //     int imageHeight = $this->values->IMG2D_HEIGHT;;
-        //     int imageWidth = $this->values->IMG2D_WIDTH;
-
-        //     Contour2D coutour2d = new Contour2D(
-        //         imageWidth,
-        //         imageHeight,
-        //         axisX,
-        //         axisY,
-        //         myGrid,
-        //         zStart,
-        //         zEnd,
-        //         zStep
-        //     );
-
-        //     String sFileName = Ln2Servlet . GEN_IMG_DIR + $this->values->FILE_SEPARATOR
-        //         + sChartPrefix;
-        //     try {
-        // 		//	couleur de fond
-        //         coutour2d . setGraphicBackgroundColor($this->values->GRAPHIC_BACKGROUND);
-        //         coutour2d . setImageBackgroundColor($this->values->IMG_BACKGROUND);
-        //         coutour2d . setBackgroundColorVisible(true);
-        //         if (imgType == $this->values->JPG_TYPE) {
-        //             sFileName += $this->values->JPG_EXTENSION;
-        //             File fimg = new File(Ln2Servlet . getWebAppPath() + $this->values->FILE_SEPARATOR + sFileName);
-        //             FileOutputStream fos = new FileOutputStream(fimg);
-        //             coutour2d . drawJPEG(fos);
-        //             fos . flush();
-        //             fos . close();
-        //         } else if (imgType == $this->values->PNG_TYPE) {
-        //             sFileName += $this->values->PNG_EXTENSION;
-        //             File fimg = new File(Ln2Servlet . getWebAppPath() + $this->values->FILE_SEPARATOR + sFileName);
-        //             FileOutputStream fos = new FileOutputStream(fimg);
-        //             coutour2d . drawPNG(fos);
-        //             fos . flush();
-        //             fos . close();
-        //         } else // if( imgType == ValuesList.SVG_TYPE )  
-        //         {
-        //             sFileName += $this->values->SVG_EXTENSION;
-        //             File fimg = new File(Ln2Servlet . getWebAppPath() + $this->values->FILE_SEPARATOR + sFileName);
-        //             FileOutputStream fos = new FileOutputStream(fimg);
-        //             coutour2d . drawSVG(fos);
-        //             fos . flush();
-        //             fos . close();
-        //         }
-
-        //     } catch (Exception ex) {
-        //         log . error("Error generating an image", ex);
-        //         return null;
-        //     }
-        //     return sFileName;
     }
 
-    public function CheckInitialTemperature(\App\Models\Product &$product) 
+    public function CheckInitialTemperature(Product &$product) 
     {
         // @TODO: implement
         return true;
     }
 
-    public function DeleteOldInitTemp(\App\Models\Product &$product) 
+    public function DeleteOldInitTemp(Product &$product) 
     {
         // @TODO: implement
         // delete all current initial temperature
         InitialTemperature::where('ID_PRODUCTION', $product->study->ID_PRODUCTION)->delete();
     }
 
-    public function saveMatrixTempComeFromParent(\App\Models\Product &$product)
+    public function saveMatrixTempComeFromParent(Product &$product)
     {
         echo "start save matrix from parent\n";
         
@@ -452,11 +388,11 @@ class ProductService
         return $bret;
     }
 
-    public function PropagationTempElmt (\App\Models\Product &$product, $X, $valueY, $Z, $stemp)
+    public function PropagationTempElmt (Product &$product, $X, $valueY, $Z, $stemp)
     {
         $study = $product->study;
 
-        $lfTemp = floatval($this->convert->prodTemperature($stemp, 0, 0));
+        $lfTemp = doubleval($this->convert->prodTemperature($stemp, 16, 0));
 
         $i = $k = 0;
 
@@ -504,7 +440,7 @@ class ProductService
         return $etat;
     }
 
-    public function propagationTempProdIso(\App\Models\Product &$product, $x, $y, $z, $stemp)
+    public function propagationTempProdIso(Product &$product, $x, $y, $z, $stemp)
     {
         $listTemp = [];
         $i = $j = $k = 0;
@@ -530,5 +466,94 @@ class ProductService
         foreach ($slices as $slice) {
             InitialTemperature::insert($slice);
         }
+    }
+
+    public function checkRunKernelToolCalculator($ID_STUDY)
+    {
+        $check = false;
+        $study = Study::find($ID_STUDY);
+        $idParentStudy = null;
+        if ($study) {
+            $idParentStudy = $study->PARENT_ID;
+            if ($idParentStudy != 0) {
+                $productCurrent = Product::where('ID_STUDY', $ID_STUDY)->first();
+                $productParent = Product::where('ID_STUDY', $idParentStudy)->first();
+                if ($productCurrent && $productParent) {
+                    $emltCurrents = ProductElmt::where('ID_PROD', $productCurrent->ID_PROD)->get();
+                    $emltParents = ProductElmt::where('ID_PROD', $productParent->ID_PROD)->get();
+                    if (count($emltCurrents) == count($emltParents)) {
+                        $check = true;
+                    }
+                }
+            }
+        }
+
+        return $check;
+    }
+
+    public function calculateNumberPoint3D(MeshGeneration &$meshGeneration, ProductElmt &$elmt)
+    {
+        $positions = [];
+        $points = [];
+        $startPoint = $endPoint = $position = $numberPoint = null;
+        $meshSize2 = null;
+
+        if ($meshGeneration->MESH_1_FIXED == 1) {
+            if (floatval($meshGeneration->MESH_2_SIZE) != 0 ) {
+                $numberPoint = intval($this->units->meshesUnit($elmt->SHAPE_PARAM2) / $meshGeneration->MESH_2_SIZE);
+                $meshSize2 = $meshGeneration->MESH_2_SIZE;
+            }
+        } else {
+            $numberPoint = intval(log10(1.0 - ($this->units->meshesUnit($elmt->SHAPE_PARAM2) / $meshGeneration->MESH_2_INT) * (1 - $meshGeneration->MESH_2_RATIO)) / log10($meshGeneration->MESH_2_RATIO));
+
+            if ($numberPoint != 0) {
+                $meshSize2 = floatval($this->units->meshesUnit($elmt->SHAPE_PARAM2)) / floatval($numberPoint);
+            }
+        }
+
+        $startPoint = floatval($elmt->SHAPE_POS2);
+        $endPoint = floatval($elmt->SHAPE_POS2) + floatval($elmt->SHAPE_PARAM2);
+        $position = $this->units->meshesUnit($startPoint);
+
+        array_push($positions, $this->units->meshesUnit($startPoint));
+
+        if ($numberPoint > 0) {
+            for ($i = 1; $i < $numberPoint - 1 ; $i++) {
+                $position = $position + floatval($meshSize2);
+                array_push($positions, round($position, 2));
+            }
+        }
+
+        array_push($positions, $this->units->meshesUnit($endPoint));
+
+        rsort($positions);
+
+        $initTemp3Ds = InitTemp3D::where('ID_PRODUCT_ELMT', $elmt->ID_PRODUCT_ELMT)->get();
+        if (count($initTemp3Ds) == 1) {
+            for ($i = 0; $i < count($positions); $i++) {
+                array_push($points, $this->convert->temperature($initTemp3Ds[0]->INIT_TEMP, 2, 0));
+            }            
+        } else {
+            foreach ($initTemp3Ds as $init3D) {
+                array_push($points, $this->convert->temperature($init3D->INIT_TEMP, 2, 0));
+            }
+        }
+
+        $points = array_reverse($points);
+
+        return compact('points', 'positions');
+    }
+
+    public function getElmtInitTemp(ProductElmt &$elmt)
+    {
+        $initTemp = [];
+        $initTemp3Ds = InitTemp3D::where('ID_PRODUCT_ELMT', $elmt->ID_PRODUCT_ELMT)->get();
+        if (count($initTemp3Ds) > 0) {
+            foreach ($initTemp3Ds as $init3d) {
+                array_push($initTemp, $this->convert->temperature($init3d->INIT_TEMP, 2, 0));
+            }
+        }
+
+        return $initTemp;
     }
 }

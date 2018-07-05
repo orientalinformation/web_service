@@ -49,7 +49,7 @@ class Components extends Controller
     public function findComponents() 
     {
         $input = $this->request->all();
-        $idStudy = (!empty($input['idStudy'])) ? $input['idStudy'] : 0;;
+        $idStudy = (!empty($input['idStudy'])) ? $input['idStudy'] : 0;
         $compfamily = (!empty($input['compfamily'])) ? $input['compfamily'] : 0;
         $subfamily = (!empty($input['subfamily'])) ? $input['subfamily'] : 0;
         $waterpercent = (!empty($input['waterpercent'])) ? $input['waterpercent'] : 0;

@@ -25,7 +25,6 @@ class Auth extends Controller
         $this->auth = $auth;
     }
 
-    //
     public function login(Request $request)
     {
         $this->validate($request, [
@@ -54,6 +53,9 @@ class Auth extends Controller
         }
 
         $user = $this->auth->user();
+        if ($user) {
+            $user->USERMAIL = null;
+        }
 
         return response()->json(compact('token','user'));
     }

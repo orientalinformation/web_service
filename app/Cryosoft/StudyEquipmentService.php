@@ -16,6 +16,7 @@ use App\Models\ProductElement;
 use App\Models\PrecalcLdgRatePrm;
 use App\Models\EquipGeneration;
 use App\Models\TempExt;
+use App\Models\Equipment;
 use com\oxymel\ofcconveyer\Crate;
 use com\oxymel\ofcconveyer\ConveyerTemplate;
 use com\oxymel\ofcconveyer\ConveyerBelt;
@@ -113,8 +114,8 @@ class StudyEquipmentService
 
             $layoutGen->save();
         } else {
-            $layoutGen->LENGTH_INTERVAL = $this->convert->prodDimension(doubleval($layoutGen->LENGTH_INTERVAL));
-            $layoutGen->WIDTH_INTERVAL = $this->convert->prodDimension(doubleval($layoutGen->WIDTH_INTERVAL));
+            $layoutGen->LENGTH_INTERVAL = ($layoutGen->LENGTH_INTERVAL != -1.0) ? $this->convert->prodDimension(doubleval($layoutGen->LENGTH_INTERVAL)) : $layoutGen->LENGTH_INTERVAL;
+            $layoutGen->WIDTH_INTERVAL = ($layoutGen->WIDTH_INTERVAL != -1.0) ? $this->convert->prodDimension(doubleval($layoutGen->WIDTH_INTERVAL)) : $layoutGen->WIDTH_INTERVAL;
         }
         return $layoutGen;
     }
@@ -125,11 +126,15 @@ class StudyEquipmentService
         $equip = [
             'ID_STUDY_EQUIPMENTS' => $studyEquipment->ID_STUDY_EQUIPMENTS,
             'EQUIP_NAME' => $studyEquipment->EQUIP_NAME,
+            'CAPABILITIES' => $studyEquipment->CAPABILITIES,
             'ID_EQUIP' => $studyEquipment->ID_EQUIP,
             'EQP_LENGTH' => $studyEquipment->EQP_LENGTH,
             'EQP_WIDTH' => $studyEquipment->EQP_WIDTH,
             'EQUIP_VERSION' => $studyEquipment->EQUIP_VERSION,
             'layoutGen' => null,
+            'BRAIN_TYPE' => intval($studyEquipment->BRAIN_TYPE),
+            'EQUIP_STATUS' => intval($studyEquipment->EQUIP_STATUS),
+            'RUN_CALCULATE' => intval($studyEquipment->RUN_CALCULATE)
         ];
 
         $layoutGen = $this->getStudyEquipmentLayoutGen($studyEquipment);
@@ -265,11 +270,6 @@ class StudyEquipmentService
                 "" : $this->convert->toc($lr->LOADING_RATE) . " %";
         }
 
-        // if ((lg . getWidthInterval() != $this->value->INTERVAL_UNDEFINED)
-        //     || (lg . getLengthInterval() != $this->value->INTERVAL_UNDEFINED)) {
-        //     String simg = "<br><img src=\"/cryosoft/jspPages/img/icon_info.gif\" alt=\"\" border=\"0\">";
-        //     out . println(simg);
-        // }
         return $returnStr;
     }
 
@@ -330,7 +330,6 @@ class StudyEquipmentService
         return $bret;
     }
     
-
     public function setInitialTempFromSimpleNumericalResults(StudyEquipment &$sequip, $shape, Product &$product, Production &$production)
     {
         $offset = [0, 0, 0];
@@ -338,32 +337,20 @@ class StudyEquipmentService
         $dimaResults = null;
 
         $lfTemp = 0.0;
-        
-        // Increase value to show still alive
-        // cryoRun . nextCRRStatus(true);
 
-        try {		
-            //get TFP from Dima Results
-            // UnnamedObjectQuery query = new UnnamedObjectQuery(DimaResults . class,"WHERE ID_STUDY_EQUIPMENTS = ?"
-            //     + " AND DIMA_TYPE = ?" ,"II")
-            // ;
-            // query . addParameter(sequip . getIdStudyEquipments());
-            // query . addParameter(ValuesList . DIMA_TYPE_DHP_CHOSEN);
+        try {
+
             $dimaResults = DimaResults::where('ID_STUDY_EQUIPMENTS', $sequip->ID_STUDY_EQUIPMENTS)
-                ->where('DIMA_TYPE', $this->value->DIMA_TYPE_DHP_CHOSEN)->first();
+                ->where('DIMA_TYPE', 1)->first();
 
             // TODO: Check if dima result exists before create child study
-
-            // Increase value to show still alive
-            // cryoRun . nextCRRStatus(true);
 
             $lfTemp = $dimaResults->DIMA_TFP;
             
             // save initial temperature
             $this->saveInitialTemperature($shape, $offset, $lfTemp, $product, $production);
-        } catch (Exception $e) {
-            // LOG . error("Error while writing initial temp from analogical results", e);
-            throw new Exception("Error while writing initial temp from analogical results");
+        } catch (\Exception $e) {
+            throw new \Exception("Error while writing initial temp from analogical results");
         }
 
         return $bret;
@@ -448,7 +435,7 @@ class StudyEquipmentService
                             switch ($shape) {
                                 case $this->value->SLAB:
                                     $initTemp->MESH_1_ORDER =  $i;
-                                    $initTemp->MESH_2_ORDER = ($trd->REC_AXIS_Y_POS +$offset[1]);
+                                    $initTemp->MESH_2_ORDER = ($trd->REC_AXIS_Y_POS + $offset[1]);
                                     $initTemp->MESH_3_ORDER =  $trd->REC_AXIS_X_POS;
                                     break;
                                 case $this->value->PARALLELEPIPED_STANDING:
@@ -460,7 +447,7 @@ class StudyEquipmentService
                                     } else {
                                         $initTemp->MESH_1_ORDER = ($trd->REC_AXIS_X_POS + $offset[0]);
                                         $initTemp->MESH_2_ORDER = ($trd->REC_AXIS_Y_POS + $offset[1]);
-                                        $initTemp->MESH_3_ORDER = ($i +$offset[2]);
+                                        $initTemp->MESH_3_ORDER = ($i + $offset[2]);
                                     }
                                     break;
                                 case $this->value->PARALLELEPIPED_LAYING:
@@ -490,7 +477,6 @@ class StudyEquipmentService
                             }
                             
                             //create initial temperature
-                            // $initTemp->save();
                             array_push($listTemp, $initTemp->toArray());
                         } // end for
                         
@@ -626,11 +612,11 @@ class StudyEquipmentService
                     foreach ($slices as $slice) {
                         InitialTemperature::insert($slice);
                     }
-
                     // update production to set avg initial temp
-                    $production->AVG_T_INITIAL = $sequip->AVERAGE_PRODUCT_TEMP;
+                    $t = doubleval($sequip->AVERAGE_PRODUCT_TEMP);
+                    $production->AVG_T_INITIAL = $t;
                     $production->save();
-                    
+
                     // Increase value to show still alive
                 } else {
                     $bret = false;
@@ -645,31 +631,17 @@ class StudyEquipmentService
         return $bret;
     }
 
-    private function saveInitialTemperature (/*int*/ $shape, array $offset, /*double*/ $lfTemp, Product &$product, Production &$production)
+    private function saveInitialTemperature ($shape, array $offset, $lfTemp, Product &$product, Production &$production)
     {
-        // // V4 : use oxymel connection to update
-        // Transaction tx = dbmgr . getTransaction();
-        // // V4 : use standard connection to insert data
-        // Connection connection = null;
-
-        // InitialTemperature initTemp = null;
-        // long counter = 0;
         $initTemp = null;
         $counter = 0;
         
-        // Increase value to show still alive
-        // cryoRun . nextCRRStatus(true);
-
         try {
-            // V4: use standard connection to insert data
-            // connection = CryosoftDB . getDatasource() . getConnection();
-            
             // dispatch this temp
             $nbNode1 = $product->meshGenerations->first()->MESH_1_NB;
             $nbNode2 = $product->meshGenerations->first()->MESH_2_NB;
             $nbNode3 = $product->meshGenerations->first()->MESH_3_NB;
 
-            // short i, j, k;
             $i = $j = $k = 0;
             switch ($shape) {
                 case $this->value->SLAB:
@@ -690,9 +662,9 @@ class StudyEquipmentService
 
             $listTemp = [];
 
-            for ($i = 0; $i < $nbNode1; $i ++) {
-                for ($j = 0; $j < $nbNode2; $j ++) {
-                    for ($k = 0; $k < $nbNode3; $k ++) {
+            for ($i = 0; $i < $nbNode1; $i++) {
+                for ($j = 0; $j < $nbNode2; $j++) {
+                    for ($k = 0; $k < $nbNode3; $k++) {
                         $initTemp = new InitialTemperature();
                         $initTemp->ID_PRODUCTION = $production->ID_PRODUCTION;
                         $initTemp->INITIAL_T = $lfTemp;
@@ -700,13 +672,6 @@ class StudyEquipmentService
                         $initTemp->MESH_2_ORDER = (($j + $offset[1]));
                         $initTemp->MESH_3_ORDER = (($k + $offset[2]));
                         array_push($listTemp, $initTemp->toArray());
-                        // CryosoftDB . create($initTemp, connection);
-                        // $initTemp->save();
-
-                        // if ((++counter % NB_TEMP_FOR_NEXTSTATUS) == 0) {
-                        //     // Increase value to show still alive
-                        //     cryoRun . nextCRRStatus(true);
-                        // }
                     }
                 }
             }
@@ -717,21 +682,20 @@ class StudyEquipmentService
             }
             
             // Increase value to show still alive
-            // cryoRun . nextCRRStatus(true);
             
             // update production to set avg initial temp
             $production->AVG_T_INITIAL = $lfTemp;
             $production->save();
             
             // Increase value to show still alive
-            // cryoRun . nextCRRStatus(true);
-        } catch (Exception $e) {
-            // LOG . error("Error while writing initial temp from analogical results", e);
-            throw new Exception("Error while writing initial temp from analogical results");
+        } catch (\Exception $e) {
+            throw new \Exception("Error while writing initial temp from analogical results");
         }
     }
 
-    public function generateLayoutPreview(StudyEquipment &$sequip) {
+    // Generate Layout Preview
+    public function generateLayoutPreview(StudyEquipment &$sequip)
+    {
         $study = $sequip->study;
 
         $idRatePrm = $study->ID_PRECALC_LDG_RATE_PRM;
@@ -747,7 +711,6 @@ class StudyEquipmentService
                 $intervalL = $precalcLdgRatePrm->L_INTERVAL;
             }
         }
-
 
         $base64img = '';
         // Create an image with the specified dimensions
@@ -808,17 +771,20 @@ class StudyEquipmentService
                 $prodShape,
                 $this->convert->carpetWidthSymbol()
             );
-            // var_dump($cb); die('har');
         }
 
         // We find back the product length and width from other values
         $plength = 0.0; // double
         $pwidth = 0.0; // double
- 
-        $pwidth = ($lfEquipWidth - 2 * $layoutRes->LEFT_RIGHT_INTERVAL
+        
+        if (($layoutRes->NUMBER_IN_WIDTH != 0)) {
+            $pwidth = ($lfEquipWidth - 2 * $layoutRes->LEFT_RIGHT_INTERVAL
             - $widthInterVal * ($layoutRes->NUMBER_IN_WIDTH - 1)) / $layoutRes->NUMBER_IN_WIDTH;
-
-        $plength = $lfEquipLength / $layoutRes->NUMBER_PER_M - $lengthInterVal;
+        }
+        
+        if ($layoutRes->NUMBER_PER_M  != 0) {
+            $plength = $lfEquipLength / $layoutRes->NUMBER_PER_M - $lengthInterVal;
+        }
 
         if ($sequip->BATCH_PROCESS) {
             //convert
@@ -863,7 +829,7 @@ class StudyEquipmentService
         $svg = '';
 
         try {
-            $svg = $cb->getSVGImage_I_I(800, 800);
+            $svg = $cb->getSVGImage_I_I(800, 800, $layoutGeneration->PROD_POSITION);
         } catch (Exception $e) {
             throw new Exception("Unable to generate SVG image");
         }
@@ -875,7 +841,8 @@ class StudyEquipmentService
         $image->setImageFormat("jpeg");
         $image->resizeImage(800, 800, \imagick::FILTER_LANCZOS, 1, true);
         $public_path = rtrim(app()->basePath("public/"), '/');
-        $nameImgLayout = $sequip->study->ID_STUDY.'-'.$sequip->study->STUDY_NAME.'-StdeqpLayout-'.$sequip->ID_STUDY_EQUIPMENTS.'.jpg';
+        $checkStuname = $sequip->study->STUDY_NAME;
+        $nameImgLayout = $sequip->study->ID_STUDY.'-'.preg_replace('/[^A-Za-z0-9\-]/', '', $checkStuname).'-StdeqpLayout-'.$sequip->ID_STUDY_EQUIPMENTS.'.jpg';
         if (!is_dir($public_path . "/reports/" . $sequip->study->USERNAM)) {
             mkdir($public_path . "/reports/" . $sequip->study->USERNAM, 0777, true);
         } 
@@ -964,6 +931,7 @@ class StudyEquipmentService
 
     public function updateEquipmentData(&$studyEquipment)
     {
+        
         if ($this->equip->getCapability($studyEquipment->CAPABILITIES, 1) && !empty($studyEquipment->tr)) {
             $this->cleanSpecificEqpPrm($studyEquipment->ID_STUDY_EQUIPMENTS, 300);
             $i = 0;
@@ -989,20 +957,33 @@ class StudyEquipmentService
                 $i++;
             }
         }
-
-        if ($this->equip->getCapability($studyEquipment->CAPABILITIES, 4) && !empty($studyEquipment->vc)) {
-            $this->cleanSpecificEqpPrm($studyEquipment->ID_STUDY_EQUIPMENTS, 300);
-            $i = 0;
-            foreach ($studyEquipment->vc as $vc) {
-                $studEqpPrm = new StudEqpPrm();
-                $studEqpPrm->ID_STUDY_EQUIPMENTS = $studyEquipment->ID_STUDY_EQUIPMENTS;
-                $studEqpPrm->VALUE_TYPE = 100 + $i;
-                $studEqpPrm->VALUE = doubleval($this->convert->convectionSpeed($vc, ['save' => true]));
-                $studEqpPrm->save();
-                $i++;
+        if (!empty($studyEquipment->vc)) {
+            if ($studyEquipment->ID_EQUIPSERIES != 16 || $studyEquipment->ID_EQUIPSERIES != 17) {
+                $this->cleanSpecificEqpPrm($studyEquipment->ID_STUDY_EQUIPMENTS, 100);
+                $i = 0;
+                foreach ($studyEquipment->vc as $vc) {
+                    $studEqpPrm = new StudEqpPrm();
+                    $studEqpPrm->ID_STUDY_EQUIPMENTS = $studyEquipment->ID_STUDY_EQUIPMENTS;
+                    $studEqpPrm->VALUE_TYPE = 100 + $i;
+                    $studEqpPrm->VALUE = doubleval($this->convert->convectionSpeed($vc, ['save' => true]));
+                    $studEqpPrm->save();
+                    $i++;
+                    
+                }
+            } else if ($this->equip->getCapability($studyEquipment->CAPABILITIES, 4)) {
+                $this->cleanSpecificEqpPrm($studyEquipment->ID_STUDY_EQUIPMENTS, 100);
+                $i = 0;
+                foreach ($studyEquipment->vc as $vc) {
+                    $studEqpPrm = new StudEqpPrm();
+                    $studEqpPrm->ID_STUDY_EQUIPMENTS = $studyEquipment->ID_STUDY_EQUIPMENTS;
+                    $studEqpPrm->VALUE_TYPE = 100 + $i;
+                    $studEqpPrm->VALUE = doubleval($this->convert->convectionSpeed($vc, ['save' => true]));
+                    $studEqpPrm->save();
+                    $i++;
+                    
+                }
             }
         }
-
         if (!empty($studyEquipment->dh)) {
             $this->cleanSpecificEqpPrm($studyEquipment->ID_STUDY_EQUIPMENTS, 400);
             $i = 0;
@@ -1016,6 +997,7 @@ class StudyEquipmentService
             }
         }
 
+
         if ($this->equip->getCapability($studyEquipment->CAPABILITIES, 512) && !empty($studyEquipment->tExt)) {
             $this->cleanSpecificEqpPrm($studyEquipment->ID_STUDY_EQUIPMENTS, 500);
             $studEqpPrm = new StudEqpPrm();
@@ -1025,27 +1007,31 @@ class StudyEquipmentService
             $studEqpPrm->save();
         }
 
-        //data value
-        $calculationParameters = $studyEquipment->calculationParameters->first();
-        //post value
-        $calculationParameter = $studyEquipment->calculation_parameter;
-        //update value
-        $calculationParameters->STUDY_ALPHA_TOP_FIXED = ($calculationParameter->STUDY_ALPHA_TOP_FIXED) ? 1 : 0;
-        $calculationParameters->STUDY_ALPHA_BOTTOM_FIXED = ($calculationParameter->STUDY_ALPHA_BOTTOM_FIXED) ? 1 : 0;
-        $calculationParameters->STUDY_ALPHA_LEFT_FIXED = ($calculationParameter->STUDY_ALPHA_LEFT_FIXED) ? 1 : 0;
-        $calculationParameters->STUDY_ALPHA_RIGHT_FIXED = ($calculationParameter->STUDY_ALPHA_RIGHT_FIXED) ? 1 : 0;
-        $calculationParameters->STUDY_ALPHA_FRONT_FIXED = ($calculationParameter->STUDY_ALPHA_FRONT_FIXED) ? 1 : 0;
-        $calculationParameters->STUDY_ALPHA_REAR_FIXED = ($calculationParameter->STUDY_ALPHA_REAR_FIXED) ? 1 : 0;
-        $calculationParameters->STUDY_ALPHA_TOP = ($calculationParameter->STUDY_ALPHA_TOP_FIXED) ? doubleval($this->convert->convectionCoeff($calculationParameter->STUDY_ALPHA_TOP, ['save' => true])) : '0.0';
-        $calculationParameters->STUDY_ALPHA_BOTTOM = ($calculationParameter->STUDY_ALPHA_BOTTOM_FIXED) ? doubleval($this->convert->convectionCoeff($calculationParameter->STUDY_ALPHA_BOTTOM, ['save' => true])) : '0.0';
-        $calculationParameters->STUDY_ALPHA_LEFT = ($calculationParameter->STUDY_ALPHA_LEFT_FIXED) ? doubleval($this->convert->convectionCoeff($calculationParameter->STUDY_ALPHA_LEFT, ['save' => true])) : '0.0';
-        $calculationParameters->STUDY_ALPHA_RIGHT = ($calculationParameter->STUDY_ALPHA_RIGHT_FIXED) ? doubleval($this->convert->convectionCoeff($calculationParameter->STUDY_ALPHA_RIGHT, ['save' => true])) : '0.0';
-        $calculationParameters->STUDY_ALPHA_FRONT = ($calculationParameter->STUDY_ALPHA_FRONT_FIXED) ? doubleval($this->convert->convectionCoeff($calculationParameter->STUDY_ALPHA_FRONT, ['save' => true])) : '0.0';
-        $calculationParameters->STUDY_ALPHA_REAR = ($calculationParameter->STUDY_ALPHA_REAR_FIXED) ? doubleval($this->convert->convectionCoeff($calculationParameter->STUDY_ALPHA_REAR, ['save' => true])) : '0.0';
-        $calculationParameters->save();
+
+        if (!empty($studyEquipment->calculation_parameter)) {
+            //data value
+            $calculationParameters = $studyEquipment->calculationParameters->first();
+            //post value
+            $calculationParameter = $studyEquipment->calculation_parameter;
+            //update value
+            $calculationParameters->STUDY_ALPHA_TOP_FIXED = ($calculationParameter->STUDY_ALPHA_TOP_FIXED) ? 1 : 0;
+            $calculationParameters->STUDY_ALPHA_BOTTOM_FIXED = ($calculationParameter->STUDY_ALPHA_BOTTOM_FIXED) ? 1 : 0;
+            $calculationParameters->STUDY_ALPHA_LEFT_FIXED = ($calculationParameter->STUDY_ALPHA_LEFT_FIXED) ? 1 : 0;
+            $calculationParameters->STUDY_ALPHA_RIGHT_FIXED = ($calculationParameter->STUDY_ALPHA_RIGHT_FIXED) ? 1 : 0;
+            $calculationParameters->STUDY_ALPHA_FRONT_FIXED = ($calculationParameter->STUDY_ALPHA_FRONT_FIXED) ? 1 : 0;
+            $calculationParameters->STUDY_ALPHA_REAR_FIXED = ($calculationParameter->STUDY_ALPHA_REAR_FIXED) ? 1 : 0;
+            $calculationParameters->STUDY_ALPHA_TOP = ($calculationParameter->STUDY_ALPHA_TOP_FIXED) ? doubleval($this->convert->convectionCoeff($calculationParameter->STUDY_ALPHA_TOP, ['save' => true])) : '0.0';
+            $calculationParameters->STUDY_ALPHA_BOTTOM = ($calculationParameter->STUDY_ALPHA_BOTTOM_FIXED) ? doubleval($this->convert->convectionCoeff($calculationParameter->STUDY_ALPHA_BOTTOM, ['save' => true])) : '0.0';
+            $calculationParameters->STUDY_ALPHA_LEFT = ($calculationParameter->STUDY_ALPHA_LEFT_FIXED) ? doubleval($this->convert->convectionCoeff($calculationParameter->STUDY_ALPHA_LEFT, ['save' => true])) : '0.0';
+            $calculationParameters->STUDY_ALPHA_RIGHT = ($calculationParameter->STUDY_ALPHA_RIGHT_FIXED) ? doubleval($this->convert->convectionCoeff($calculationParameter->STUDY_ALPHA_RIGHT, ['save' => true])) : '0.0';
+            $calculationParameters->STUDY_ALPHA_FRONT = ($calculationParameter->STUDY_ALPHA_FRONT_FIXED) ? doubleval($this->convert->convectionCoeff($calculationParameter->STUDY_ALPHA_FRONT, ['save' => true])) : '0.0';
+            $calculationParameters->STUDY_ALPHA_REAR = ($calculationParameter->STUDY_ALPHA_REAR_FIXED) ? doubleval($this->convert->convectionCoeff($calculationParameter->STUDY_ALPHA_REAR, ['save' => true])) : '0.0';
+            $calculationParameters->save();
+        }
     }
 
-    public function cleanSpecificEqpPrm($idStudyEquipment, $valueType) {
+    public function cleanSpecificEqpPrm($idStudyEquipment, $valueType)
+    {
         $studEqpPrm = StudEqpPrm::where('ID_STUDY_EQUIPMENTS', $idStudyEquipment)->where('VALUE_TYPE', '>=', $valueType)->where('VALUE_TYPE', '<', $valueType + 100)->delete();
     }
 
@@ -1085,11 +1071,14 @@ class StudyEquipmentService
         switch ($mode) {
             case 43:
                 $bRecalcTOC = $bRecalcTS = $bRecalcPhamCast = $bRecalcExhaust = $bRecalcEco = false;
+                if ($bNewTr) {
+                    $bRecalcExhaust = true;
+                }
                 break;
 
             case 41:
             case 42:
-                $bRecalcTOC = $bRecalcTS = $true;
+                $bRecalcTOC = $bRecalcTS = true;
                 $bRecalcPhamCast = $bRecalcExhaust = $bRecalcEco = false;
                 break;
 
@@ -1110,11 +1099,10 @@ class StudyEquipmentService
                 $bRecalcTOC = $bRecalcTS = $bRecalcPhamCast = $bRecalcExhaust = true;
                 $bRecalcEco = false;
                 break;
-
-            $this->recalculateEquipment($idStudy, $idStudyEquipment, $bRecalcTOC, $bRecalcTS, $bRecalcPhamCast, $bRecalcExhaust, $bRecalcEco);
         }
-    }
 
+        $this->recalculateEquipment($idStudy, $idStudyEquipment, $bRecalcTOC, $bRecalcTS, $bRecalcPhamCast, $bRecalcExhaust, $bRecalcEco);
+    }
 
     public function recalculateEquipment($idStudy, $idStudyEquipment, $bRecalcTOC, $bRecalcTS, $bRecalcPhamCast, $bRecalcExhaust, $bRecalcEco)
     {
@@ -1131,7 +1119,7 @@ class StudyEquipmentService
                 if (($idStudyEquipment == -1) || ($studyEquipment->ID_STUDY_EQUIPMENTS == $idStudyEquipment)) {
                     if ($bRecalcTOC) {
                         try {
-                            // dbdata.getEquipmentLayout(sequip);
+                            $this->getStudyEquipmentLayoutGen($studyEquipment);
                             $this->runLayoutCalculator($idStudy, $studyEquipment->ID_STUDY_EQUIPMENTS);
                         } catch (Exception $e) {
                             $bExTOC = true;
@@ -1142,7 +1130,7 @@ class StudyEquipmentService
 
                         if ($this->equip->getCapability($capability, 2) && $this->equip->getCapability($capability, 131072)) {
                             try {
-                                // dbdata.getEquipmentLayout(sequip);
+                                $this->getStudyEquipmentLayoutGen($studyEquipment);
                                 $this->runTSCalculator($idStudy, $studyEquipment->ID_STUDY_EQUIPMENTS);
                             } catch (OXException $e) {
                                 $bExTS = true;
@@ -1188,11 +1176,8 @@ class StudyEquipmentService
 
     public function runLayoutCalculator($idStudy, $idStudyEquipment)
     {
-        $idStudyEquipment = $studyEquipment->ID_STUDY_EQUIPMENTS;
         $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $idStudy, $idStudyEquipment, 1, 1, 'c:\\temp\\layout-trace.txt');
         $this->kernel->getKernelObject('LayoutCalculator')->LCCalculation($conf, 1);
-
-        
     }
 
     public function runTSCalculator($idStudy, $idStudyEquipment)
@@ -1209,4 +1194,38 @@ class StudyEquipmentService
         }
     }
 
+    public function startPhamCastCalculator(StudyEquipment &$studyEquipment, $doTr)
+    {
+        $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $studyEquipment->ID_STUDY, $studyEquipment->ID_STUDY_EQUIPMENTS);
+        $this->kernel->getKernelObject('PhamCastCalculator')->PCCCalculation($conf, !$doTr);
+    }
+
+    public function startExhaustGasTemp(StudyEquipment &$studyEquipment)
+    {
+        $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $studyEquipment->ID_STUDY, $studyEquipment->ID_STUDY_EQUIPMENTS);
+        $this->kernel->getKernelObject('KernelToolCalculator')->KTCalculator($conf, 1);
+    }
+
+    public function startDimMat(StudyEquipment &$studyEquipment)
+    {
+        $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $studyEquipment->ID_STUDY, $studyEquipment->ID_STUDY_EQUIPMENTS);
+        return $this->kernel->getKernelObject('DimMatCalculator')->DMCCalculation($conf, 1);
+    }
+
+    public function startPipe(StudyEquipment &$studyEquipment)
+    {
+        $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $studyEquipment->ID_STUDY, $studyEquipment->ID_STUDY_EQUIPMENTS);
+        return $this->kernel->getKernelObject('PipelineCalculator')->PCCCalculation($conf);
+    }
+
+    public function startEconomic(StudyEquipment &$studyEquipment) {
+        $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $studyEquipment->ID_STUDY, $studyEquipment->ID_STUDY_EQUIPMENTS);
+        return $this->kernel->getKernelObject('EconomicCalculator')->ECEconomicCalculation($conf);
+    }
+
+    public function startConsumptionEconomic(StudyEquipment &$studyEquipment)
+    {
+        $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $studyEquipment->ID_STUDY, $studyEquipment->ID_STUDY_EQUIPMENTS);
+        return $this->kernel->getKernelObject('ConsumptionCalculator')->COCConsumptionCalculation($conf);
+    }
 }

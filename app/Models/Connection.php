@@ -58,7 +58,7 @@ class Connection extends Model
     /**
      * @var string
      */
-    public $dateFormat = 'Y-m-d H:i:s.u';
+    public $dateFormat = 'Y-m-d H:i:s';
 
     protected $hidden = [
         'user'

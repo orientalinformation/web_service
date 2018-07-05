@@ -73,6 +73,7 @@ class ValueListService
     public $DIMA_STATUS_OK = 1;
     public $CAP_OPTIM_ENABLE = 64;
     public $CAP_COOLING_EQUIPMENT = 2048;
+    public $CAP_EQP_DEPEND_ON_TS = 65536;
     /****************************ESTIMATION*********************/
     public $EQUIP_STANDARD = 1;
     public $BRAIN_OPTIM_TSFIXED = 1;

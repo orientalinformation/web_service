@@ -194,6 +194,7 @@ class ReferenceData extends Controller
             ->where('Translation.TRANS_TYPE', 1)->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
             ->where('Component.ID_USER', '!=', $this->auth->user()->ID_USER)
             ->orderBy('LABEL', 'ASC')->get();
+
         foreach ($others as $other) {
             $other->AIR = round(($other->AIR / 0.01205));
             $other->FREEZE_TEMP = $this->units->temperature($other->FREEZE_TEMP, 2, 1);
@@ -205,7 +206,6 @@ class ReferenceData extends Controller
 
     public function getComponentById($id) 
     {
-
         $comp = Component::join('Translation', 'ID_COMP', '=', 'Translation.ID_TRANSLATION')
         ->where('Translation.TRANS_TYPE', 1)
         ->where('Translation.ID_TRANSLATION', $id)
@@ -333,7 +333,7 @@ class ReferenceData extends Controller
     {
         $input = $this->request->all();
 
-        $COMP_COMMENT = $COMP_NAME = $COMP_NAME_NEW = $COMP_VERSION_NEW = $TYPE_COMP = null;
+        $COMP_COMMENT = $COMP_NAME = $COMP_NAME_NEW = $COMP_VERSION_NEW = $TYPE_COMP = $ID_COMP = null;
         $LIPID = $GLUCID = $PROTID = $WATER = $FREEZE_TEMP = $COMP_VERSION = $CONDUCT_TYPE = $compositionTotal = 0;
         $SALT = $AIR = $NON_FROZEN_WATER = $PRODUCT_TYPE = $SUB_TYPE = $FATTYPE = $DENSITY = $HEAT = 0;
         $release = $NATURE_TYPE = 1;
@@ -361,13 +361,8 @@ class ReferenceData extends Controller
         if (isset($input['Temperatures'])) $temperatures = $input['Temperatures'];
         if (isset($input['release'])) $release = intval($input['release']);
         if (isset($input['TYPE_COMP'])) $TYPE_COMP = intval($input['TYPE_COMP']);
+        if (isset($input['ID_COMP'])) $ID_COMP = intval($input['ID_COMP']);
 
-        // if ($freeze == 1) {
-        //     $compositionTotal = ($AIR *0.01205) + $WATER + $SALT + $PROTID + $GLUCID + $LIPID;
-        //     if ($compositionTotal < 90 || $compositionTotal > 110) {
-        //         return -5;
-        //     }
-        // }
 
         if ($COMP_NAME == null) return -3;
         if ($PRODUCT_TYPE == 0) return -2;
@@ -401,8 +396,11 @@ class ReferenceData extends Controller
 
         if ($TYPE_COMP == 3) {
             $component->COMP_RELEASE = 7;
+            $component->BLS_CODE = $ID_COMP;
+            $component->COMP_VERSION = $this->getSleepVersion($ID_COMP);
         } else {
             $component->COMP_RELEASE = $release;
+            $component->BLS_CODE = '';
         }
         
         $component->COMP_NATURE = $NATURE_TYPE;
@@ -423,7 +421,6 @@ class ReferenceData extends Controller
         $component->COMP_GEN_STATUS = 0;
         $component->COMP_IMP_ID_STUDY = 0;
         $component->OPEN_BY_OWNER = 0;
-        $component->BLS_CODE = '';
         $component->save();
 
         Component::where('ID_COMP', $component->ID_COMP)->update(['COMP_DATE' => $current->toDateTimeString()]);
@@ -856,5 +853,17 @@ class ReferenceData extends Controller
         ];
 
         return $array;
+    }
+
+    private function getSleepVersion($idCompParent)
+    {
+        $components = Component::all();
+        $version = 1;
+        for ($i = 0; $i < count($components); $i++) { 
+            if (intval($components[$i]->BLS_CODE) == intval($idCompParent)) {
+                $version++;
+            }
+        }
+        return $version;
     }
 }

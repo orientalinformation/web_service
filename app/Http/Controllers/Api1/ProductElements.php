@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Contracts\Auth\Factory as Auth;
 use App\Kernel\KernelService;
 use App\Cryosoft\MeshService;
+use App\Models\ProdcharColor;
 
 class ProductElements extends Controller
 {
@@ -43,11 +44,27 @@ class ProductElements extends Controller
         $oldPosition = round($moveElement->SHAPE_POS2, 2);
         $newPosition = round ( (round($oldPosition * 100) + 1)/100.0, 2);
         $elements = \App\Models\ProductElmt::where('ID_PROD', $moveElement->product->ID_PROD)->orderBy('SHAPE_POS2', 'DESC')->get();
-        
+        $count = count($elements);
+
         foreach ($elements as $index => $elmt) {
             if (round($elmt->SHAPE_POS2, 2) == $newPosition) {
                 $elmt->SHAPE_POS2 = $oldPosition;
-                $elmt->save(); 
+                $elmt->save();
+
+                // swap color: move down in layer
+                $colorCurrent = ProdcharColor::where('ID_PROD', $moveElement->product->ID_PROD)
+                    ->where('LAYER_ORDER', $count - $index)->first();
+                $idColorCurrent = $colorCurrent->ID_COLOR;
+
+                $colorSwap = ProdcharColor::where('ID_PROD', $moveElement->product->ID_PROD)
+                    ->where('LAYER_ORDER', $count - $index - 1)->first();
+                $colorCurrent->ID_COLOR = $colorSwap->ID_COLOR;
+
+                $colorSwap->ID_COLOR = $idColorCurrent;
+
+                $colorCurrent->save();
+                $colorSwap->save();
+
                 break;
             }
         }
@@ -69,11 +86,27 @@ class ProductElements extends Controller
         $oldPosition = $moveElement->SHAPE_POS2;
         $newPosition = round( (round($moveElement->SHAPE_POS2 * 100) - 1) / 100.0, 2);
         $elements = \App\Models\ProductElmt::where('ID_PROD', $moveElement->product->ID_PROD)->orderBy('SHAPE_POS2', 'DESC')->get();
+        $count = count($elements);
 
         foreach ($elements as $index => $elmt) {
             if (round($elmt->SHAPE_POS2, 2) == $newPosition) {
                 $elmt->SHAPE_POS2 = $oldPosition;
                 $elmt->save();
+
+                // swap color: move up in layer
+                $colorCurrent = ProdcharColor::where('ID_PROD', $moveElement->product->ID_PROD)
+                    ->where('LAYER_ORDER', $count - $index)->first();
+                $idColorCurrent = $colorCurrent->ID_COLOR;
+
+                $colorSwap = ProdcharColor::where('ID_PROD', $moveElement->product->ID_PROD)
+                    ->where('LAYER_ORDER', $count - $index + 1)->first();
+                $colorCurrent->ID_COLOR = $colorSwap->ID_COLOR;
+
+                $colorSwap->ID_COLOR = $idColorCurrent;
+                
+                $colorCurrent->save();
+                $colorSwap->save();
+
                 break;
             }
         }

@@ -13,6 +13,8 @@ use App\Cryosoft\EquipmentsService;
 use App\Cryosoft\UnitsConverterService;
 use App\Cryosoft\BrainCalculateService;
 use App\Cryosoft\StudyEquipmentService;
+use App\Cryosoft\ValueListService;
+use App\Models\Equipment;
 
 
 class StudyEquipments extends Controller
@@ -32,6 +34,7 @@ class StudyEquipments extends Controller
      * @var App\Cryosoft\StudyEquipmentService
      */
     protected $stdeqp;
+    protected $value;
 
 
     /**
@@ -42,7 +45,8 @@ class StudyEquipments extends Controller
     public function __construct(Request $request, Auth $auth, 
         EquipmentsService $equip, UnitsConverterService $unit, 
         BrainCalculateService $brain,
-        StudyEquipmentService $stdeqp
+        StudyEquipmentService $stdeqp,
+        ValueListService $value
     )
     {
         $this->request = $request;
@@ -51,11 +55,12 @@ class StudyEquipments extends Controller
         $this->unit = $unit;
         $this->brain = $brain;
         $this->stdeqp = $stdeqp;
+        $this->value = $value;
     }
 
     public function getStudyEquipmentById($id)
     {
-        $studyEquipment = \App\Models\StudyEquipment::find($id);
+        $studyEquipment = StudyEquipment::find($id);
         $equip = $this->stdeqp->getDisplayStudyEquipment($studyEquipment);
         $equip['displayName'] = $this->equip->getResultsEquipName($studyEquipment->ID_STUDY_EQUIPMENTS);
         return $equip;
@@ -63,7 +68,7 @@ class StudyEquipments extends Controller
 
     public function getstudyEquipmentProductChart($idStudy)
     {
-        $studyEquipments = \App\Models\StudyEquipment::where("ID_STUDY", $idStudy)->orderBy("ID_STUDY_EQUIPMENTS", "ASC")->get();
+        $studyEquipments = StudyEquipment::where("ID_STUDY", $idStudy)->orderBy("ID_STUDY_EQUIPMENTS", "ASC")->get();
         $returnStudyEquipments = [];
 
         foreach ($studyEquipments as $studyEquipment) {
@@ -91,7 +96,7 @@ class StudyEquipments extends Controller
 
     public function getstudyEquipmentByStudyId($idStudy)
     {
-        $studyEquipments = \App\Models\StudyEquipment::where("ID_STUDY", $idStudy)->orderBy("ID_STUDY_EQUIPMENTS", "ASC")->get();
+        $studyEquipments = StudyEquipment::where("ID_STUDY", $idStudy)->orderBy("ID_STUDY_EQUIPMENTS", "ASC")->get();
         $returnStudyEquipments = [];
 
         foreach ($studyEquipments as $studyEquipment) {
@@ -156,15 +161,47 @@ class StudyEquipments extends Controller
     public function getOperatingSetting($id)
     {
         $studyEquipment = StudyEquipment::where('ID_STUDY_EQUIPMENTS', $id)->first();
-
+        $changeTr = false;
         $listTr = $this->brain->getListTr($id);
         $trResult = [];
         foreach ($listTr as $tr) {
             $trResult[] = $this->unit->controlTemperature($tr);
         }
+
+        $listTs = $this->brain->getListTs($id);
+        $tsResult = [];
+        foreach ($listTs as $ts) {
+            $tsResult[] = $this->unit->time($ts);
+        }
+
+        $listVc = $this->brain->getVc($id);
+        $vcResult = [];
+        foreach ($listVc as $vc) {
+            $vcResult[] = $this->unit->convectionSpeed($vc);
+        }
+        
+        $studyEquipment->displayName = trim($this->equip->getResultsEquipName($studyEquipment->ID_STUDY_EQUIPMENTS));
+        if ($studyEquipment->equipment->STD
+        && !($studyEquipment->equipment->CAPABILITIES & CAP_DISPLAY_DB_NAME != 0)
+        && !($studyEquipment->equipment->CAPABILITIES & CAP_EQUIP_SPECIFIC_SIZE != 0)) {
+            $studyEquipment->displayName = $studyEquipment->EQUIP_NAME . " - "
+                . number_format($studyEquipment->equipment->EQP_LENGTH + ($studyEquipment->NB_MODUL * $studyEquipment->equipment->MODUL_LENGTH), 2)
+                . "x" . number_format($studyEquipment->equipment->EQP_WIDTH, 2) . " (v" . ($studyEquipment->EQUIP_VERSION) . ")"
+                . ($studyEquipment->EQUIP_RELEASE == 3 ? ' / Active' : ''); // @TODO: translate
+        } else if (($studyEquipment->equipment->CAPABILITIES & CAP_EQUIP_SPECIFIC_SIZE != 0)
+            && ($studyEquipment->equipment->STDEQP_LENGTH != NO_SPECIFIC_SIZE)
+            && ($studyEquipment->equipment->STDEQP_WIDTH != NO_SPECIFIC_SIZE)) {
+            $studyEquipment->displayName = $studyEquipment->EQUIP_NAME
+                . " (v" . ($studyEquipment->EQUIP_VERSION) . ")"
+                . ($studyEquipment->EQUIP_RELEASE == 3 ? ' / Active' : ''); // @TODO: translate
+        } else {
+            $studyEquipment->displayName = $studyEquipment->EQUIP_NAME
+                . ($studyEquipment->EQUIP_RELEASE == 3 ? ' / Active' : ''); // @TODO: translate
+        }
+
         $studyEquipment->tr = $trResult;
-        $studyEquipment->ts = $this->brain->getListTs($id);
-        $studyEquipment->vc = $this->brain->getVc($id);
+        $studyEquipment->ts = $tsResult;
+        $studyEquipment->vc = $vcResult;
         $studyEquipment->alpha = $this->stdeqp->loadAlphaCoef($studyEquipment);
         $studyEquipment->TExt = $this->unit->exhaustTemperature($this->brain->getTExt($id));
         $calculationParameter = $studyEquipment->calculationParameters->first();
@@ -218,7 +255,117 @@ class StudyEquipments extends Controller
             }
         }
 
-        return compact('resultTempExts', 'studyEquipment');
+        // add by oriental
+        $equipment = Equipment::find($studyEquipment->ID_EQUIP);
+        if ($equipment) {
+            if (($equipment->STD == $this->value->EQUIP_NOT_STANDARD) &&
+            (!$this->equip->getCapability($equipment->CAPABILITIES, $this->value->CAP_VARIABLE_TR)) &&
+            (!$this->equip->getCapability($equipment->CAPABILITIES, $this->value->CAP_EQP_DEPEND_ON_TS))) {
+                $changeTr = true;
+            }
+        }
+
+        return compact('resultTempExts', 'studyEquipment', 'changeTr');
+    }
+
+    public function computeTrTsConfig($id)
+    {
+        $input = $this->request->all();
+        $studyEquipment = StudyEquipment::find($id);
+        $studyEquipment->ts = $input['ts'];
+        $studyEquipment->tr = $input['tr'];
+
+        $this->stdeqp->updateEquipmentData($studyEquipment);
+
+        if ($this->equip->getCapability($studyEquipment->CAPABILITIES, 8)) {
+            $this->stdeqp->startPhamCastCalculator($studyEquipment, $input['doTr']);
+        }
+
+        if ($this->equip->getCapability($studyEquipment->CAPABILITIES, 512)) {
+            $this->stdeqp->startExhaustGasTemp($studyEquipment);
+        }
+
+        $listTr = $this->brain->getListTr($id);
+        $trResult = [];
+        foreach ($listTr as $tr) {
+            $trResult[] = $this->unit->controlTemperature($tr);
+        }
+
+        $listTs = $this->brain->getListTs($id);
+        $tsResult = [];
+        foreach ($listTs as $ts) {
+            $tsResult[] = $this->unit->time($ts);
+        }
+
+        $listVc = $this->brain->getVc($id);
+        $vcResult = [];
+        foreach ($listVc as $vc) {
+            $vcResult[] = $this->unit->convectionSpeed($vc);
+        }
+        
+        $studyEquipment->displayName = trim($this->equip->getResultsEquipName($studyEquipment->ID_STUDY_EQUIPMENTS));
+        if ($studyEquipment->equipment->STD
+            && !($studyEquipment->equipment->CAPABILITIES & CAP_DISPLAY_DB_NAME != 0)
+            && !($studyEquipment->equipment->CAPABILITIES & CAP_EQUIP_SPECIFIC_SIZE != 0)) {
+            $studyEquipment->displayName = $studyEquipment->EQUIP_NAME . " - "
+                . number_format($studyEquipment->equipment->EQP_LENGTH + ($studyEquipment->NB_MODUL * $studyEquipment->equipment->MODUL_LENGTH), 2)
+                . "x" . number_format($studyEquipment->equipment->EQP_WIDTH, 2) . " (v" . ($studyEquipment->EQUIP_VERSION) . ")"
+                . ($studyEquipment->EQUIP_RELEASE == 3 ? ' / Active' : ''); // @TODO: translate
+        } else if (($studyEquipment->equipment->CAPABILITIES & CAP_EQUIP_SPECIFIC_SIZE != 0)
+            && ($studyEquipment->equipment->STDEQP_LENGTH != NO_SPECIFIC_SIZE)
+            && ($studyEquipment->equipment->STDEQP_WIDTH != NO_SPECIFIC_SIZE)) {
+            $studyEquipment->displayName = $studyEquipment->EQUIP_NAME
+                . " (v" . ($studyEquipment->EQUIP_VERSION) . ")"
+                . ($studyEquipment->EQUIP_RELEASE == 3 ? ' / Active' : ''); // @TODO: translate
+        } else {
+            $studyEquipment->displayName = $studyEquipment->EQUIP_NAME
+                . ($studyEquipment->EQUIP_RELEASE == 3 ? ' / Active' : ''); // @TODO: translate
+        }
+        $studyEquipment->tr = $trResult;
+        $studyEquipment->ts = $tsResult;
+        $studyEquipment->vc = $vcResult;
+        $studyEquipment->alpha = $this->stdeqp->loadAlphaCoef($studyEquipment);
+        $studyEquipment->TExt = $this->unit->exhaustTemperature($this->brain->getTExt($id));
+        $calculationParameter = $studyEquipment->calculationParameters->first();
+        $calculationParameter->STUDY_ALPHA_TOP_FIXED = ($calculationParameter->STUDY_ALPHA_TOP_FIXED == 1) ? true : false;
+        $calculationParameter->STUDY_ALPHA_BOTTOM_FIXED = ($calculationParameter->STUDY_ALPHA_BOTTOM_FIXED == 1) ? true : false;
+        $calculationParameter->STUDY_ALPHA_LEFT_FIXED = ($calculationParameter->STUDY_ALPHA_LEFT_FIXED == 1) ? true : false;
+        $calculationParameter->STUDY_ALPHA_RIGHT_FIXED = ($calculationParameter->STUDY_ALPHA_RIGHT_FIXED == 1) ? true : false;
+        $calculationParameter->STUDY_ALPHA_FRONT_FIXED = ($calculationParameter->STUDY_ALPHA_FRONT_FIXED == 1) ? true : false;
+        $calculationParameter->STUDY_ALPHA_REAR_FIXED = ($calculationParameter->STUDY_ALPHA_REAR_FIXED == 1) ? true : false;
+
+        $studyEquipment->ldSetpointmax = (count($studyEquipment->ts) > count($studyEquipment->tr)) ? (count($studyEquipment->ts) > count($studyEquipment->vc)) ? count($studyEquipment->ts) : count($studyEquipment->vc) : (count($studyEquipment->tr) > count($studyEquipment->vc)) ? count($studyEquipment->tr) : count($studyEquipment->vc);
+
+        $mmTr = MinMax::where("LIMIT_ITEM", $studyEquipment->ITEM_TR)->first();
+        $studyEquipment->minMaxTr = [
+            'LIMIT_MIN' => $this->unit->controlTemperature($mmTr->LIMIT_MIN, ['format' => false]),
+            'LIMIT_MAX' => $this->unit->controlTemperature($mmTr->LIMIT_MAX, ['format' => false]),
+        ];
+
+        $mm = MinMax::where("LIMIT_ITEM", $studyEquipment->ITEM_TS)->first();
+        $studyEquipment->minMaxTs = [
+            'LIMIT_MIN' => $this->unit->time($mm->LIMIT_MIN, ['format' => false]),
+            'LIMIT_MAX' => $this->unit->time($mm->LIMIT_MAX, ['format' => false]),
+        ];
+
+        $mm = MinMax::where("LIMIT_ITEM", 1037)->first();
+        $studyEquipment->minMaxVc = [
+            'LIMIT_MIN' => $this->unit->convectionSpeed($mm->LIMIT_MIN, ['format' => false]),
+            'LIMIT_MAX' => $this->unit->convectionSpeed($mm->LIMIT_MAX, ['format' => false]),
+        ];
+
+        $mm = MinMax::where("LIMIT_ITEM", 1018)->first();
+        $studyEquipment->minMaxAlpha = [
+            'LIMIT_MIN' => $this->unit->convectionCoeff($mm->LIMIT_MIN, ['format' => false]),
+            'LIMIT_MAX' => $this->unit->convectionCoeff($mm->LIMIT_MAX, ['format' => false]),
+        ];
+
+        $studyEquipment->minMaxText = [
+            'LIMIT_MIN' => $this->unit->exhaustTemperature($mmTr->LIMIT_MIN, ['format' => false]),
+            'LIMIT_MAX' => 0,
+        ];
+
+        return $studyEquipment;
     }
 
     public function saveEquipmentData($id)
@@ -231,7 +378,7 @@ class StudyEquipments extends Controller
         $studyEquipment->tExt = $input['TExt'];
         $studyEquipment->calculation_parameter = (object) $input['calculation_parameter'];
         $this->stdeqp->updateEquipmentData($studyEquipment);
-        $this->stdeqp->applyStudyCleaner($studyEquipment->ID_STUDY, $id, 43);
+        $this->stdeqp->applyStudyCleaner($studyEquipment->ID_STUDY, $id, SC_CLEAN_OUTPUT_EQP_PRM);
         return 1;
     }
 
@@ -241,5 +388,14 @@ class StudyEquipments extends Controller
 
         return response('data:image/jpeg;base64,'.$this->stdeqp->generateLayoutPreview($stdeqp))
             ->header('Content-Type', 'text/plain');
+    }
+
+    public function addConsPieToReport($id)
+    {
+        $input = $this->request->all();
+        $stdeqp = StudyEquipment::find($id);
+        $stdeqp->ENABLE_CONS_PIE = ($input['ENABLE_CONS_PIE'] == true) ? 1 : 0;
+        $stdeqp->save();
+        return 1;
     }
 }

@@ -306,6 +306,20 @@ class BrainCalculateService
         }
     }
 
+    public function getListDh($idStudyEquipments)
+    {
+        $studEqpPrms = $this->loadStudEqpPrm($idStudyEquipments, 400);
+        $dh = array();
+
+        if (!empty($studEqpPrms)) {
+            foreach ($studEqpPrms as $prms) {
+                array_push($dh, $prms->VALUE);
+            } 
+        }
+        
+        return $dh;
+    }
+
     public function loadStudEqpPrm($idStudyEquipments, $dataType)
     {
         $studEqpPrms = StudEqpPrm::where('ID_STUDY_EQUIPMENTS', $idStudyEquipments)

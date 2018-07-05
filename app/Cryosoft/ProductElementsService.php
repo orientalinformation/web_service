@@ -71,8 +71,8 @@ class ProductElementsService
 
     public function PropagationTempProdElmtIso($pb, $b3D)
     {
-        $pe = \App\Models\ProductElmt::find($pb['ID_PRODUCT_ELMT']);
-        $product = \App\Models\Product::find($pb['ID_PROD']);
+        $pe = ProductElmt::find($pb['ID_PRODUCT_ELMT']);
+        $product = Product::find($pb['ID_PROD']);
         $study = $product->study;
         $prodMeshgene = $product->meshGenerations()->first();
         
@@ -107,7 +107,7 @@ class ProductElementsService
         // pb . pointMeshOrder2 = pointMeshOrder2;
         $nbPointaxe2 = count($pointMeshOrder2['points']);
         
-        $lfTemp = floatval($this->convert->prodTemperature(floatval($pb['initTemp'][0]), 0, 0));
+        $lfTemp = doubleval($this->convert->prodTemperature(doubleval($pb['initTemp'][0]), 16, 0));
         
         $i = $j = $k = 0;
 
@@ -130,8 +130,6 @@ class ProductElementsService
             } // for axis 1
         } // for axis 2
         
-        // save temperature inDB 
-        // DBInitialTemperature . insertList(listTemp);
         $slices = array_chunk($listTemp, 100);
         foreach ($slices as $slice) {
             InitialTemperature::insert($slice);
@@ -140,8 +138,8 @@ class ProductElementsService
 
     public function PropagationTempProdElmtIsoForBreaded($pb)
     {
-        $pe = \App\Models\ProductElmt::find($pb['ID_PRODUCT_ELMT']);
-        $product = \App\Models\Product::find($pb['ID_PROD']);
+        $pe = ProductElmt::find($pb['ID_PRODUCT_ELMT']);
+        $product = Product::find($pb['ID_PROD']);
         $study = $product->study;
         $prodMeshgene = $product->meshGenerations()->first();
         // log . debug("PropagationTempProdElmtIso for BREADED");
@@ -225,7 +223,7 @@ class ProductElementsService
             $lastMesh3 = $pointMeshOrder3[$nbPointaxe3 - 1];
             
             // save temperature
-            $lfTemp = $this->convert->prodTemperature(floatval($pb['initTemp'][0]), 0, 0);
+            $lfTemp = $this->convert->prodTemperature(doubleval($pb['initTemp'][0]), 16, 0);
 
             $listTemp = [];
  
@@ -287,5 +285,35 @@ class ProductElementsService
         }
 
         return $lfheight;
+    }
+
+    public function findProdElmt3D($idProd, $idProdElmt, $status)
+    {   
+        $prodEmltBeforeCurrent = null;
+        $max = 0;
+        $elmts = [];
+        $pElmts = ProductElmt::where('ID_PROD', $idProd)->get();
+        foreach ($pElmts as $elmt) {
+            if ($status) {
+                if ($elmt->ID_PRODUCT_ELMT > $idProdElmt) {
+                    return $elmt; 
+                }
+            } else {
+                if ($elmt->ID_PRODUCT_ELMT < $idProdElmt) {
+                    array_push($elmts, $elmt);
+                }
+            }
+        }
+
+        if (count($elmts) > 0) {
+            foreach ($elmts as $elmt) {
+                if ($elmt->ID_PRODUCT_ELMT > $max) {
+                    $max = $elmt->ID_PRODUCT_ELMT;
+                    $prodEmltBeforeCurrent = $elmt;
+                }
+            }
+        }
+
+        return $prodEmltBeforeCurrent;
     }
 }

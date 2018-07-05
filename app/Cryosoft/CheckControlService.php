@@ -22,6 +22,7 @@ use App\Models\StudyEquipment;
 use App\Models\Shape;
 use App\Models\Packing;
 use App\Models\PipeGen;
+use App\Models\InitTemp3D;
 
 class CheckControlService
 {
@@ -112,10 +113,12 @@ class CheckControlService
             }
 
             if ($idProdElmt != null) {
-                $meshPositions = MeshPosition::where('ID_PRODUCT_ELMT', $idProdElmt)->first();
+                if ($productElmt->ID_SHAPE < 10) {
+                    $meshPositions = MeshPosition::where('ID_PRODUCT_ELMT', $idProdElmt)->first();
 
-                if (count($meshPositions) <= 0) {
-                    return false;
+                    if (count($meshPositions) <= 0) {
+                        return false;
+                    }
                 }
 
                 $meshGenerations = MeshGeneration::where('ID_PROD', $idProd)->first();
@@ -130,11 +133,19 @@ class CheckControlService
                     return false;
                 }
 
-                $idProduction = $production->ID_PRODUCTION;
-                $initialTemperatures = InitialTemperature::where('ID_PRODUCTION', $idProduction)->first();
+                if ($productElmt->ID_SHAPE >= 10) {
+                    $initTemp3D = InitTemp3D::where('ID_PRODUCT_ELMT', $productElmt->ID_PRODUCT_ELMT)->first();
 
-                if (count($initialTemperatures) <= 0) {
-                    return false;
+                    if (count($initTemp3D) <= 0) {
+                        return false;
+                    }
+                } else {
+                    $idProduction = $production->ID_PRODUCTION;
+                    $initialTemperatures = InitialTemperature::where('ID_PRODUCTION', $idProduction)->first();
+
+                    if (count($initialTemperatures) <= 0) {
+                        return false;
+                    }
                 }
 
                 return true;

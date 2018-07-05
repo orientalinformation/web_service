@@ -61,7 +61,7 @@ class Component extends Model
     /**
      * @var string
      */
-    protected $dateFormat = 'Y-m-d H:i:s.u';
+    protected $dateFormat = 'Y-m-d H:i:s';
 
     /**
      * Indicates if the model should be timestamped.

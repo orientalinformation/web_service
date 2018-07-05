@@ -30,7 +30,6 @@ class EquipmentsService
         }
     }
 
-
     public function getSpecificEquipName($idStudyEquipment) 
     {
         $sEquipName = "";
@@ -53,7 +52,6 @@ class EquipmentsService
             $sEquipName = $studyEquipment->EQUIP_NAME;
         }
 
-        
         return $sEquipName;
     }
 
@@ -176,7 +174,6 @@ class EquipmentsService
         return $this->unit->unitConvertUser($snrjUnitLabel, $value, 3);
     }
     
-
     public function cryogenPriceSave($value, $energy) 
     {
         if ($energy == 2) {
@@ -189,6 +186,4 @@ class EquipmentsService
 
         return $this->unit->unitConvertUserSave($snrjUnitLabel, $value);
     }
-
-
 }

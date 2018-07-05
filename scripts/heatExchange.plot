@@ -6,6 +6,7 @@ set terminal png size 1575,700 font ",20" background rgb "white"
 set output OUTPUT
 set tics nomirror out scale 2
 set xtics rotate by -30
+set yrange[0:]
 #set border 3 lw 3
 set rmargin at screen 0.8;
 set tmargin at screen 0.9;
