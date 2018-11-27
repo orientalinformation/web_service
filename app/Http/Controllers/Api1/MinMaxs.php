@@ -154,8 +154,32 @@ class MinMaxs extends Controller
             'LIMIT_MIN' => $this->unit->prodDimension($mm->LIMIT_MIN, ['format' => false]),
             'LIMIT_MAX' => $this->unit->prodDimension($mm->LIMIT_MAX, ['format' => false]),
         ];
+
+        $mm = MinMax::where("LIMIT_ITEM", 1129)->first();
+        $mmVolume = [
+            'LIMIT_MIN' => $this->unit->prodDimension($mm->LIMIT_MIN, ['format' => false]),
+            'LIMIT_MAX' => $this->unit->prodDimension($mm->LIMIT_MAX, ['format' => false]),
+        ];
+
+        $mm = MinMax::where("LIMIT_ITEM", 1096)->first();
+        $mmShelvesL = [
+            'LIMIT_MIN' => $this->unit->shelvesWidthUser($mm->LIMIT_MIN, ['format' => false]),
+            'LIMIT_MAX' => $this->unit->shelvesWidthUser($mm->LIMIT_MAX, ['format' => false]),
+        ];
+
+        $mm = MinMax::where("LIMIT_ITEM", 1097)->first();
+        $mmShelvesW = [
+            'LIMIT_MIN' => $this->unit->shelvesWidthUser($mm->LIMIT_MIN, ['format' => false]),
+            'LIMIT_MAX' => $this->unit->shelvesWidthUser($mm->LIMIT_MAX, ['format' => false]),
+        ];
+
+        $mm = MinMax::where("LIMIT_ITEM", 1090)->first();
+        $mmShelvesNb = [
+            'LIMIT_MIN' => $this->unit->none($mm->LIMIT_MIN, ['format' => false]),
+            'LIMIT_MAX' => $this->unit->none($mm->LIMIT_MAX, ['format' => false]),
+        ];
         
-        return compact('mmPrice', 'mmLInterval', 'mmWInterval');
+        return compact('mmPrice', 'mmLInterval', 'mmWInterval', 'mmVolume', 'mmShelvesL', 'mmShelvesW', 'mmShelvesNb');
     }
 
 }

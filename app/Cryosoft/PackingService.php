@@ -9,8 +9,6 @@ use App\Models\Product;
 
 class PackingService
 {
-    
-
     public function __construct(\Laravel\Lumen\Application $app)
     {
         $this->app = $app;
@@ -22,7 +20,6 @@ class PackingService
 
     public function isTopPackInParent(Study &$study)
     {
-        /** @var Study */
         $parentStudy = Study::find($study->PARENT_ID);
         if (!$parentStudy) return false;
 
@@ -31,7 +28,6 @@ class PackingService
 
     public function isSidePackInParent(Study &$study)
     {
-        /** @var Study */
         $parentStudy = Study::find($study->PARENT_ID);
         if (!$parentStudy) return false;
 
@@ -40,7 +36,6 @@ class PackingService
 
     public function isBottomPackInParent(Study &$study)
     {
-        /** @var Study */
         $parentStudy = Study::find($study->PARENT_ID);
         if (!$parentStudy) return false;
 

@@ -26,7 +26,7 @@ class TempRecordData extends Model
      * 
      * @var string
      */
-    protected $table = 'temp_record_data';
+    protected $table = 'TEMP_RECORD_DATA';
 
     /**
      * @var array

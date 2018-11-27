@@ -20,7 +20,7 @@ class Compenth extends Model
      * 
      * @var string
      */
-    protected $table = 'compenth';
+    protected $table = 'COMPENTH';
 
     /**
      * @var array

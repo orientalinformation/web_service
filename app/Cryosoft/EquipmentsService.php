@@ -10,6 +10,8 @@ use App\Models\Study;
 use App\Models\StudEqpPrm;
 use App\Models\MinMax;
 use App\Models\Equipment;
+use App\Models\Translation;
+use App\Models\User;
 
 
 class EquipmentsService
@@ -17,6 +19,7 @@ class EquipmentsService
     public function __construct(\Laravel\Lumen\Application $app)
     {
         $this->app = $app;
+        $this->auth = $app['Illuminate\\Contracts\\Auth\\Factory'];
         $this->value = $app['App\\Cryosoft\\ValueListService'];
         $this->unit = $app['App\\Cryosoft\\UnitsConverterService'];
     }
@@ -30,14 +33,14 @@ class EquipmentsService
         }
     }
 
-
     public function getSpecificEquipName($idStudyEquipment) 
     {
         $sEquipName = "";
         $studyEquipment = StudyEquipment::where("ID_STUDY_EQUIPMENTS", $idStudyEquipment)->first();
         $capabilitie = $studyEquipment->CAPABILITIES;
 
-         if (($studyEquipment->STD == 1) && (!($this->getCapability($capabilitie , 32768))) && (!($this->getCapability($capabilitie , 1048576)))) {
+         if (($studyEquipment->STD == 1) && (!($this->getCapability($capabilitie , 32768))) 
+            && (!($this->getCapability($capabilitie , 1048576)))) {
             $seriesName = $studyEquipment->SERIES_NAME;
             $equipParameter = $studyEquipment->EQP_LENGTH + $studyEquipment->NB_MODUL * $studyEquipment->MODUL_LENGTH;
             $equipParameterUnit = $this->unit->unitConvert($this->value->EQUIP_DIMENSION, $equipParameter);
@@ -45,7 +48,9 @@ class EquipmentsService
             $equipVestion = $studyEquipment->EQUIP_VERSION;
 
             $sEquipName = $seriesName . " - ". $equipParameterUnit." x ".$eqpWidthUnit." (v".$equipVestion.")";
-         } else if (($this->getCapability($capabilitie , 1048576)) && ($studyEquipment->STDEQP_LENGTH != -1.0) && ($studyEquipment->STDEQP_WIDTH != -1.0)) {
+         } else if (($this->getCapability($capabilitie , 1048576)) 
+            && ($studyEquipment->STDEQP_LENGTH != -1.0) 
+            && ($studyEquipment->STDEQP_WIDTH != -1.0)) {
             $stdEqpLength = $this->unit->equipDimension($studyEquipment->STDEQP_LENGTH);
             $stdeqpWidth = $this->unit->equipDimension($studyEquipment->STDEQP_WIDTH);
             $sEquipName = $studyEquipment->EQUIP_NAME . " - (" . $stdEqpLength . "x" . $stdeqpWidth . ")";
@@ -53,7 +58,6 @@ class EquipmentsService
             $sEquipName = $studyEquipment->EQUIP_NAME;
         }
 
-        
         return $sEquipName;
     }
 
@@ -64,7 +68,8 @@ class EquipmentsService
         if (!empty($studyEquipment)) {
             $capabilitie = $studyEquipment->CAPABILITIES;
 
-            if (($studyEquipment->STD == 1) && (!($this->getCapability($capabilitie , 32768))) && (!($this->getCapability($capabilitie , 1048576)))) {
+            if (($studyEquipment->STD == 1) && (!($this->getCapability($capabilitie , 32768)))
+                && (!($this->getCapability($capabilitie , 1048576)))) {
                 $seriesName = $studyEquipment->SERIES_NAME;
                 $equipParameter = $studyEquipment->EQP_LENGTH + $studyEquipment->NB_MODUL * $studyEquipment->MODUL_LENGTH;
                 $equipParameterUnit = $this->unit->equipDimension($equipParameter);
@@ -73,7 +78,8 @@ class EquipmentsService
 
                 $sEquipName = $seriesName . " - " . $equipParameterUnit ." x " . $eqpWidthUnit . " (v". $equipVestion. ")";
 
-            } else if (($this->getCapability($capabilitie , 1048576)) && !($this->getCapability($capabilitie , 2097152)) && ($studyEquipment->STDEQP_LENGTH != -1.0) && ($studyEquipment->STDEQP_WIDTH != -1.0)) {
+            } else if (($this->getCapability($capabilitie , 1048576)) && !($this->getCapability($capabilitie , 2097152)) 
+                && ($studyEquipment->STDEQP_LENGTH != -1.0) && ($studyEquipment->STDEQP_WIDTH != -1.0)) {
                 $sEquipName = $studyEquipment->EQUIP_NAME . " - " . $this->getSpecificEquipSize($idStudyEquipment);
             } else {
                 $sEquipName = $studyEquipment->EQUIP_NAME;
@@ -121,7 +127,10 @@ class EquipmentsService
 
     public function getStudEqpPrm($idStudyEquipment, $dataType)
     {
-        return StudEqpPrm::where("ID_STUDY_EQUIPMENTS", $idStudyEquipment)->where("VALUE_TYPE", ">=", $dataType)->where("VALUE_TYPE", "<", $dataType + 100)->orderBy("VALUE_TYPE", "ASC")->get();
+        return StudEqpPrm::where("ID_STUDY_EQUIPMENTS", $idStudyEquipment)
+                        ->where("VALUE_TYPE", ">=", $dataType)
+                        ->where("VALUE_TYPE", "<", $dataType + 100)
+                        ->orderBy("VALUE_TYPE", "ASC")->get();
     }
 
     public function isValidTemperature($idStudyEquipment, $selectTr)
@@ -176,7 +185,6 @@ class EquipmentsService
         return $this->unit->unitConvertUser($snrjUnitLabel, $value, 3);
     }
     
-
     public function cryogenPriceSave($value, $energy) 
     {
         if ($energy == 2) {
@@ -190,5 +198,49 @@ class EquipmentsService
         return $this->unit->unitConvertUserSave($snrjUnitLabel, $value);
     }
 
+    public function getEquipmentDisplayString(Equipment $equipment)
+    {
+        $displayName = $equipment->EQUIP_NAME . ' - ' . $equipment->EQUIP_VERSION . ' (' . $this->getLibValue(100, $equipment->EQUIP_RELEASE) . ')';
+        $user = $equipment->user;
+        if ($user->USERNAM != 'KERNEL') {
+            $displayName .= ' - ' . $user->USERNAM; 
+        }
 
+        return $displayName;
+    }
+
+    public function getEquipmentDisplayStringUnit($idStudyEquipment) 
+    {
+        $sEquipName = "";
+        $studyEquipment = StudyEquipment::findOrFail($idStudyEquipment);
+        $capabilitie = $studyEquipment->CAPABILITIES;
+
+        if (($studyEquipment->STD == 1) && (!($this->getCapability($capabilitie , 32768)))
+            && (!($this->getCapability($capabilitie , 1048576)))) {
+            $seriesName = $studyEquipment->SERIES_NAME;
+            $equipParameter = $studyEquipment->EQP_LENGTH + $studyEquipment->NB_MODUL * $studyEquipment->MODUL_LENGTH;
+            $equipParameterUnit = $this->unit->equipDimension($equipParameter);
+            $eqpWidthUnit = $this->unit->equipDimension($studyEquipment->EQP_WIDTH);
+            $equipVestion = $studyEquipment->EQUIP_VERSION;
+
+            $sEquipName = $seriesName . " - " . $equipParameterUnit ." x " . $eqpWidthUnit . " (v". $equipVestion. ") / " . $this->getLibValue(100, $studyEquipment->EQUIP_RELEASE);
+
+        } else {
+            if (($this->getCapability($capabilitie , 1048576)) && ($studyEquipment->STDEQP_LENGTH != -1.0) && ($studyEquipment->STDEQP_WIDTH != -1.0)) {
+                $sEquipName = $studyEquipment->EQUIP_NAME . " - " . $this->getSpecificEquipSize($idStudyEquipment) . " / " . $this->getLibValue(100, $studyEquipment->EQUIP_RELEASE);
+            } else {
+                $sEquipName = $studyEquipment->EQUIP_NAME . " / " . $this->getLibValue(100, $studyEquipment->EQUIP_RELEASE);
+            }
+        }
+
+        return $sEquipName;
+    }
+
+    public function getLibValue($tid, $id)
+    {
+        $translation = Translation::where('TRANS_TYPE', $tid)
+        ->where('CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
+        ->where('ID_TRANSLATION', $id)->first();
+        if ($translation) return $translation->LABEL;
+    }
 }

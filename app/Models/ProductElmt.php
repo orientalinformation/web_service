@@ -41,7 +41,7 @@ class ProductElmt extends Model
      * 
      * @var string
      */
-    protected $table = 'product_elmt';
+    protected $table = 'PRODUCT_ELMT';
 
     protected $hidden = [
         'product','shape'
@@ -52,9 +52,9 @@ class ProductElmt extends Model
      */
     protected $fillable = ['ID_PRODUCT_ELMT', 'ID_PROD', 'ID_SHAPE', 'ID_COMP', 'PROD_ELMT_NAME', 'SHAPE_PARAM1', 'SHAPE_PARAM2', 'SHAPE_PARAM3', 'PROD_DEHYD', 'PROD_DEHYD_COST', 'SHAPE_POS1', 'SHAPE_POS2', 'SHAPE_POS3', 'PROD_ELMT_ISO', 'ORIGINAL_THICK', 'NODE_DECIM', 'INSERT_LINE_ORDER', 'PROD_ELMT_WEIGHT', 'PROD_ELMT_REALWEIGHT'];
 
-    /*protected $casts = [
-        'SHAPE_PARAM3' => 'double',
-    ];*/
+    protected $casts = [
+        'SHAPE_PARAM2' => 'double',
+    ];
 
     /**
      * @var string
@@ -69,11 +69,11 @@ class ProductElmt extends Model
     public $timestamps = false;
 
     protected $maps = [
-      'product' => ['ID_STUDY'],
+      'product' => ['ID_STUDY', 'ID_PRODUCTION'],
       'shape' => ['SHAPECODE']
     ];
 
-    protected $appends = ['ID_STUDY', 'SHAPECODE'];
+    protected $appends = ['ID_STUDY', 'ID_PRODUCTION', 'SHAPECODE'];
 
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo

@@ -19,7 +19,7 @@ class MinMax extends Model
      * 
      * @var string
      */
-    protected $table = 'min_max';
+    protected $table = 'MIN_MAX';
 
     /**
      * @var array

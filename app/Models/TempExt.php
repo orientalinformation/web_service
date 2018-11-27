@@ -18,7 +18,7 @@ class TempExt extends Model
      * 
      * @var string
      */
-    protected $table = 'temp_ext';
+    protected $table = 'TEMP_EXT';
 
     /**
      * @var array

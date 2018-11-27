@@ -26,6 +26,8 @@ class SVGService
     protected $value;
 
     protected $convert;
+
+    protected $units;
     
     public function __construct(\Laravel\Lumen\Application $app)
     {
@@ -33,6 +35,7 @@ class SVGService
         $this->auth = $app['Illuminate\\Contracts\\Auth\\Factory'];
         $this->value = $app['App\\Cryosoft\\ValueListService'];
         $this->convert = $app['App\\Cryosoft\\UnitsConverterService'];
+        $this->units = $app['App\\Cryosoft\\UnitsService'];
     }
 
     public function getAxisOrigin() 
@@ -318,7 +321,7 @@ class SVGService
             $item['y2'] = $y2;
             $item['textX'] = $textX;
             $item['textY'] = $textY;
-            $item['position'] = $lfValue;
+            $item['position'] = round($lfValue, 2);
             array_push($listOfGraduation, $item);
 
             $lfValue += $offset;
@@ -332,20 +335,84 @@ class SVGService
         return $array;
     }
 
-    public function generateNewProfile($listOfPointsOld, $listOfSelectedPoints, $minValue, $maxValue)
+    public function generateNewProfile($listOfPointsOld, $listOfSelectedPoints, $minValue, $maxValue, $profileType)
     {   
         $result = null;
-        if (count($listOfSelectedPoints) > 0) {
-            for ($i = 0; $i < count($listOfSelectedPoints); $i++) {
-                if (floatval($listOfSelectedPoints[$i]['Y_POINT']) == floatval(0)) {
-                    $listOfSelectedPoints[$i]['Y_POINT'] = $this->linearInterpValue($listOfPointsOld, $minValue, $maxValue, $listOfSelectedPoints[$i]['X_POSITION']);
-                }
+        $firstPoint = round($listOfPointsOld[0]['Y_POINT'], 2);
+        $endPoint = round($listOfPointsOld[count($listOfPointsOld) - 1]['Y_POINT'], 2);
+        $listOfPoints = $this->calculatorConvert($listOfSelectedPoints, $profileType, $firstPoint, $endPoint);
+        if (count($listOfPoints) > 0) {
+            for ($i = 0; $i < count($listOfPoints); $i++) {
+                if (floatval($listOfPoints[$i]['Y_POINT']) == floatval(0)) {
+                    $listOfPoints[$i]['Y_POINT'] = $this->calculatorPoint($listOfPoints, $listOfSelectedPoints[$i]['X_POSITION'], $profileType);
+                } 
             }
 
-            $result = $listOfSelectedPoints;
+            $result = $listOfPoints;
         }
 
         return $result;
+    }
+
+    private function calculatorPoint($listOfSelectedPoints, $indexX, $profileType) 
+    {
+        $valueA = $indexA = $valueB = $indexB = null;
+        $count = 0;
+
+        if (count($listOfSelectedPoints) > 0) {
+            for ($i = 0; $i < count($listOfSelectedPoints); $i++) {
+                if (($indexX  > $i) && (floatval($listOfSelectedPoints[$i]['Y_POINT']) != floatval(0))) {
+                    $valueA = floatval($listOfSelectedPoints[$i]['Y_POINT']);
+                    $indexA = $i;
+                }
+
+                if (($indexX < $i) && (floatval($listOfSelectedPoints[$i]['Y_POINT']) != floatval(0)) 
+                    && ($count == 0)) {
+                    $valueB = floatval($listOfSelectedPoints[$i]['Y_POINT']);
+                    $indexB = $i;
+                    $count++;
+                }  
+            }
+        }
+        // calculator
+        $valueX = (($valueA * ($indexB - $indexX)) + ($valueB * ($indexX - $indexA))) / ($indexB - $indexA);
+
+        return $valueX;
+    }
+
+    private function calculatorConvert($listOfSelectedPoints, $profileType, $firstPoint, $endPoint) 
+    {
+        $size = count($listOfSelectedPoints) - 1;
+        
+        if (count($listOfSelectedPoints) > 0) {
+            for ($i = 1; $i < count($listOfSelectedPoints) - 1; $i++) {
+                if (floatval($listOfSelectedPoints[$i]['Y_POINT']) != floatval(0)) {
+                    if ($profileType == 1) {
+                        $listOfSelectedPoints[$i]['Y_POINT'] = $this->units->convectionCoeff($listOfSelectedPoints[$i]['Y_POINT'], 2, 0);
+                    } else {
+                        $listOfSelectedPoints[$i]['Y_POINT'] = $this->units->temperature($listOfSelectedPoints[$i]['Y_POINT'], 2, 0);
+                    }
+                }
+            }
+
+            if (round($listOfSelectedPoints[0]['Y_POINT'], 2) > $firstPoint) {
+                if ($profileType == 1) {
+                    $listOfSelectedPoints[0]['Y_POINT'] = $this->units->convectionCoeff($listOfSelectedPoints[0]['Y_POINT'], 2, 0);
+                } else {
+                    $listOfSelectedPoints[0]['Y_POINT'] = $this->units->temperature($listOfSelectedPoints[0]['Y_POINT'], 2, 0);
+                }
+            }
+
+            if (round($listOfSelectedPoints[$size]['Y_POINT'], 2) > $endPoint) {
+                if ($profileType == 1) {
+                    $listOfSelectedPoints[$size]['Y_POINT'] = $this->units->convectionCoeff($listOfSelectedPoints[$size]['Y_POINT'], 2, 0);
+                } else {
+                    $listOfSelectedPoints[$size]['Y_POINT'] = $this->units->temperature($listOfSelectedPoints[$size]['Y_POINT'], 2, 0);
+                }
+            }
+        }
+
+        return $listOfSelectedPoints;
     }
 
     private function linearInterpValue($listOfSelectedPoints, $minValue, $maxValue, $X_POSITION) 
@@ -368,7 +435,6 @@ class SVGService
         } else {
             for ($i = 1; $i < $size; ++$i) {
                 $x = $listOfSelectedPoints[$i]['X_POSITION'];
-                
                 if (floatval($X_POSITION) == floatval($x)) {
                     $value = floatval($listOfSelectedPoints[$i]['Y_POINT']);
                 } else if (floatval($x) > floatval($X_POSITION)) {
@@ -383,9 +449,9 @@ class SVGService
 
             if (floatval($xA) != floatval($xB)) {
                 $coefA = (floatval($yB) - floatval($yA)) / (floatval($xB) - floatval($xA));
-                $coefB = floatval($yB) - (floatval($coefA) * floatval($xB));
+                $coefB = floatval($yB) - floatval($coefA) * floatval($xB);
 
-                $value = (floatval($coefA) * floatval($X_POSITION)) + floatval($coefB);
+                $value = floatval($coefA) * floatval($X_POSITION) + floatval($coefB);
             } else {
                 $value = floatval($yA);
             }
@@ -413,5 +479,37 @@ class SVGService
         }
 
         return $nbGraduation;
+    }
+
+    public function lagrangeInterpValue($listOfSelectedPoints, $minValue, $maxValue, $X_POSITION) 
+    {
+        $value = 0;
+        $lagrange = $posi = $vali = $posj = null;
+        
+        $size = count($listOfSelectedPoints);
+        
+        for ($i = 0; $i < $size; ++$i) {
+            $lagrange = 1;
+            $posi = $listOfSelectedPoints[$i]['X_POSITION'];
+            $vali = $listOfSelectedPoints[$i]['Y_POINT'];
+            
+            // Compute the numerator and d�nominator
+            for ($j = 0; $j < $size; ++$j) {
+                if ($i != $j) {
+                    $posj = $listOfSelectedPoints[$j]['X_POSITION'];
+                    $lagrange *= ($X_POSITION - $posj) / ($posi - $posj);
+                }
+            }
+            
+            $value += $vali * $lagrange;
+        }
+
+        if ($value < $minValue ) {
+            $value = $minValue;
+        } else if ($value > $maxValue ) {
+            $value = $maxValue;
+        }
+            
+        return $value;
     }
 }

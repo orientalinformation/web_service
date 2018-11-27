@@ -14,6 +14,13 @@ use Illuminate\Database\Eloquent\Model;
 class StudyResult extends Model
 {
     /**
+     * The table associated with the model.
+     * 
+     * @var string
+     */
+    protected $table = 'STUDY_RESULTS';
+    
+    /**
      * @var array
      */
     protected $fillable = ['ID_STUDY_RESULTS', 'ID_STUDY', 'BEST_EQUIPMENT', 'TOTAL_DWELLINGTIME'];

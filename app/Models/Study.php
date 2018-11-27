@@ -57,7 +57,7 @@ class Study extends Model
      * 
      * @var string
      */
-    protected $table = 'studies';
+    protected $table = 'STUDIES';
 
     /**
      * @var array

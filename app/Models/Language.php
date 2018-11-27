@@ -17,7 +17,7 @@ class Language extends Model
      * 
      * @var string
      */
-    protected $table = 'language';
+    protected $table = 'LANGUAGE';
 
     /**
      * @var array

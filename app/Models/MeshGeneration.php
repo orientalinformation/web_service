@@ -37,7 +37,7 @@ class MeshGeneration extends Model
      * 
      * @var string
      */
-    protected $table = 'mesh_generation';
+    protected $table = 'MESH_GENERATION';
 
     /**
      * @var array

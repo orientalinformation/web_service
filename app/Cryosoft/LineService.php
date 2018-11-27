@@ -17,19 +17,20 @@ use DB;
 
 class LineService
 {
-	public function __construct(\Laravel\Lumen\Application $app)
+    public function __construct(\Laravel\Lumen\Application $app)
     {
         $this->app = $app;
         $this->auth = $app['Illuminate\\Contracts\\Auth\\Factory'];
         
     }
 
-    public function getNameComboBoxLarge($elt_type, $insideDiameter, $coolingFamily, $sort) {
+    public function getNameComboBoxLarge($elt_type, $insideDiameter, $coolingFamily, $sort)
+    {
         $sname = LineElmt::select('ID_PIPELINE_ELMT', 'LABEL', 'LINE_RELEASE')
-                ->join('Translation', 'ID_PIPELINE_ELMT', '=', 'Translation.ID_TRANSLATION')
-                ->where('Translation.TRANS_TYPE', 27)->where('ELT_TYPE', '=', $elt_type)->where('INSULATION_TYPE', $sort)
+                ->join('TRANSLATION', 'ID_PIPELINE_ELMT', '=', 'TRANSLATION.ID_TRANSLATION')
+                ->where('TRANSLATION.TRANS_TYPE', 27)->where('ELT_TYPE', '=', $elt_type)->where('INSULATION_TYPE', $sort)
                 ->where('ELT_SIZE','=',$insideDiameter)->where('ID_COOLING_FAMILY', $coolingFamily)
-                ->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)->orderBy('LABEL', 'ASC')->get();
+                ->where('TRANSLATION.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)->orderBy('LABEL', 'ASC')->get();
         
         $result = [];
         if (!empty($sname)) {
@@ -46,51 +47,58 @@ class LineService
         return $result;
     }
     
-	public function getNameComboBox($elt_type,$insideDiameter, $coolingFamily, $sort) {
+    public function getNameComboBox($elt_type,$insideDiameter, $coolingFamily, $sort) 
+    {
             $sname = LineElmt::select('ID_PIPELINE_ELMT', 'LABEL', 'LINE_RELEASE', 'ID_USER')
-            ->join('Translation','ID_PIPELINE_ELMT', '=', 'Translation.ID_TRANSLATION')
-            ->where('Translation.TRANS_TYPE', 27)->where('ELT_TYPE', '=', $elt_type)->where('INSULATION_TYPE', $sort)
+            ->join('TRANSLATION','ID_PIPELINE_ELMT', '=', 'TRANSLATION.ID_TRANSLATION')
+            ->where('TRANSLATION.TRANS_TYPE', 27)->where('ELT_TYPE', '=', $elt_type)->where('INSULATION_TYPE', $sort)
             ->where('ELT_SIZE','=',$insideDiameter)->where('ID_COOLING_FAMILY', $coolingFamily)
-            ->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)->orderBy('LABEL', 'ASC')->get();
+            ->where('TRANSLATION.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)->orderBy('LABEL', 'ASC')->get();
         
         return $sname;
-	}
+    }
 
-	public function getNonLine($elt_type, $insideDiameter, $coolingFamily) {
+    public function getNonLine($elt_type, $insideDiameter, $coolingFamily)
+    {
         
         $nonName = LineElmt::select('ID_PIPELINE_ELMT', 'LABEL', 'LINE_RELEASE', 'ID_USER')
-            ->join('Translation', 'ID_PIPELINE_ELMT', '=', 'Translation.ID_TRANSLATION')
-            ->where('Translation.TRANS_TYPE', 27)->where('ELT_TYPE', '=', $elt_type)
+            ->join('TRANSLATION', 'ID_PIPELINE_ELMT', '=', 'TRANSLATION.ID_TRANSLATION')
+            ->where('TRANSLATION.TRANS_TYPE', 27)->where('ELT_TYPE', '=', $elt_type)
             ->where('ELT_SIZE',$insideDiameter)->where('ID_COOLING_FAMILY', $coolingFamily)
-            ->where('INSULATION_TYPE' ,'=', 0)->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
+            ->where('INSULATION_TYPE' ,'=', 0)->where('TRANSLATION.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
             ->orderBy('LABEL', 'ASC')->get();
         return $nonName;
     }
     
-    public function getStatus($lineRelease) {
+    public function getStatus($lineRelease)
+    {
         $sname = LineElmt::select('LABEL', 'LINE_VERSION')
-            ->join('Translation', 'ID_PIPELINE_ELMT', '=', 'Translation.ID_TRANSLATION')->where('ID_TRANSLATION', '=', $lineRelease)
-            ->where('Translation.TRANS_TYPE', 100)->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)->orderBy('LABEL', 'ASC')->first();
+            ->join('TRANSLATION', 'ID_PIPELINE_ELMT', '=', 'TRANSLATION.ID_TRANSLATION')->where('ID_TRANSLATION', '=', $lineRelease)
+            ->where('TRANSLATION.TRANS_TYPE', 100)->where('TRANSLATION.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)->orderBy('LABEL', 'ASC')->first();
         if (!empty($sname)) {
-            return $sname->LINE_VERSION. " " .$sname->LABEL;
+            return floatval($sname->LINE_VERSION). " " .$sname->LABEL;
         } else {
             return '';
         }
     }
 
-    public function getUserLabel($idUser) {
+    public function getUserLabel($idUser)
+    {
         $idUserLabel = User::select('USERNAM')->Where('ID_USER', $idUser)->first();
         return $idUserLabel->USERNAM;
     }
-    public function getLabelByIdPipeELMT ($idPipeElmt) {
+
+    public function getLabelByIdPipeELMT ($idPipeElmt)
+    {
         $label = LineElmt::select('LABEL','LINE_RELEASE')
-        ->join('Translation', 'ID_PIPELINE_ELMT', '=', 'Translation.ID_TRANSLATION')
-        ->where('Translation.TRANS_TYPE', 27)->where('ID_PIPELINE_ELMT', $idPipeElmt)
-        ->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)->orderBy('LABEL', 'ASC')->first();
+        ->join('TRANSLATION', 'ID_PIPELINE_ELMT', '=', 'TRANSLATION.ID_TRANSLATION')
+        ->where('TRANSLATION.TRANS_TYPE', 27)->where('ID_PIPELINE_ELMT', $idPipeElmt)
+        ->where('TRANSLATION.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)->orderBy('LABEL', 'ASC')->first();
         return $label;
     }
 
-    public function getdiameter($coolingFamily, $insulationType) {
+    public function getdiameter($coolingFamily, $insulationType)
+    {
 
         $diameter = LineElmt::distinct()->select('ELT_SIZE')
             ->where('ID_COOLING_FAMILY', $coolingFamily)->where('ELT_TYPE', '<>', 2)
@@ -101,7 +109,8 @@ class LineService
         return $diameter;
     }
 
-    public function getStorageTank($coolingFamily, $insulationType) {
+    public function getStorageTank($coolingFamily, $insulationType)
+    {
         $storageTank = LineElmt::distinct()->select('ELT_SIZE')
             ->where('ID_COOLING_FAMILY', $coolingFamily)->where('ELT_TYPE', '=', 2)
             ->where('INSULATION_TYPE', '=' , $insulationType)->get();
@@ -110,7 +119,8 @@ class LineService
         return $storageTank;
     }
 
-    public function createLineDefinition($idPipeGen, $idLineELMT,  $type_elmt) {
+    public function createLineDefinition($idPipeGen, $idLineELMT,  $type_elmt)
+    {
         $this->deleteLineDefinition($idPipeGen, $type_elmt);
         $lineDef = new LineDefinition();
         $lineDef->ID_PIPE_GEN = $idPipeGen;
@@ -120,12 +130,14 @@ class LineService
         return $lineDef;
     }
 
-    public function deleteLineDefinition($idPipeGen, $type_elmt) {
+    public function deleteLineDefinition($idPipeGen, $type_elmt)
+    {
         $delLinedef = LineDefinition::where('ID_PIPE_GEN', $idPipeGen)->where('TYPE_ELMT', $type_elmt)->delete();
         return $delLinedef;
     }
 
-    public function getIdlineElmtformLineDef($pipeGen, $elt_type) {
+    public function getIdlineElmtformLineDef($pipeGen, $elt_type)
+    {
         $query = LineDefinition::select('ID_PIPELINE_ELMT')->where('ID_PIPE_GEN', $pipeGen)->where('TYPE_ELMT', $elt_type)->first();
         return $query;
     }

@@ -1,7 +1,8 @@
 reset
 
 #Get/Set arguments
-DATAFILE = '/tmp/contour.inp'
+#DATAFILE = '/tmp/contour.inp'
+DATAFILE = ARG9
 XLABLE = ARG1
 YLABLE = ARG2
 UNIT = ARG3
@@ -60,7 +61,8 @@ set ytics out offset 0.5,0
 set cbtics LEGSTEP 
 set cbtics in scale 3.9
 set view map
-set dgrid3d 40,40 gauss
+set dgrid3d 40,40,3 gauss
+#set dgrid3d 40,40,3 qnorm 5
 set pm3d interpolate 0,0
 #set palette model RGB
 #set palette defined ( 0 "blue", 3 "green", 6 "yellow", 10 "red" )
@@ -82,8 +84,8 @@ set pm3d interpolate 0,0
 						word(COLOR,7) "#FFEA00",\
 						word(COLOR,8) "#FF6F00",\
 						word(COLOR,9) "#FF0000")
-set contour	surface 			
-set cntrparam levels NCONTOUR	
+#set contour	surface 			
+#set cntrparam levels NCONTOUR	
 unset clabel	
 unset key	
 set lmargin at screen 0.1;

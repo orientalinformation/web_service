@@ -18,7 +18,7 @@ class ErrorTxt extends Model
      * 
      * @var string
      */
-    protected $table = 'error_txt';
+    protected $table = 'ERROR_TXT';
 
     /**
      * @var array

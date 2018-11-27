@@ -20,7 +20,7 @@ class InitialTemperature extends Model
      * 
      * @var string
      */
-    protected $table = 'initial_temperature';
+    protected $table = 'INITIAL_TEMPERATURE';
 
     /**
      * @var array

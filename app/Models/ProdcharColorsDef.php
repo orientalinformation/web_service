@@ -19,7 +19,7 @@ class ProdcharColorsDef extends Model
      * 
      * @var string
      */
-    protected $table = 'prodchar_colors_def';
+    protected $table = 'PRODCHAR_COLORS_DEF';
 
     /**
      * @var array

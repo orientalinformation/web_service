@@ -16,7 +16,7 @@ class MonetaryCurrency extends Model
      * 
      * @var string
      */
-    protected $table = 'monetary_currency';
+    protected $table = 'MONETARY_CURRENCY';
 
     /**
      * @var array

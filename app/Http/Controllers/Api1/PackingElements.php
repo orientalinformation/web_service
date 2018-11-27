@@ -50,16 +50,70 @@ class PackingElements extends Controller
     }
 
     public function findPackingElements() 
-    {        
-        $packingElmts = \App\Models\PackingElmt::all();
-        return $packingElmts;
+    {    
+        $item = $elmts = array();
+        $packingElmts = PackingElmt::where('PACKING_ELMT.PACKING_RELEASE', '!=', 1)
+                        ->join('TRANSLATION', 'PACKING_ELMT.ID_PACKING_ELMT', '=', 'TRANSLATION.ID_TRANSLATION')
+                        ->where('TRANSLATION.TRANS_TYPE', 3)->where('TRANSLATION.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
+                        ->join('LN2USER', 'PACKING_ELMT.ID_USER', '=', 'LN2USER.ID_USER')
+                        ->groupBy('PACKING_ELMT.ID_PACKING_ELMT')
+                        ->orderBy('LABEL', 'ASC')->get();
+
+        if (count($packingElmts) > 0) {
+            foreach ($packingElmts as $elmt) {
+                $item['ID_PACKING_ELMT'] = $elmt->ID_PACKING_ELMT;
+                $item['PACKING_VERSION'] = $elmt->PACKING_VERSION;
+                $item['PACKING_RELEASE'] = $elmt->PACKING_RELEASE;
+                $item['PACKING_NAME'] = $elmt->LABEL;
+                if ($elmt->ID_USER != 1) {
+                    $item['USER_NAME'] = ' - '. $elmt->USERNAM;
+                } else {
+                    $item['USER_NAME'] = '';
+                }
+
+                if ($elmt->PACKING_RELEASE == 3) {
+                    $item['PACKING_TYPE'] = 'Active';
+                    if ($elmt->ID_USER == $this->auth->user()->ID_USER) {
+                        $item['PACKING_COLOR'] = 'mineElement';
+                    } else {
+                        if ($elmt->ID_USER != 1) {
+                            $item['PACKING_COLOR'] = 'userElement';
+                        } else {
+                            $item['PACKING_COLOR'] = '';    
+                        } 
+                    }
+                } else if ($elmt->PACKING_RELEASE == 4){
+                    $item['PACKING_TYPE'] = 'Certified';
+                    if ($elmt->ID_USER == $this->auth->user()->ID_USER) {
+                        $item['PACKING_COLOR'] = 'mineElement';
+                    } else {
+                        $item['PACKING_COLOR'] = 'userElement';
+                    }
+                } else if ($elmt->PACKING_RELEASE == 2) {
+                    $item['PACKING_TYPE'] = 'Test';
+                    if ($elmt->ID_USER == $this->auth->user()->ID_USER) {
+                        $item['PACKING_COLOR'] = 'mineElement';
+                    } else {
+                        $item['PACKING_COLOR'] = 'userElement';
+                    }
+                } else if ($elmt->PACKING_RELEASE == 9) {
+                    $item['PACKING_TYPE'] = 'Obsolete';
+                } else {
+                    $item['PACKING_TYPE'] = '';
+                }
+                
+                array_push($elmts, $item);
+            }
+        }
+        
+        return $elmts;
     }
 
     public function findRefPackingElmt() 
     {        
         $mine =  PackingElmt::where('ID_USER', $this->auth->user()->ID_USER)
-        ->join('Translation', 'ID_PACKING_ELMT', '=', 'Translation.ID_TRANSLATION')
-        ->where('Translation.TRANS_TYPE', 3)->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
+        ->join('TRANSLATION', 'ID_PACKING_ELMT', '=', 'TRANSLATION.ID_TRANSLATION')
+        ->where('TRANSLATION.TRANS_TYPE', 3)->where('TRANSLATION.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
         ->orderBy('LABEL', 'ASC')->get();
 
         foreach ($mine as $key) {
@@ -67,8 +121,8 @@ class PackingElements extends Controller
         }
 
         $others = PackingElmt::where('ID_USER', '!=', $this->auth->user()->ID_USER)
-        ->join('Translation', 'ID_PACKING_ELMT', '=', 'Translation.ID_TRANSLATION')
-        ->where('Translation.TRANS_TYPE', 3)->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
+        ->join('TRANSLATION', 'ID_PACKING_ELMT', '=', 'TRANSLATION.ID_TRANSLATION')
+        ->where('TRANSLATION.TRANS_TYPE', 3)->where('TRANSLATION.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
         ->orderBy('LABEL', 'ASC')->get();
 
         foreach ($others as $key) {
@@ -141,8 +195,8 @@ class PackingElements extends Controller
         $translation->save();
 
         $pack = PackingElmt::where('ID_USER', $this->auth->user()->ID_USER)
-        ->join('Translation', 'ID_PACKING_ELMT', '=', 'Translation.ID_TRANSLATION')
-        ->where('Translation.TRANS_TYPE', 3)->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
+        ->join('TRANSLATION', 'ID_PACKING_ELMT', '=', 'TRANSLATION.ID_TRANSLATION')
+        ->where('TRANSLATION.TRANS_TYPE', 3)->where('TRANSLATION.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
         ->where('ID_PACKING_ELMT', $idPackingElmt)->first();
 
         $pack->PACKINGCOND = $this->units->conductivity($pack->PACKINGCOND, 4, 1);
@@ -233,8 +287,8 @@ class PackingElements extends Controller
             }
 
             $pack = PackingElmt::where('ID_USER', $this->auth->user()->ID_USER)
-            ->join('Translation', 'ID_PACKING_ELMT', '=', 'Translation.ID_TRANSLATION')
-            ->where('Translation.TRANS_TYPE', 3)->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
+            ->join('TRANSLATION', 'ID_PACKING_ELMT', '=', 'TRANSLATION.ID_TRANSLATION')
+            ->where('TRANSLATION.TRANS_TYPE', 3)->where('TRANSLATION.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
             ->where('ID_PACKING_ELMT', $idPacking)->first();
 
             $pack->PACKINGCOND = $this->units->conductivity($pack->PACKINGCOND, 4, 1);
@@ -295,8 +349,8 @@ class PackingElements extends Controller
         $translation->save();
 
         $pack = PackingElmt::where('ID_USER', $this->auth->user()->ID_USER)
-            ->join('Translation', 'ID_PACKING_ELMT', '=', 'Translation.ID_TRANSLATION')
-            ->where('Translation.TRANS_TYPE', 3)->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
+            ->join('TRANSLATION', 'ID_PACKING_ELMT', '=', 'TRANSLATION.ID_TRANSLATION')
+            ->where('TRANSLATION.TRANS_TYPE', 3)->where('TRANSLATION.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
             ->where('ID_PACKING_ELMT', $idPackingElmt)->first();
 
         $pack->PACKINGCOND = $this->units->conductivity($pack->PACKINGCOND, 4, 1);

@@ -14,28 +14,23 @@ class EconomicResultsService
         $this->unit = $app['App\\Cryosoft\\UnitsConverterService'];
     }
 
-
     public function isConsoToDisplay($dimaStatus, $equipStatus)
     {
         $dimaStatus = $dimaStatus & 0xFFFF;
         $ldStatus = true;
       
         if ($equipStatus == 1) {
-            if ($equipStatus != 0) {
-                if ($equipStatus == 1) {
+            if ($dimaStatus != 0) {
+                if ($dimaStatus == 1) {
                     $ldStatus = true;
-                } else if (($equipStatus & 0x100) != 0)
-                {
+                } else if (($dimaStatus & 0x100) != 0) {
                     $ldStatus = false;
-                } else
-                {
+                } else {
                     $ldStatus = true;
                 }     
-
             } else {
                 $ldStatus = false;
             }
-
         } else {
             $ldStatus = false;
         }

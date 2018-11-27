@@ -22,6 +22,13 @@ use Illuminate\Database\Eloquent\Model;
 class Price extends Model
 {
     /**
+     * The table associated with the model.
+     * 
+     * @var string
+     */
+    protected $table = 'PRICES';
+    
+    /**
      * @var array
      */
     protected $fillable = ['ID_PRICE', 'ID_STUDY', 'ENERGY', 'ECO_IN_CRYO1', 'ECO_IN_PBP1', 'ECO_IN_CRYO2', 'ECO_IN_PBP2', 'ECO_IN_CRYO3', 'ECO_IN_PBP3', 'ECO_IN_CRYO4', 'ECO_IN_MINMP', 'ECO_IN_MAXMP'];

@@ -19,7 +19,7 @@ class Unit extends Model
      * 
      * @var string
      */
-    protected $table = 'unit';
+    protected $table = 'UNIT';
 
     /**
      * @var array

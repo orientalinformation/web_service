@@ -52,7 +52,7 @@ class User extends Model implements JWTSubject, AuthenticatableContract, Authori
      * 
      * @var string
      */
-    protected $table = 'ln2user';
+    protected $table = 'LN2USER';
 
     /**
      * @var array

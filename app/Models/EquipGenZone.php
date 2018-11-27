@@ -48,7 +48,7 @@ class EquipGenZone extends Model
      * 
      * @var string
      */
-    protected $table = 'equip_gen_zone';
+    protected $table = 'EQUIP_GEN_ZONE';
 
     /**
      * @var array

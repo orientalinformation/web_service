@@ -3,6 +3,8 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Sofa\Eloquence\Eloquence; // base trait
+use Sofa\Eloquence\Mappable; // extension trait
 
 /**
  * @property int $ID_PROD
@@ -20,22 +22,34 @@ use Illuminate\Database\Eloquent\Model;
  */
 class Product extends Model
 {
+    use Eloquence, Mappable;
+
     /**
      * The table associated with the model.
      * 
      * @var string
      */
-    protected $table = 'product';
+    protected $table = 'PRODUCT';
 
     /**
      * @var array
      */
     protected $fillable = ['ID_PROD', 'ID_STUDY', 'ID_MESH_GENERATION', 'PRODNAME', 'PROD_ISO', 'PROD_WEIGHT', 'PROD_REALWEIGHT', 'PROD_VOLUME'];
 
+     protected $casts = [
+        'PROD_WEIGHT' => 'double',
+        'PROD_REALWEIGHT' => 'double',
+        'PROD_VOLUME' => 'double'
+    ];
+
     /**
      * @var string
      */
     protected $primaryKey = 'ID_PROD';
+
+    protected $hidden = [
+        'study'
+    ];
 
     /**
      * Indicates if the model should be timestamped.
@@ -43,6 +57,12 @@ class Product extends Model
      * @var bool
      */
     public $timestamps = false;
+
+    protected $maps = [
+      'study' => ['ID_PRODUCTION']
+    ];
+
+    protected $appends = ['ID_PRODUCTION'];
 
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo

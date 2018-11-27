@@ -13,5 +13,8 @@ Homestead.yaml
 /public/timeBased/*
 /public/heatExchange/*
 /public/productSection/*
+/public/3d/*
+/public/consumption/*
+/public/temperatureProfile/*
 /storage/app/*
 

@@ -15,6 +15,13 @@ use Illuminate\Database\Eloquent\Model;
 class HaverageResult extends Model
 {
     /**
+     * The table associated with the model.
+     * 
+     * @var string
+     */
+    protected $table = 'HAVERAGE_RESULTS';
+    
+    /**
      * @var array
      */
     protected $fillable = ['ID_HAVERAGE_RESULTS', 'ID_STUDY', 'AVG_TEMP', 'ENTHALPY', 'CONDUCTIVITY'];

@@ -27,7 +27,7 @@ class PackingElmt extends Model
      * 
      * @var string
      */
-    protected $table = 'packing_elmt';
+    protected $table = 'PACKING_ELMT';
 
     /**
      * @var array
@@ -46,7 +46,7 @@ class PackingElmt extends Model
     /**
      * @var string
      */
-    protected $dateFormat = 'Y-m-d H:i:s.u';
+    protected $dateFormat = 'Y-m-d H:i:s';
 
     /**
      * Indicates if the model should be timestamped.

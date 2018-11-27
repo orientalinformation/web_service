@@ -20,7 +20,7 @@ class Packing extends Model
      * 
      * @var string
      */
-    protected $table = 'packing';
+    protected $table = 'PACKING';
 
     /**
      * @var array

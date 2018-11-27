@@ -1,5 +1,6 @@
 reset
 DATAFILE = '/tmp/timeBased.inp'
+DATAFILE = ARG5
 OUTPUT = ARG3."/".ARG4.".png"
 set terminal png size 1366,768 font ",12" background rgb "white"
 set output OUTPUT

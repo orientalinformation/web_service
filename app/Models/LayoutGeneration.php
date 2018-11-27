@@ -23,7 +23,7 @@ class LayoutGeneration extends Model
      * 
      * @var string
      */
-    protected $table = 'layout_generation';
+    protected $table = 'LAYOUT_GENERATION';
 
     /**
      * @var array

@@ -14,7 +14,7 @@ class CoolingFamily extends Model
      * 
      * @var string
      */
-    protected $table = 'cooling_family';
+    protected $table = 'COOLING_FAMILY';
 
     /**
      * @var array

@@ -33,6 +33,13 @@ use Illuminate\Database\Eloquent\Model;
 class TempRecordPts extends Model
 {
     /**
+     * The table associated with the model.
+     * 
+     * @var string
+     */
+    protected $table = 'TEMP_RECORD_PTS';
+
+    /**
      * @var array
      */
     protected $fillable = ['ID_TEMP_RECORD_PTS', 'ID_STUDY', 'AXIS1_PT_TOP_SURF', 'AXIS2_PT_TOP_SURF', 'AXIS3_PT_TOP_SURF', 'AXIS1_PT_INT_PT', 'AXIS2_PT_INT_PT', 'AXIS3_PT_INT_PT', 'AXIS1_PT_BOT_SURF', 'AXIS2_PT_BOT_SURF', 'AXIS3_PT_BOT_SURF', 'AXIS2_AX_1', 'AXIS3_AX_1', 'AXIS1_AX_2', 'AXIS3_AX_2', 'AXIS1_AX_3', 'AXIS2_AX_3', 'AXIS1_PL_2_3', 'AXIS2_PL_1_3', 'AXIS3_PL_1_2', 'NB_STEPS', 'CONTOUR2D_TEMP_MIN', 'CONTOUR2D_TEMP_MAX'];

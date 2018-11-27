@@ -28,7 +28,7 @@ class PipeGen extends Model
      * 
      * @var string
      */
-    protected $table = 'pipe_gen';
+    protected $table = 'PIPE_GEN';
 
     /**
      * @var array

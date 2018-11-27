@@ -62,6 +62,13 @@ class Equipment extends Model
     use Eloquence, Mappable;
 
     /**
+     * The table associated with the model.
+     * 
+     * @var string
+     */
+    protected $table = 'EQUIPMENT';
+
+    /**
      * @var array
      */
     protected $fillable = ['ID_EQUIP', 'ID_EQUIPSERIES', 'ID_COOLING_FAMILY', 'ID_USER', 
@@ -92,7 +99,7 @@ class Equipment extends Model
     /**
      * @var string
      */
-    protected $dateFormat = 'Y-m-d H:i:s.u';
+    protected $dateFormat = 'Y-m-d H:i:s';
 
     /**
      * Indicates if the model should be timestamped.

@@ -19,7 +19,7 @@ class MeshParamDef extends Model
      * 
      * @var string
      */
-    protected $table = 'mesh_param_def';
+    protected $table = 'MESH_PARAM_DEF';
 
     /**
      * @var array

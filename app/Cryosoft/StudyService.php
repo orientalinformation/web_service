@@ -5,9 +5,16 @@ namespace App\Cryosoft;
 use Illuminate\Contracts\Auth\Factory as Auth;
 use App\Cryosoft\ValueListService;
 use App\Cryosoft\UnitsConverterService;
+use App\Cryosoft\BrainCalculateService;
+use App\Cryosoft\StudyEquipmentService;
 
 use App\Models\Study;
 use App\Models\Price;
+use App\Models\MinMax;
+use App\Models\StudyEquipment;
+use App\Models\Equipment;
+use App\Models\StudEqpPrm;
+use App\Models\ProductElmt;
 
 class StudyService
 {
@@ -44,6 +51,9 @@ class StudyService
         $this->value = $app['App\\Cryosoft\\ValueListService'];
         $this->kernel = $app['App\\Kernel\\KernelService'];
         $this->calculator = $app['App\\Cryosoft\\CalculateService'];
+        $this->brain = $app['App\\Cryosoft\\BrainCalculateService'];
+        $this->sequip = $app['App\\Cryosoft\\StudyEquipmentService'];
+        $this->pack = $app['App\\Cryosoft\\PackingService'];
     }
 
     public function isMyStudy($idStudy) 
@@ -124,32 +134,38 @@ class StudyService
 
     public function getFilteredStudiesList($idUser, $idCompFamily, $idCompSubFamily, $idComponent)
     {
-        $querys = Study::distinct();
+        if ($idUser != $this->auth->user()->ID_USER) {
+            $querys = Study::distinct();
 
-        if ($idCompFamily + $idCompSubFamily + $idComponent > 0) {
-            $querys->join('product_elmt', 'studies.ID_PROD', '=', 'product_elmt.ID_PROD');
+            if ($idCompFamily + $idCompSubFamily + $idComponent > 0) {
+                $querys->join('PRODUCT_ELMT', 'STUDIES.ID_PROD', '=', 'PRODUCT_ELMT.ID_PROD');
 
-            if ($idComponent > 0) {
-                $querys->where('product_elmt.ID_PROD', $idComponent);
-            } else {
-                $querys->join('component', 'product_elmt.ID_COMP', '=', 'component.ID_COMP');
-                if ($idCompFamily > 0) {
-                    $querys->where('component.CLASS_TYPE', $idCompFamily);
-                }
-                if ($idCompSubFamily > 0) {
-                    $querys->where('component.SUB_FAMILY', $idCompSubFamily);
+                if ($idComponent > 0) {
+                    $querys->where('PRODUCT_ELMT.ID_COMP', $idComponent);
+                } else {
+                    $querys->join('COMPONENT', 'PRODUCT_ELMT.ID_COMP', '=', 'COMPONENT.ID_COMP');
+                    if ($idCompFamily > 0) {
+                        $querys->where('COMPONENT.CLASS_TYPE', $idCompFamily);
+                    }
+                    
+                    if ($idCompSubFamily > 0) {
+                        $querys->where('COMPONENT.SUB_FAMILY', $idCompSubFamily);
+                    }
                 }
             }
-        }   
-        if ($idUser > 0) {
-            $querys->where('studies.ID_USER', $idUser);
-        } else {
-            $querys->where('studies.ID_USER', '!=', $this->auth->user()->ID_USER);  
+
+            if ($idUser > 0) {
+                $querys->where('STUDIES.ID_USER', $idUser);
+            } else {
+                $querys->where('STUDIES.ID_USER', '!=', $this->auth->user()->ID_USER);  
+            }
+        
+
+            $querys->where('PARENT_ID', 0);
+            $querys->orderBy('STUDIES.STUDY_NAME');
+
+            return $querys->get();
         }
-
-        $querys->orderBy('studies.STUDY_NAME');
-
-        return $querys->get();
     }  
 
     public function convertAxisForDB($ldShape, $bIsParallel, $appAxe)
@@ -275,12 +291,14 @@ class StudyService
 
     public function RunStudyCleaner($idStudy, $ld_Mode, $ld_StudEqpId = -1) 
     {
+        $study = Study::find($idStudy);
+
         $ret = 0;
-        $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $idStudy);
+        $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $idStudy, $ld_StudEqpId, 1, 1, 'c:\\temp\\'.$study->ID_STUDY.'\\StudyClear_'.$idStudy.'_'.$ld_StudEqpId.'_'.$ld_Mode.'.txt');
         $ret = $this->kernel->getKernelObject('StudyCleaner')->SCStudyClean($conf, $ld_Mode);
         // Chaining management to mark childs to recalculate
-        if ($this->calculator->isStudyHasChilds($idStudy)) {
-            // ret = setChildsStudiesToRecalculate(ld_StudEqpId);
+        if (($ret = 0) && $this->calculator->isStudyHasChilds($idStudy)) {
+            $this->calculator->getCalculableStudyEquipments($idStudy, $ld_StudEqpId);
         }
 
         return $ret;
@@ -296,4 +314,181 @@ class StudyService
         }
         return $bret;
     }
+
+    public function updateStudyEquipmentAfterChangeTR($idStudyEquipment, $idEquipment)
+    {
+        $equip = Equipment::find($idEquipment);
+        $sequip = StudyEquipment::find($idStudyEquipment);
+
+        $tr = []; 
+        $dh = [];
+
+        $tr = $this->setEqpPrmInitialData(array_fill(0, $equip->NB_TR, 0.0), $equip->equipGenerations->first()->TEMP_SETPOINT);
+        $dh = $this->getEqpPrmInitialData(array_fill(0, $equip->NB_TR, 0.0), 0, false);
+
+        // set equipment data
+        // clear first
+        $trs = $this->brain->getListTr($idStudyEquipment);
+
+        if ($trs != null) {
+            $this->cleanSpecificEqpPrm($idStudyEquipment, 300);
+
+            foreach ($tr as $trValue) {
+                $p = new StudEqpPrm();
+                $p->ID_STUDY_EQUIPMENTS = $idStudyEquipment;
+                $p->VALUE_TYPE = REGULATION_TEMP;
+                $p->VALUE = $trValue;
+                $p->save();
+            }
+        }
+
+        $dhs = $this->brain->getListDh($idStudyEquipment);
+        if ($dhs != null) {
+            $this->cleanSpecificEqpPrm($idStudyEquipment, 400);
+
+            foreach ($dh as $dhValue) {
+                $p = new StudEqpPrm();
+                $p->ID_STUDY_EQUIPMENTS = $idStudyEquipment;
+                $p->VALUE_TYPE = ENTHALPY_VAR;
+                $p->VALUE = $dhValue;
+                $p->save();
+            }
+        }
+
+        // run kernel tool
+        $err = $this->runKernelToolCalculator($sequip->ID_STUDY, $idStudyEquipment);
+        if ($err != 0) {
+            echo 'KernelTools: calcul de la temperature extraction ( mode EXHAUST_GAS_TEMPERATURE= 1) - retour erreur:';
+        } else {
+            $TExt = $this->sequip->loadEquipmentData($sequip, 500)[0];
+            $this->cleanSpecificEqpPrm($idStudyEquipment, 500);
+            $p = new StudEqpPrm();
+            $p->ID_STUDY_EQUIPMENTS = $idStudyEquipment;
+            $p->VALUE_TYPE = EXHAUST_TEMP;
+            $p->VALUE = $TExt;
+            $p->save();
+        }
+
+    }
+
+    private function cleanSpecificEqpPrm($idStudyEquipment, $value_type)
+    {
+        StudEqpPrm::where('ID_STUDY_EQUIPMENTS', $idStudyEquipment)
+                    ->where('VALUE_TYPE', '>=', $value_type)
+                    ->where('VALUE_TYPE', '<', $value_type + 100)->delete();
+    }
+
+    private function runKernelToolCalculator($idStudy, $idStudyEquipment)
+    {
+        $study = Study::find($idStudy);
+
+        $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $idStudy, $idStudyEquipment, 1, 1, 'c:\\temp\\'.$study->ID_STUDY.'\\ToolCalculator_'.$idStudy.'_'.$idStudyEquipment.'.txt');
+        return $this->kernel->getKernelObject('KernelToolCalculator')->KTCalculator($conf, 1);
+    }
+
+    private function setEqpPrmInitialData($dd, $value) 
+    {
+        for ($i = 0; $i < count($dd); $i++) {
+            $dd[$i] = $value;
+        }
+        return $dd;
+    }
+
+    private function getEqpPrmInitialData (array $dd, $type, $isTS)
+    {
+        $mm = MinMax::where('LIMIT_ITEM', $type)->first();
+        for ($i=0; $i < count($dd); $i++) {
+            if ((($type > 0) && ($mm != null))) {
+                $dd[$i] = doubleval($mm->DEFAULT_VALUE);
+            } else {
+                $dd[$i] = 0.0;
+            }
+        }
+        
+        if (($isTS) && (count($dd) > 1)) {
+            $multiTRRatio = MinMax::where('LIMIT_ITEM', MIN_MAX_MULTI_TR_RATIO)->first();
+            if ($multiTRRatio != null) {
+                $dd[0] = doubleval( doubleval($dd[0]) * $multiTRRatio->DEFAULT_VALUE);
+            }
+        }
+
+        return $dd;
+    }
+
+    public function getParentIdChaining($idStudy, $arrStudyId = [])
+    {
+        $study = Study::find($idStudy);
+        if ($study) {
+            $arrStudyId[] = $idStudy;
+            $arrStudyId = $this->getParentIdChaining($study->PARENT_ID, $arrStudyId);
+        }
+
+        return $arrStudyId;
+    }
+
+    public function getChildIdChaining($idStudy, $arrStudyId = [])
+    {
+        $study = Study::findOrFail($idStudy);
+        $arrStudyId[] = $idStudy;
+        if ($study->HAS_CHILD != 0) {
+            $children = Study::where('PARENT_ID', $study->ID_STUDY)->first();
+            if ($children) {
+                $arrStudyId[] = $children->ID_STUDY;
+                $arrStudyId = $this->getChildIdChaining($children->ID_STUDY, $arrStudyId);
+            }
+        }
+
+        $arrStudyId = array_unique($arrStudyId);
+        $arrStudyId = array_values($arrStudyId);
+
+        return $arrStudyId;
+    }
+
+    public function isAddComponentAllowed($id)
+    {
+        $study = Study::findOrFail($id);
+        $bret = true;
+        $productElmt = ProductElmt::where('ID_STUDY', $id)->first();
+        $shape = $productElmt->SHAPECODE;
+        if ($study->CHAINING_CONTROLS == 1) {
+            if ($this->calculator->isStudyHasChilds($id) || $study->CHAINING_ADD_COMP_ENABLE != 1) {
+                $bret = false;
+            } else {
+                if ($this->pack->isTopPackInParent($study)) {
+                    $bret = false;
+                }
+
+                if ($this->pack->isSidePackInParent($study)) {
+                    switch ($shape) {
+                        case 1:
+                        case 3:
+                        case 5:
+                        case 6:
+                        case 7:
+                        case 8:
+                        case 9:
+                            $bret = false;
+                            break;
+                    }
+
+                }
+
+                if ($this->pack->isBottomPackInParent($study)) {
+                    switch ($shape) {
+                        case 3:
+                        case 5:
+                        case 6:
+                        case 8:
+                        case 9:
+                            $bret = false;
+                            break;
+                    }
+
+                }
+            }
+        }
+
+        return $bret;
+    }
+
 }

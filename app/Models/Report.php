@@ -96,7 +96,7 @@ class Report extends Model
      * 
      * @var string
      */
-    protected $table = 'report';
+    protected $table = 'REPORT';
 
     /**
      * @var array

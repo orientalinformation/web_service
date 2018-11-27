@@ -14,6 +14,13 @@ use Illuminate\Database\Eloquent\Model;
 class Shelves extends Model
 {
     /**
+     * The table associated with the model.
+     * 
+     * @var string
+     */
+    protected $table = 'SHELVES';
+    
+    /**
      * @var array
      */
     protected $fillable = ['ID_SHELVES', 'ID_EQUIP', 'SPACE', 'NB'];

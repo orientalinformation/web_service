@@ -21,6 +21,13 @@ use Illuminate\Database\Eloquent\Model;
 class LayoutResults extends Model
 {
     /**
+     * The table associated with the model.
+     * 
+     * @var string
+     */
+    protected $table = 'LAYOUT_RESULTS';
+    
+    /**
      * @var array
      */
     protected $fillable = ['ID_LAYOUT_RESULTS', 'ID_STUDY_EQUIPMENTS', 'NUMBER_PER_M', 'NUMBER_IN_WIDTH', 'LEFT_RIGHT_INTERVAL', 'LOADING_RATE', 'QUANTITY_PER_BATCH', 'LOADING_RATE_MAX', 'QUANTITY_PER_BATCH_MAX', 'NB_SHELVES', 'NB_SHELVES_MAX'];

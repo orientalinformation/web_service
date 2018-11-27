@@ -23,7 +23,7 @@ class RecordPosition extends Model
      * 
      * @var string
      */
-    protected $table = 'record_position';
+    protected $table = 'RECORD_POSITION';
 
     /**
      * @var array

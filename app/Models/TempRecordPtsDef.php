@@ -37,7 +37,7 @@ class TempRecordPtsDef extends Model
      * 
      * @var string
      */
-    protected $table = 'temp_record_pts_def';
+    protected $table = 'TEMP_RECORD_PTS_DEF';
 
     /**
      * @var array

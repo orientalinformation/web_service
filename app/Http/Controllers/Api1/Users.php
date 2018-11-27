@@ -17,6 +17,7 @@ use App\Models\Equipfamily;
 use App\Models\Unit;
 use App\Models\UserUnit;
 use App\Models\MonetaryCurrency;
+use App\Models\Connection;
 
 
 class Users extends Controller
@@ -44,6 +45,9 @@ class Users extends Controller
     public function changePassword($id)
     {
         $input = $this->request->all();
+        $connections = null;
+        $current = Carbon::now();
+        $current->timezone = 'Asia/Ho_Chi_Minh';
 
         if (!isset($input['oldPass']) || !isset($input['newPass']))
             throw new \Exception("Error Processing Request", 1);
@@ -53,18 +57,29 @@ class Users extends Controller
         $hashNewPass = Hash::make($newPass);
 
         $user = User::find($id);
-        if (!Hash::check($oldPass, $user->USERPASS)) {
-            return -1;
+        if ($user) {
+            $connections = Connection::where('ID_USER', $id)->where('TYPE_DISCONNECTION', 0)->get();
+            if (count($connections) > 0) {
+                foreach ($connections as $connection) {
+                    $connection->DATE_DISCONNECTION = $current->toDateTimeString();
+                    $connection->TYPE_DISCONNECTION = 2;
+                    $connection->update();
+                }
+            }
+
+            if (!Hash::check($oldPass, $user->USERPASS)) {
+                return -1;
+            }
         }
-        User::where('ID_USER', $id)
-        ->update(['USERPASS' => $hashNewPass]);
+
+        User::where('ID_USER', $id)->update(['USERPASS' => $hashNewPass]);
 
         return 1;
     }
 
     public function getEnergies()
     {
-        $list = Translation::join('cooling_family', 'ID_TRANSLATION', '=', 'cooling_family.ID_COOLING_FAMILY')
+        $list = Translation::join('COOLING_FAMILY', 'ID_TRANSLATION', '=', 'COOLING_FAMILY.ID_COOLING_FAMILY')
         ->where('TRANS_TYPE', 2)->where('CODE_LANGUE', $this->auth->user()->CODE_LANGUE)->orderBy('LABEL', 'ASC')
         ->distinct()->get();
 
@@ -78,10 +93,10 @@ class Users extends Controller
         if (isset($input['idCooling'])) $energy = $input['idCooling'];
 
         if ($energy != 0) {
-            $list = Equipseries::select('CONSTRUCTOR')->join('equipment', 'Equipseries.ID_EQUIPSERIES', '=', 'equipment.ID_EQUIPSERIES')
-            ->where('equipment.ID_COOLING_FAMILY', $energy)->distinct()->get();
+            $list = Equipseries::select('CONSTRUCTOR')->join('EQUIPMENT', 'EQUIPSERIES.ID_EQUIPSERIES', '=', 'EQUIPMENT.ID_EQUIPSERIES')
+            ->where('EQUIPMENT.ID_COOLING_FAMILY', $energy)->distinct()->get();
         } else {
-            $list = Equipseries::select('CONSTRUCTOR')->join('equipment', 'Equipseries.ID_EQUIPSERIES', '=', 'equipment.ID_EQUIPSERIES')
+            $list = Equipseries::select('CONSTRUCTOR')->join('EQUIPMENT', 'EQUIPSERIES.ID_EQUIPSERIES', '=', 'EQUIPMENT.ID_EQUIPSERIES')
             ->distinct()->get();
         }
         
@@ -99,12 +114,12 @@ class Users extends Controller
         if (isset($input['manufacturerLabel'])) $manufacturerLabel = $input['manufacturerLabel'];
 
         $list = Translation::select('ID_TRANSLATION', 'LABEL')
-        ->join('equipfamily', function($fam){
-            $fam->on('ID_TRANSLATION', '=', 'equipfamily.ID_FAMILY')
-            ->join('equipseries', function ($series){
-                $series->on('equipfamily.ID_FAMILY', '=', 'equipseries.ID_FAMILY')
-                ->join('equipment', function($equip){
-                    $equip->on('equipseries.ID_EQUIPSERIES', '=', 'equipment.ID_EQUIPSERIES');
+        ->join('EQUIPFAMILY', function($fam){
+            $fam->on('ID_TRANSLATION', '=', 'EQUIPFAMILY.ID_FAMILY')
+            ->join('EQUIPSERIES', function ($series){
+                $series->on('EQUIPFAMILY.ID_FAMILY', '=', 'EQUIPSERIES.ID_FAMILY')
+                ->join('EQUIPMENT', function($equip){
+                    $equip->on('EQUIPSERIES.ID_EQUIPSERIES', '=', 'EQUIPMENT.ID_EQUIPSERIES');
                 });
             });
         })
@@ -128,12 +143,12 @@ class Users extends Controller
         if (isset($input['idFamily'])) $idFamily = $input['idFamily'];
 
         $list = Translation::select('ID_TRANSLATION', 'LABEL')
-        ->join('equipment', function($equip){
-            $equip->on('ID_TRANSLATION', '=', 'equipment.STD')
-            ->join('equipseries', function ($series){
-                $series->on('equipseries.ID_EQUIPSERIES', '=', 'equipment.ID_EQUIPSERIES')
-                ->join('equipfamily', function($fam){
-                    $fam->on('equipfamily.ID_FAMILY', '=', 'equipseries.ID_FAMILY');
+        ->join('EQUIPMENT', function($equip){
+            $equip->on('ID_TRANSLATION', '=', 'EQUIPMENT.STD')
+            ->join('EQUIPSERIES', function ($series){
+                $series->on('EQUIPSERIES.ID_EQUIPSERIES', '=', 'EQUIPMENT.ID_EQUIPSERIES')
+                ->join('EQUIPFAMILY', function($fam){
+                    $fam->on('EQUIPFAMILY.ID_FAMILY', '=', 'EQUIPSERIES.ID_FAMILY');
                 });
             });
         })
@@ -160,12 +175,12 @@ class Users extends Controller
         if (isset($input['idStd'])) $idStd = $input['idStd'];
 
         $list = Translation::select('ID_TRANSLATION', 'LABEL')
-        ->join('equipfamily', function($fam){
-            $fam->on('ID_TRANSLATION', '=', 'equipfamily.BATCH_PROCESS')
-            ->join('equipseries', function ($series){
-                $series->on('equipfamily.ID_FAMILY', '=', 'equipseries.ID_FAMILY')
-                ->join('equipment', function($equip){
-                    $equip->on('equipseries.ID_EQUIPSERIES', '=', 'equipment.ID_EQUIPSERIES');
+        ->join('EQUIPFAMILY', function($fam){
+            $fam->on('ID_TRANSLATION', '=', 'EQUIPFAMILY.BATCH_PROCESS')
+            ->join('EQUIPSERIES', function ($series){
+                $series->on('EQUIPFAMILY.ID_FAMILY', '=', 'EQUIPSERIES.ID_FAMILY')
+                ->join('EQUIPMENT', function($equip){
+                    $equip->on('EQUIPSERIES.ID_EQUIPSERIES', '=', 'EQUIPMENT.ID_EQUIPSERIES');
                 });
             });
         })
@@ -195,14 +210,14 @@ class Users extends Controller
         if (isset($input['idProcess'])) $idProcess = $input['idProcess'];
 
         $list = Translation::select('ID_TRANSLATION', 'LABEL')
-        ->join('equipseries', function ($series){
-            $series->on('ID_TRANSLATION', '=', 'equipseries.ID_EQUIPSERIES');
+        ->join('EQUIPSERIES', function ($series){
+            $series->on('ID_TRANSLATION', '=', 'EQUIPSERIES.ID_EQUIPSERIES');
         })
-        ->join('equipfamily', function($fam){
-            $fam->on('equipfamily.ID_FAMILY', '=', 'equipseries.ID_FAMILY');
+        ->join('EQUIPFAMILY', function($fam){
+            $fam->on('EQUIPFAMILY.ID_FAMILY', '=', 'EQUIPSERIES.ID_FAMILY');
         })
-        ->join('equipment', function($equip){
-            $equip->on('equipseries.ID_EQUIPSERIES', '=', 'equipment.ID_EQUIPSERIES');
+        ->join('EQUIPMENT', function($equip){
+            $equip->on('EQUIPSERIES.ID_EQUIPSERIES', '=', 'EQUIPMENT.ID_EQUIPSERIES');
         })
         ->where('TRANS_TYPE', 7)->where('CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
         ->orderBy('LABEL', 'ASC')->distinct()->get();
@@ -227,8 +242,8 @@ class Users extends Controller
 
     public function getUnits($id) 
     {
-        $list = UserUnit::join('unit', 'user_unit.ID_UNIT', '=', 'unit.ID_UNIT')
-        ->where('ID_USER', $id)->orderBy('unit.TYPE_UNIT', 'ASC')->get();
+        $list = UserUnit::join('UNIT', 'USER_UNIT.ID_UNIT', '=', 'UNIT.ID_UNIT')
+        ->where('ID_USER', $id)->orderBy('UNIT.TYPE_UNIT', 'ASC')->get();
 
         foreach ($list as $key) {
             $symbol = Unit::select('ID_UNIT','TYPE_UNIT','SYMBOL')->where('TYPE_UNIT', $key->TYPE_UNIT)->get();

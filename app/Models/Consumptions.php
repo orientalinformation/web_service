@@ -15,6 +15,12 @@ use Illuminate\Database\Eloquent\Model;
 class Consumptions extends Model
 {
     /**
+     * The table associated with the model.
+     * 
+     * @var string
+     */
+    protected $table = 'CONSUMPTIONS';
+    /**
      * @var array
      */
     protected $fillable = ['ID_CONSUMPTIONS', 'ID_EQUIP', 'TEMPERATURE', 'CONSUMPTION_PERM', 'CONSUMPTION_GETCOLD'];

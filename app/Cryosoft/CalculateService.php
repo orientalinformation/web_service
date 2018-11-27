@@ -70,7 +70,6 @@ class CalculateService
         $this->calParametersDef = $this->getCalculationParametersDef();
         $this->units = $app['App\\Cryosoft\\UnitsService'];
         $this->equipment = $app['App\\Cryosoft\\EquipmentsService'];
-
     }
 
     public function getCalculationMode($idStudy) 
@@ -375,27 +374,12 @@ class CalculateService
                 break;
         }
     
-        // $lint = DB::table('MESH_POSITION')->select('MESH_AXIS_POS')
-        //         ->join('PRODUCT_ELMT', 'MESH_POSITION.ID_PRODUCT_ELMT', '=', 'PRODUCT_ELMT.ID_PRODUCT_ELMT')
-        //         ->join('PRODUCT', 'PRODUCT_ELMT.ID_PROD', '=', 'PRODUCT.ID_PROD')
-        //         ->where('PRODUCT.ID_STUDY', '=', $idStudy)
-        //         ->where('MESH_POSITION.MESH_AXIS_POS', '=', $meshAxis)
-        //         ->orderBy("MESH_POSITION.MESH_AXIS_POS", 'desc')->get();
-        $product = Product::where('ID_STUDY', $idStudy)->first();
-        $productElmt = null;
-        $meshPosition = null;
-
-        if ($product != null) {
-            $idProd = $product->ID_PROD;
-            $productElmt = ProductElmt::where('ID_PROD', $idProd)->first();
-            if ($productElmt != null) {
-                $idProductElmt = $productElmt->ID_PRODUCT_ELMT;
-                $meshPosition = MeshPosition::select('MESH_AXIS_POS')
-                    ->where('MESH_AXIS', '=', $meshAxis)
-                    ->where('ID_PRODUCT_ELMT', '=', $idProductElmt)
-                    ->orderBy("MESH_AXIS_POS", "ASC")->distinct()->get();
-            }
-        }
+        $meshPosition = MeshPosition::distinct()->select('MESH_POSITION.MESH_AXIS_POS')
+        ->join('PRODUCT_ELMT', 'MESH_POSITION.ID_PRODUCT_ELMT', '=', 'PRODUCT_ELMT.ID_PRODUCT_ELMT')
+        ->join('PRODUCT', 'PRODUCT_ELMT.ID_PROD' , '=', 'PRODUCT.ID_PROD')
+        ->where('PRODUCT.ID_STUDY', $idStudy)
+        ->where('MESH_AXIS', $meshAxis)
+        ->orderBy('MESH_AXIS_POS', 'ASC')->get();
 
         $arrLint = array();
         $item = array();
@@ -477,7 +461,7 @@ class CalculateService
         if ($this->isStudyHasChilds($idStudy)) {
             $studies = Study::where('PARENT_ID', '=', $idStudy)->get();
             if (count($studies) > 0) {
-                for ($i = 0; $i < count($studies) ; $i++) { 
+                for ($i = 0; $i < count($studies); $i++) { 
                     if (($idStudyEquipment == -1) || ($idStudyEquipment == $studies[$i]->PARENT_STUD_EQP_ID)) {
                         $studies[$i]->TO_RECALCULATE = 1;
                         $studies[$i]->save();

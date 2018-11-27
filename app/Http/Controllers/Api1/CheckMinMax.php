@@ -18,6 +18,7 @@ class CheckMinMax extends Controller
      * @var Illuminate\Contracts\Auth\Factory
      */
     protected $auth;
+    
     /**
      * Create a new controller instance.
      *

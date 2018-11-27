@@ -28,12 +28,12 @@ class EquipGeneration extends Model
      * 
      * @var string
      */
-    protected $table = 'equip_generation';
+    protected $table = 'EQUIP_GENERATION';
 
     /**
      * @var array
      */
-    protected $fillable = ['ID_EQUIPGENERATION', 'ID_EQUIP', 'ID_ORIG_EQUIP1', 'ID_ORIG_EQUIP2', 'AVG_PRODINTEMP', 'TEMP_SETPOINT', 'DWELLING_TIME', 'MOVING_CHANGE', 'MOVING_POS', 'ROTATE', 'POS_CHANGE', 'NEW_POS', 'EQP_GEN_STATUS', 'EQP_GEN_LOADRATE'];
+    protected $fillable = ['ID_EQUIPGENERATION', 'ID_EQUIP', 'ID_ORIG_EQUIP1', 'ID_ORIG_EQUIP2', 'AVG_PRODINTEMP', 'TEMP_SETPOINT', 'DWELLING_TIME', 'MOVING_CHANGE', 'MOVING_POS', 'ROTATE', 'POS_CHANGE', 'NEW_POS', 'EQP_GEN_STATUS', 'EQP_GEN_LOADRATE', 'FAN_FREQUENCY'];
 
     /**
      * @var string

@@ -33,7 +33,7 @@ class LineElmt extends Model
      * 
      * @var string
      */
-    protected $table = 'line_elmt';
+    protected $table = 'LINE_ELMT';
 
     /**
      * @var array
@@ -61,11 +61,12 @@ class LineElmt extends Model
         'LINE_RELEASE'     => 'integer',
         'OPEN_BY_OWNER'     => 'integer',
         'ID_COOLING_FAMILY'     => 'integer',
+        // 'LINE_VERSION' => 'double'
     ];
     /**
      * @var string
      */
-    protected $dateFormat = 'Y-m-d H:i:s.u';
+    protected $dateFormat = 'Y-m-d H:i:s';
     /**
      * Indicates if the model should be timestamped.
      * 

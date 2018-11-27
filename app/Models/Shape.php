@@ -24,7 +24,7 @@ class Shape extends Model
      * 
      * @var string
      */
-    protected $table = 'shape';
+    protected $table = 'SHAPE';
 
     /**
      * @var array

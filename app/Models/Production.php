@@ -27,7 +27,7 @@ class Production extends Model
      * 
      * @var string
      */
-    protected $table = 'production';
+    protected $table = 'PRODUCTION';
 
     /**
      * @var array

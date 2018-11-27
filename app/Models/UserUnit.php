@@ -17,7 +17,7 @@ class UserUnit extends Model
      * 
      * @var string
      */
-    protected $table = 'user_unit';
+    protected $table = 'USER_UNIT';
 
     /**
      * @var array

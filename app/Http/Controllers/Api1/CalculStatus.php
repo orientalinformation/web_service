@@ -79,14 +79,17 @@ class CalculStatus extends Controller
     {
         $arr = $item = array();
         $studyEquipments = StudyEquipment::where('ID_STUDY', $idStudy)->get();
+
         if (count($studyEquipments) > 0) {
             foreach ($studyEquipments as $studyE) {
                 $equipment = Equipment::find($studyE->ID_EQUIP);
 
-                $item['ID_EQUIP'] = $equipment->ID_EQUIP;
-                $item['EQUIP_NAME'] = $equipment->EQUIP_NAME;
-                $item['EQUIP_STATUS'] = floatval($studyE->EQUIP_STATUS);
-                array_push($arr, $item);
+                if ($equipment) {
+                    $item['ID_EQUIP'] = $equipment->ID_EQUIP;
+                    $item['EQUIP_NAME'] = $equipment->EQUIP_NAME;
+                    $item['EQUIP_STATUS'] = floatval($studyE->EQUIP_STATUS);
+                    array_push($arr, $item);
+                }
             }
         }
 

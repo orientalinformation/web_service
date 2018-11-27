@@ -30,7 +30,7 @@ class EquipCharact extends Model
      * 
      * @var string
      */
-    protected $table = 'equipcharact';
+    protected $table = 'EQUIPCHARACT';
 
     /**
      * @var array

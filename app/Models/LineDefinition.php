@@ -19,7 +19,7 @@ class LineDefinition extends Model
      * 
      * @var string
      */
-    protected $table = 'line_definition';
+    protected $table = 'LINE_DEFINITION';
 
     /**
      * @var array

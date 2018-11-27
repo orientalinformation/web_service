@@ -17,7 +17,7 @@ class Equipfamily extends Model
      * 
      * @var string
      */
-    protected $table = 'equipfamily';
+    protected $table = 'EQUIPFAMILY';
 
     /**
      * @var array

@@ -20,7 +20,6 @@ class Productions extends Controller
      * @var Illuminate\Contracts\Auth\Factory
      */
     protected $auth;
-    
 
     /**
      * Create a new controller instance.
@@ -55,10 +54,8 @@ class Productions extends Controller
     public function saveProduction($id) 
     {
         $update = (object) $this->request->json()->all();
-        // @var \App\Models\Production
         $production = \App\Models\Production::findOrFail($id);
 
-        
         $production->DAILY_PROD             = $update->DAILY_PROD;
         $production->DAILY_STARTUP          = $update->DAILY_STARTUP;
         $production->WEEKLY_PROD            = $update->WEEKLY_PROD;

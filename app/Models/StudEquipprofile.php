@@ -21,7 +21,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property mixed $EP_TEMP_RIGHT
  * @property mixed $EP_TEMP_FRONT
  * @property mixed $EP_TEMP_REAR
- * @property-read StudyEquipments $studyEquipments
+ * @property-read StudyEquipment $StudyEquipment
  */
 class StudEquipprofile extends Model
 {
@@ -30,7 +30,7 @@ class StudEquipprofile extends Model
      * 
      * @var string
      */
-    protected $table = 'stud_equipprofile';
+    protected $table = 'STUD_EQUIPPROFILE';
 
     /**
      * @var array
@@ -52,8 +52,8 @@ class StudEquipprofile extends Model
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
-    public function studyEquipments()
+    public function studyEquipment()
     {
-        return $this->belongsTo('StudyEquipments', 'ID_STUDY_EQUIPMENTS', 'ID_STUDY_EQUIPMENTS');
+        return $this->belongsTo('App\\Models\\StudyEquipment', 'ID_STUDY_EQUIPMENTS', 'ID_STUDY_EQUIPMENTS');
     }
 }

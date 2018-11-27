@@ -1,5 +1,6 @@
 reset
 DATAFILE = '/tmp/productSection.inp'
+DATAFILE = ARG5
 OUTPUT = ARG3."/".ARG4.".png"
 set key autotitle columnheader
 stats DATAFILE nooutput

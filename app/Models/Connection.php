@@ -22,7 +22,7 @@ class Connection extends Model
      * 
      * @var string
      */
-    protected $table = 'connection';
+    protected $table = 'CONNECTION';
 
     /**
      * @var array
@@ -58,7 +58,7 @@ class Connection extends Model
     /**
      * @var string
      */
-    public $dateFormat = 'Y-m-d H:i:s.u';
+    public $dateFormat = 'Y-m-d H:i:s';
 
     protected $hidden = [
         'user'

@@ -5,6 +5,7 @@ namespace App\Cryosoft;
 use App\Models\MeshGeneration;
 use App\Models\InitialTemperature;
 use App\Models\Study;
+use App\Models\InitTemp3D;
 
 class MeshService
 {
@@ -47,9 +48,9 @@ class MeshService
         $product = $study->products->first();
         // $meshGen = $study->products->first()->meshGenerations->first();
         
-        // run study cleaner, mode 51
+        // run study cleaner, mode 51 change by haipt SC_CLEAN_OUTPUT_SIZINGCONSO => SC_CLEAN_OUTPUT_PRODUCT
         $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $product->ID_STUDY, -1);
-        $this->kernel->getKernelObject('StudyCleaner')->SCStudyClean($conf, SC_CLEAN_OUTPUT_SIZINGCONSO);
+        $this->kernel->getKernelObject('StudyCleaner')->SCStudyClean($conf, SC_CLEAN_OUTPUT_PRODUCT);
 
         $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $product->ID_STUDY);
         $this->kernel->getKernelObject('MeshBuilder')->MBMeshBuild($conf);
@@ -57,10 +58,18 @@ class MeshService
         InitialTemperature::where('ID_PRODUCTION', $product->study->ID_PRODUCTION)->delete();
     }
 
+    public function refreshMesh(Study &$study)
+    {
+        $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $study->ID_STUDY, 10);
+        
+        return $this->kernel->getKernelObject('MeshBuilder')->MBMeshBuild($conf);
+    }
+
     public function generate(&$meshGen, $type, $mode, $size1 = -1, $size2 = -1, $size3 = -1)
     {
         // regular mesh
         $calcultype = $type; //estimation
+        $result = 1;
 
         $meshGen->MESH_1_FIXED = $calcultype;
         $meshGen->MESH_2_FIXED = $calcultype;
@@ -88,21 +97,23 @@ class MeshService
             $meshGen->MESH_3_SIZE = 0;
         }
         $meshGen->save();
-
+        
         $product = $meshGen->product;
-
-        // run study cleaner, mode 51
-        $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $product->ID_STUDY, -1);
-        $this->kernel->getKernelObject('StudyCleaner')->SCStudyClean($conf, SC_CLEAN_OUTPUT_SIZINGCONSO);
-
-
         $conf = $this->kernel->getConfig($this->auth->user()->ID_USER, $product->ID_STUDY);
-        $this->kernel->getKernelObject('MeshBuilder')->MBMeshBuild($conf);
+        $result = $this->kernel->getKernelObject('MeshBuilder')->MBMeshBuild($conf);
+
+        $prodElmt = $product->productElmts->first();
 
         // clear initial temperature
         $product->PROD_ISO = 1;
         $product->save();
 
         InitialTemperature::where('ID_PRODUCTION', $product->study->ID_PRODUCTION)->delete();
+        // clear 3D
+        if ($prodElmt) {
+            InitTemp3D::where('ID_PRODUCT_ELMT', $prodElmt->ID_PRODUCT_ELMT)->delete();
+        }
+
+        return $result;
     }
 }

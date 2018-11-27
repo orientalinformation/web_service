@@ -57,8 +57,8 @@ class PipeLine extends Controller
     public function findRefPipeline()
     {
         $mine =  LineElmt::where('ID_USER', $this->auth->user()->ID_USER)
-        ->join('Translation', 'ID_PIPELINE_ELMT', '=', 'Translation.ID_TRANSLATION')
-        ->where('Translation.TRANS_TYPE', 27)->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
+        ->join('TRANSLATION', 'ID_PIPELINE_ELMT', '=', 'TRANSLATION.ID_TRANSLATION')
+        ->where('TRANSLATION.TRANS_TYPE', 27)->where('TRANSLATION.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
         ->orderBy('LABEL', 'ASC')->get();
 
         foreach ($mine as $key) {
@@ -75,8 +75,8 @@ class PipeLine extends Controller
         }
         
         $others = LineElmt::where('ID_USER', '!=', $this->auth->user()->ID_USER)
-        ->join('Translation', 'ID_PIPELINE_ELMT', '=', 'Translation.ID_TRANSLATION')
-        ->where('Translation.TRANS_TYPE', 27)->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
+        ->join('TRANSLATION', 'ID_PIPELINE_ELMT', '=', 'TRANSLATION.ID_TRANSLATION')
+        ->where('TRANSLATION.TRANS_TYPE', 27)->where('TRANSLATION.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
         ->orderBy('LABEL', 'ASC')->get();
 
         foreach ($others as $key) {
@@ -104,7 +104,7 @@ class PipeLine extends Controller
 
     public function getListEnergies()
     {
-        $trans = Translation::join('cooling_family', 'ID_TRANSLATION', '=', 'cooling_family.ID_COOLING_FAMILY')
+        $trans = Translation::join('COOLING_FAMILY', 'ID_TRANSLATION', '=', 'COOLING_FAMILY.ID_COOLING_FAMILY')
         ->where('TRANS_TYPE', 2)->where('CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
         ->orderBy('LABEL', 'ASC')->get();
         
@@ -207,8 +207,8 @@ class PipeLine extends Controller
         $translation->save();
 
         $rs = LineElmt::where('ID_USER', $this->auth->user()->ID_USER)
-        ->join('Translation', 'ID_PIPELINE_ELMT', '=', 'Translation.ID_TRANSLATION')
-        ->where('Translation.TRANS_TYPE', 27)->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
+        ->join('TRANSLATION', 'ID_PIPELINE_ELMT', '=', 'TRANSLATION.ID_TRANSLATION')
+        ->where('TRANSLATION.TRANS_TYPE', 27)->where('TRANSLATION.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
         ->where('ID_PIPELINE_ELMT', $idLineElmt)->first();
 
         $rs->ELMT_PRICE = $this->units->monetary($rs->ELMT_PRICE, 3, 1);
@@ -341,8 +341,8 @@ class PipeLine extends Controller
             }
 
             $rs = LineElmt::where('ID_USER', $this->auth->user()->ID_USER)
-            ->join('Translation', 'ID_PIPELINE_ELMT', '=', 'Translation.ID_TRANSLATION')
-            ->where('Translation.TRANS_TYPE', 27)->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
+            ->join('TRANSLATION', 'ID_PIPELINE_ELMT', '=', 'TRANSLATION.ID_TRANSLATION')
+            ->where('TRANSLATION.TRANS_TYPE', 27)->where('TRANSLATION.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
             ->where('ID_PIPELINE_ELMT', $idPipeLine)->first();
 
             $rs->ELMT_PRICE = $this->units->monetary($rs->ELMT_PRICE, 3, 1);
@@ -411,8 +411,8 @@ class PipeLine extends Controller
         $translation->save();
 
         $rs = LineElmt::where('ID_USER', $this->auth->user()->ID_USER)
-        ->join('Translation', 'ID_PIPELINE_ELMT', '=', 'Translation.ID_TRANSLATION')
-        ->where('Translation.TRANS_TYPE', 27)->where('Translation.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
+        ->join('TRANSLATION', 'ID_PIPELINE_ELMT', '=', 'TRANSLATION.ID_TRANSLATION')
+        ->where('TRANSLATION.TRANS_TYPE', 27)->where('TRANSLATION.CODE_LANGUE', $this->auth->user()->CODE_LANGUE)
         ->where('ID_PIPELINE_ELMT', $idLineElmt)->first();
 
         $rs->ELMT_PRICE = $this->units->monetary($rs->ELMT_PRICE, 3, 1);

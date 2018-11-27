@@ -51,7 +51,6 @@ class BrainCalculateService
         $this->value = $app['App\\Cryosoft\\ValueListService'];
         $this->convert = $app['App\\Cryosoft\\UnitsConverterService'];
         $this->units = $app['App\\Cryosoft\\UnitsService'];
-
     }
 
     public function getCalcParams($idStudyEquipments)
@@ -306,6 +305,20 @@ class BrainCalculateService
         }
     }
 
+    public function getListDh($idStudyEquipments)
+    {
+        $studEqpPrms = $this->loadStudEqpPrm($idStudyEquipments, 400);
+        $dh = array();
+
+        if (!empty($studEqpPrms)) {
+            foreach ($studEqpPrms as $prms) {
+                array_push($dh, $prms->VALUE);
+            } 
+        }
+        
+        return $dh;
+    }
+
     public function loadStudEqpPrm($idStudyEquipments, $dataType)
     {
         $studEqpPrms = StudEqpPrm::where('ID_STUDY_EQUIPMENTS', $idStudyEquipments)
@@ -458,7 +471,14 @@ class BrainCalculateService
             case 11:
             case 15:
                 if ($brandType == 2) {
-                    $sOptimErrorH = $this->units->convertCalculator($calcParameter->ERROR_H, intval($uPercent["coeffA"]), intval($uPercent["coeffB"]), 2, 1);
+                    if ($calcParameter->ERROR_H == 0) {
+                        $sOptimErrorH =  $this->units->convertCalculator(0.01, intval($uPercent["coeffA"]), intval($uPercent["coeffB"]), 2, 1);
+                    } else {
+                        $sOptimErrorH = $this->units->convertCalculator(
+                            $calcParameter->ERROR_H, 
+                            intval($uPercent["coeffA"]), 
+                            intval($uPercent["coeffB"]), 2, 1);
+                    }
                 } else {
                     $minMax = $this->getMinMax(1133);
                     $sOptimErrorH =  $this->units->convertCalculator($minMax->DEFAULT_VALUE, intval($uPercent["coeffA"]), intval($uPercent["coeffB"]), 2, 1);
@@ -468,7 +488,14 @@ class BrainCalculateService
             case 12:
             case 16:
                 if ($brandType == 4 || $brandType == 3) {
-                    $sOptimErrorH =  $this->units->convertCalculator($calcParameter->ERROR_H, intval($uPercent["coeffA"]), intval($uPercent["coeffB"]), 2, 1);
+                    if ($calcParameter->ERROR_H == 0) {
+                        $sOptimErrorH =  $this->units->convertCalculator(0.01, intval($uPercent["coeffA"]), intval($uPercent["coeffB"]), 2, 1);
+                    } else {
+                        $sOptimErrorH =  $this->units->convertCalculator(
+                            $calcParameter->ERROR_H, 
+                            intval($uPercent["coeffA"]), 
+                            intval($uPercent["coeffB"]), 2, 1);
+                    }
                 } else {
                     $minMax = $this->getMinMax(1135);
                     $sOptimErrorH =  $this->units->convertCalculator($minMax->DEFAULT_VALUE, intval($uPercent["coeffA"]), intval($uPercent["coeffB"]), 2, 1);
@@ -478,7 +505,15 @@ class BrainCalculateService
             case 13:
             case 17:
                 if ($brandType != 0 && $brandType != 1) {
-                    $sOptimErrorH =  $this->units->convertCalculator($calcParameter->ERROR_H, intval($uPercent["coeffA"]), intval($uPercent["coeffB"]), 2, 1);
+                    if ($calcParameter->ERROR_H == 0) {
+                        $sOptimErrorH =  $this->units->convertCalculator(0.01, intval($uPercent["coeffA"]), intval($uPercent["coeffB"]), 2, 1);
+                    } else {
+                        $sOptimErrorH =  $this->units->convertCalculator(
+                            $calcParameter->ERROR_H, 
+                            intval($uPercent["coeffA"]),
+                            intval($uPercent["coeffB"]), 2, 1);
+                        
+                    }
                 } else {
                     $minMax = $this->getMinMax(1137);
                     $sOptimErrorH =  $this->units->convertCalculator($minMax->DEFAULT_VALUE, intval($uPercent["coeffA"]), intval($uPercent["coeffB"]), 2, 1);

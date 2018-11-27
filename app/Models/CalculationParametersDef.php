@@ -41,7 +41,7 @@ class CalculationParametersDef extends Model
      * 
      * @var string
      */
-    protected $table = 'calculation_parameters_def';
+    protected $table = 'CALCULATION_PARAMETERS_DEF';
 
     /**
      * @var array

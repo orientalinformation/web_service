@@ -22,7 +22,7 @@ class MeshPosition extends Model
      * 
      * @var string
      */
-    protected $table = 'mesh_position';
+    protected $table = 'MESH_POSITION';
 
      protected $hidden = [
         'productElmt'

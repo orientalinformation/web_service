@@ -21,7 +21,7 @@ class PackingLayer extends Model
      * 
      * @var string
      */
-    protected $table = 'packing_layer';
+    protected $table = 'PACKING_LAYER';
 
     /**
      * @var array

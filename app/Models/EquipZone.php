@@ -19,7 +19,7 @@ class EquipZone extends Model
      * 
      * @var string
      */
-    protected $table = 'equip_zone';
+    protected $table = 'EQUIP_ZONE';
 
     /**
      * @var array

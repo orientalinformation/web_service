@@ -86,6 +86,7 @@ class Admin extends Controller
         if (isset($input['username'])) $user->USERNAM = $username;
         if (isset($input['password'])) $user->USERPASS = $hashPassword;
         if (isset($input['email'])) $user->USERMAIL = $email;
+        
         $user->USERPRIO = 2;
         $user->USER_ENERGY = -1;
         $user->USER_CONSTRUCTOR = "";
@@ -192,13 +193,12 @@ class Admin extends Controller
     {
         $user = User::where('USERNAM', 'KERNEL')->first();
         $defaultProds = ProdcharColorsDef::where('ID_USER', $user->ID_USER)->get();
-        for ($i = 0; $i < count($defaultProds) ; $i++) {
+        for ($i = 0; $i < count($defaultProds); $i++) {
             $prodcharColorsDef = new ProdcharColorsDef();
             $prodcharColorsDef->ID_USER = $newIdUser;
             $prodcharColorsDef->ID_COLOR = $defaultProds[$i]->ID_COLOR;
             $prodcharColorsDef->LAYER_ORDER = $defaultProds[$i]->LAYER_ORDER;
             $prodcharColorsDef->save();
-
         }
     }
 
@@ -206,7 +206,7 @@ class Admin extends Controller
     {
         $user = User::where('USERNAM', 'KERNEL')->first();
         $defaultUnits = UserUnit::where('ID_USER', $user->ID_USER)->get();
-        for ($i = 0; $i < count($defaultUnits) ; $i++) { 
+        for ($i = 0; $i < count($defaultUnits); $i++) { 
             $userUnit = new UserUnit();
             $userUnit->ID_USER = $newIdUser;
             $userUnit->ID_UNIT = $defaultUnits[$i]->ID_UNIT;
@@ -218,9 +218,9 @@ class Admin extends Controller
     {
         $user = User::find($idUser);
 
-        if(!$user) {
+        if (!$user) {
             return -1;
-        }else{
+        } else {
             UserUnit::where('ID_USER', $user->ID_USER)->delete();
             CalculationParametersDef::where('ID_USER', $user->ID_USER)->delete();
             TempRecordPtsDef::where('ID_USER', $user->ID_USER)->delete();
@@ -250,9 +250,9 @@ class Admin extends Controller
         }
         $user = User::find($idUser);
 
-        if(!$user){
+        if (!$user) {
             return -1;
-        }else{
+        } else {
             if (isset($input['username'])) $user->USERNAM = $username;
             if (isset($input['password'])) $user->USERPASS = $hashPassword;
             if ($user->USERMAIL === '' || $user->USERMAIL === null) {
@@ -313,11 +313,14 @@ class Admin extends Controller
     public function resetStudiesStatusLockedByUser($idUser)
     {
         $studys = Study::where('ID_USER', $idUser)->get();
-        foreach ($studys as $study) {
-            StudyEquipment::with('study')
-            ->where('ID_STUDY', $study->ID_STUDY)
-            ->where('EQUIP_STATUS', '=', 100000)
-            ->update(['EQUIP_STATUS' => 0]);
+
+        if (count($studys) > 0) {
+            foreach ($studys as $study) {
+                StudyEquipment::with('study')
+                ->where('ID_STUDY', $study->ID_STUDY)
+                ->where('EQUIP_STATUS', '=', 100000)
+                ->update(['EQUIP_STATUS' => 0]);
+            }
         }
     }
 
@@ -329,12 +332,12 @@ class Admin extends Controller
 
         $record = $input['record'];
         if ($record != 0) {
-            $connections = Connection::with('User')
+            $connections = Connection::with('user')
             ->take($record)
             ->orderBy("DATE_CONNECTION", "DESC")
             ->get();
         } else {
-            $connections = Connection::with('User')
+            $connections = Connection::with('user')
             ->orderBy("DATE_CONNECTION", "DESC")
             ->get();
         }
@@ -345,32 +348,77 @@ class Admin extends Controller
     public function units()
     {
         $monetary = MonetaryCurrency::get();
-        $kernelMonetary = MonetaryCurrency::select('monetary_currency.*')->join('ln2user', 'monetary_currency.ID_MONETARY_CURRENCY', '=', 'ln2user.ID_MONETARY_CURRENCY')->where('ln2user.USERNAM', 'KERNEL')->first();
+        $kernelMonetary = MonetaryCurrency::select('MONETARY_CURRENCY.*')
+                        ->join('LN2USER', 'MONETARY_CURRENCY.ID_MONETARY_CURRENCY', '=', 'LN2USER.ID_MONETARY_CURRENCY')
+                        ->where('LN2USER.USERNAM', 'KERNEL')->first();
         $units = $this->unit->tmUnitTypeMapping();
-
         $listUnit = [];
-        foreach ($units as $key => $value) {
-            $kernelUnit = DB::table('Unit')
-                        ->where('ID_UNIT', '=', DB::raw('TYPE_UNIT'))
-                        ->where('TYPE_UNIT', $value['value'])
-                        ->where('TYPE_UNIT', '<>', 27)
-                        ->first();
-            $symbolSelect = Unit::where("TYPE_UNIT", $value['value'])->get();
-            $arrSymbol = [];
-            foreach ($symbolSelect as $row) {
-                $item['ID_UNIT'] = $row->ID_UNIT;
-                $item['SYMBOL'] = $row->SYMBOL;
-                $item['COEFF_A'] = (strlen(substr(strrchr($row->COEFF_A, "."), 1) > 1)) ? $row->COEFF_A : $this->unit->time($row->COEFF_A);
-                $item['COEFF_B'] = (strlen(substr(strrchr($row->COEFF_B, "."), 1) > 1)) ? $row->COEFF_B : $this->unit->time($row->COEFF_B);
-                $arrSymbol[] = $item;
+
+        if (count($units) > 0) {
+            foreach ($units as $key => $value) {
+                $kernelUnit = DB::table('UNIT')
+                            ->where('ID_UNIT', '=', DB::raw('TYPE_UNIT'))
+                            ->where('TYPE_UNIT', $value['value'])
+                            ->where('TYPE_UNIT', '<>', 27)
+                            ->first();
+                $symbolSelect = Unit::where("TYPE_UNIT", $value['value'])->get();
+                $arrSymbol = [];
+                if (count($symbolSelect) > 0) {
+                    foreach ($symbolSelect as $row) {
+                        $item['ID_UNIT'] = $row->ID_UNIT;
+                        $item['SYMBOL'] = $row->SYMBOL;
+                        $item['COEFF_A'] = (strlen(substr(strrchr($row->COEFF_A, "."), 1) > 1)) ? $row->COEFF_A : $this->unit->time($row->COEFF_A);
+                        $item['COEFF_B'] = (strlen(substr(strrchr($row->COEFF_B, "."), 1) > 1)) ? $row->COEFF_B : $this->unit->time($row->COEFF_B);
+                        $arrSymbol[] = $item;
+                    }
+                }
+
+                $listUnit[] = $value;
+                $listUnit[$key]['SYMBOL'] = $kernelUnit->SYMBOL;
+                $listUnit[$key]['symbolSelect'] = $arrSymbol;
+                $listUnit[$key]['COEFF_A'] = $this->unit->none($kernelUnit->COEFF_A);
+                $listUnit[$key]['COEFF_B'] = $this->unit->none($kernelUnit->COEFF_B);
             }
-            $listUnit[] = $value;
-            $listUnit[$key]['SYMBOL'] = $kernelUnit->SYMBOL;
-            $listUnit[$key]['symbolSelect'] = $arrSymbol;
-            $listUnit[$key]['COEFF_A'] = $this->unit->none($kernelUnit->COEFF_A);
-            $listUnit[$key]['COEFF_B'] = $this->unit->none($kernelUnit->COEFF_B);
         }
 
         return compact('monetary', 'kernelMonetary', 'listUnit');
+    }
+
+    public function saveFileTranslate()
+    {
+        $admintrans = [];
+        $dataJson = array();
+        $language = 'en';
+        $input = $this->request->all();
+
+        if (isset($input['admintrans'])) $admintrans = $input['admintrans'];
+        if (isset($input['idlang'])) $idlang = intval($input['idlang']);
+
+        getcwd();
+        chdir('../../cryosoft-ui/src/assets/i18n/');
+
+        if ($idlang == 2) {
+            $language = 'fr';
+        } else if ($idlang == 3) {
+            $language = 'it';
+        } else if ($idlang == 4) {
+            $language = 'de';
+        } else if ($idlang == 5) {
+            $language = 'es';
+        }
+
+        foreach ($admintrans as $key => $admintran) {
+            $dataJson[$admintran['key']] = $admintran['value'];
+        }
+
+        // encode array to json
+        $json = json_encode($dataJson, JSON_UNESCAPED_UNICODE);
+
+        // write json to file
+        if (file_put_contents(getcwd(). "/". $language . ".json", $json)) {
+            echo "File JSON sukses dibuat...";
+        } else {
+            echo "Oops! Terjadi error saat membuat file JSON...";
+        }
     }
 }

@@ -13,6 +13,13 @@ use Illuminate\Database\Eloquent\Model;
 class Ramps extends Model
 {
     /**
+     * The table associated with the model.
+     * 
+     * @var string
+     */
+    protected $table = 'RAMPS';
+    
+    /**
      * @var array
      */
     protected $fillable = ['ID_RAMPS', 'ID_EQUIP', 'POSITION'];

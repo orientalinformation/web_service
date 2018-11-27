@@ -18,7 +18,7 @@ class Translation extends Model
      * 
      * @var string
      */
-    protected $table = 'translation';
+    protected $table = 'TRANSLATION';
 
     /**
      * @var array
